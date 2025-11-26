@@ -1,0 +1,310 @@
+[project]
+name = "trading-bot"
+version = "0.1.0"
+description = "Modern algorithmic trading system with 2025 best practices"
+requires-python = ">=3.12"
+readme = "README.md"
+license = { text = "MIT" }
+authors = [
+    { name = "Trading Bot Team" }
+]
+
+dependencies = [
+    # High-performance data processing
+    "polars>=1.0.0",
+    "pyarrow>=18.0.0",
+    "duckdb>=1.1.0",
+
+    # Async runtime
+    "uvloop>=0.21.0",
+
+    # Fast serialization (faster than pydantic)
+    "msgspec>=0.18.0",
+
+    # Structured logging
+    "structlog>=24.0.0",
+
+    # Observability
+    "opentelemetry-api>=1.30.0",
+    "opentelemetry-sdk>=1.30.0",
+    "opentelemetry-exporter-otlp>=1.30.0",
+
+    # Numerical computing
+    "numpy>=2.0.0",
+    "scipy>=1.15.0",
+
+    # Type extensions
+    "typing-extensions>=4.12.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    # Linting and formatting
+    "ruff>=0.9.0",
+
+    # Type checking
+    "pyright>=1.1.400",
+    "mypy>=1.13.0",
+
+    # Testing
+    "pytest>=8.3.0",
+    "pytest-asyncio>=0.25.0",
+    "pytest-benchmark>=5.1.0",
+    "pytest-cov>=6.0.0",
+    "pytest-xdist>=3.6.0",  # parallel test execution
+
+    # Profiling
+    "py-spy>=0.4.0",
+    "scalene>=1.5.0",
+
+    # Security
+    "bandit[toml]>=1.8.0",
+    "pip-audit>=2.8.0",
+]
+
+native = [
+    # For building Rust/C++ extensions
+    "maturin>=1.7.0",  # Rust (PyO3)
+    "nanobind>=2.4.0",  # C++
+]
+
+exchange = [
+    # Modern broker connectivity (2025 standards)
+    "alpaca-py>=0.34.0",
+    "httpx>=0.27.0",
+    "httpx-sse>=0.4.0",  # For SSE streaming
+    "python-binance>=1.0.0",
+    "python-dotenv>=1.0.0",
+    "yfinance>=0.2.0",  # For market data
+    "orjson>=3.9.0",  # Fast JSON (10-100x faster than stdlib)
+    "websockets>=12.0",  # Modern WebSocket client
+    "pydantic>=2.5.0",  # V2 with performance improvements
+    "pydantic-settings>=2.1.0",  # Modern config management
+    "keyring>=24.3.0",  # OS-level credential storage
+    "ibapi>=9.81.1.post1",  # Interactive Brokers TWS API (latest published)
+    "web3>=7.0.0",  # Async-first Web3 client for on-chain access
+    "gql[aiohttp]>=3.5.0",  # GraphQL client for Uniswap subgraphs
+    "eth-abi>=5.0.0",
+    "eth-account>=0.13.0",
+    "eth-typing>=4.0.0",
+    "hexbytes>=1.2.0",
+]
+
+ml = [
+    # Machine learning (only if needed)
+    "scikit-learn>=1.6.0",
+    "xgboost>=2.1.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src"]
+
+# ============================================================================
+# Ruff Configuration (replaces black, isort, flake8, pylint)
+# ============================================================================
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+# Enable comprehensive rule sets
+select = [
+    "F",      # Pyflakes
+    "E",      # pycodestyle errors
+    "W",      # pycodestyle warnings
+    "C90",    # mccabe complexity
+    "I",      # isort
+    "N",      # pep8-naming
+    "D",      # pydocstyle
+    "UP",     # pyupgrade
+    "YTT",    # flake8-2020
+    "ANN",    # flake8-annotations
+    "ASYNC",  # flake8-async
+    "S",      # flake8-bandit (security)
+    "BLE",    # flake8-blind-except
+    "FBT",    # flake8-boolean-trap
+    "B",      # flake8-bugbear
+    "A",      # flake8-builtins
+    "COM",    # flake8-commas
+    "C4",     # flake8-comprehensions
+    "DTZ",    # flake8-datetimez
+    "T10",    # flake8-debugger
+    "EM",     # flake8-errmsg
+    "ISC",    # flake8-implicit-str-concat
+    "ICN",    # flake8-import-conventions
+    "G",      # flake8-logging-format
+    "PIE",    # flake8-pie
+    "T20",    # flake8-print
+    "PT",     # flake8-pytest-style
+    "Q",      # flake8-quotes
+    "RSE",    # flake8-raise
+    "RET",    # flake8-return
+    "SLF",    # flake8-self
+    "SLOT",   # flake8-slots
+    "SIM",    # flake8-simplify
+    "TID",    # flake8-tidy-imports
+    "TCH",    # flake8-type-checking
+    "ARG",    # flake8-unused-arguments
+    "PTH",    # flake8-use-pathlib
+    "ERA",    # eradicate (commented-out code)
+    "PL",     # Pylint
+    "TRY",    # tryceratops
+    "FLY",    # flynt
+    "PERF",   # Perflint
+    "RUF",    # Ruff-specific rules
+]
+
+ignore = [
+    "D100",   # Missing docstring in public module
+    "D104",   # Missing docstring in public package
+    "D203",   # 1 blank line required before class docstring (conflicts with D211)
+    "D213",   # Multi-line docstring summary should start at the second line (conflicts with D212)
+    "ANN101", # Missing type annotation for self in method
+    "ANN102", # Missing type annotation for cls in classmethod
+    "COM812", # Trailing comma missing (conflicts with formatter)
+    "ISC001", # Implicitly concatenated string literals (conflicts with formatter)
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = [
+    "S101",    # Use of assert detected
+    "ANN",     # Type annotations
+    "D",       # Docstrings
+    "PLR2004", # Magic value used in comparison
+]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 10
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "auto"
+
+# ============================================================================
+# Pyright Configuration (type checking)
+# ============================================================================
+[tool.pyright]
+typeCheckingMode = "strict"
+pythonVersion = "3.12"
+pythonPlatform = "All"
+
+include = ["src"]
+exclude = [
+    "**/__pycache__",
+    "**/.pytest_cache",
+    "**/node_modules",
+    ".venv",
+    "build",
+    "dist",
+]
+
+reportMissingImports = true
+reportMissingTypeStubs = false
+reportUnusedImport = true
+reportUnusedClass = true
+reportUnusedFunction = true
+reportUnusedVariable = true
+reportDuplicateImport = true
+reportOptionalMemberAccess = true
+reportOptionalSubscript = true
+reportPrivateUsage = true
+reportConstantRedefinition = true
+reportIncompatibleMethodOverride = true
+reportIncompatibleVariableOverride = true
+reportOverlappingOverload = true
+
+# ============================================================================
+# MyPy Configuration (alternative type checker)
+# ============================================================================
+[tool.mypy]
+python_version = "3.12"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_any_unimported = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+check_untyped_defs = true
+strict_equality = true
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+disallow_untyped_defs = false
+
+# ============================================================================
+# Pytest Configuration
+# ============================================================================
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "-ra",                    # Show summary of all test outcomes
+    "--strict-markers",       # Enforce marker registration
+    "--strict-config",        # Enforce config validation
+    "--cov=src",             # Coverage for src directory
+    "--cov-report=term-missing", # Show missing lines in coverage
+    "--cov-report=html",     # HTML coverage report
+    "--cov-report=xml",      # XML coverage report (for CI)
+    "-vv",                   # Very verbose
+]
+asyncio_mode = "auto"
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests",
+    "unit: marks tests as unit tests",
+]
+
+# ============================================================================
+# Coverage Configuration
+# ============================================================================
+[tool.coverage.run]
+branch = true
+source = ["src"]
+omit = [
+    "*/tests/*",
+    "*/test_*.py",
+    "*/__pycache__/*",
+    "*/.venv/*",
+]
+
+[tool.coverage.report]
+precision = 2
+show_missing = true
+skip_covered = false
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+    "class .*\\bProtocol\\):",
+    "@(abc\\.)?abstractmethod",
+]
+
+# ============================================================================
+# Bandit Configuration (security linting)
+# ============================================================================
+[tool.bandit]
+exclude_dirs = ["tests/", ".venv/", "build/"]
+skips = ["B101"]  # assert usage is OK in tests
+
+# ============================================================================
+# Pip-audit Configuration (dependency vulnerability scanning)
+# ============================================================================
+[tool.pip-audit]
+ignore-vuln = []

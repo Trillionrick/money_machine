@@ -1,0 +1,8 @@
+{
+  "mainnet": {
+    "GrowDollar": {
+      "address": "0xBDaFddc47d1cBac27f80A918908922aA6BF4B5BC",
+      "startBlock": 15629339
+    }
+  }
+}
