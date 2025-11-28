@@ -3,6 +3,10 @@
     "GrowDollar": {
       "address": "0xBDaFddc47d1cBac27f80A918908922aA6BF4B5BC",
       "startBlock": 15629339
+    },
+    "StakingVault": {
+      "address": "0x963d6ddd63c293184703bf6bec75461df80acf21",
+      "startBlock": 23861194
     }
   }
 }

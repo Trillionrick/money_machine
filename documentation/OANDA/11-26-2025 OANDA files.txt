@@ -1,0 +1,136 @@
+
+Effective LLM Integration Prompt Structure
+Core Context Block
+I'm integrating OANDA v20 REST API into an existing cryptocurrency/DEX application 
+Please scan my .env file, // money_graphic folder, and docker-compose.yml files to get a glimpse of my configurations
+Merge and incorporate these into my projects goals and patterns using my files for a guide.
+Current architecture:
+- Multi-broker abstraction layer with normalized data models
+- Existing integrations: [Kraken, Bybit, OKX, Deribit, Coinbase]
+- Event-driven order management with [Redis Streams/Kafka/NATS]
+- Real-time market data aggregation across exchanges
+- [Database: Drizzle ORM/SQLAlchemy/Prisma with TimescaleDB]
+
+OANDA-specific requirements:
+- Forex pairs treated as synthetic instruments alongside crypto
+- Account ID: [your account ID]
+- Bearer token authentication: e40e15bbe9f0ef2514c830c744ba76c7-1798a5e569420de88803588fca861288
+- Base URLs: https://api-fxtrade.oanda.com (live), https://api-fxpractice.oanda.com (demo)
+Specific Integration Request
+markdownDesign a production-grade OANDA broker adapter that:
+
+1. Unified Broker Interface Compliance
+   - Implements the same abstract interface as crypto exchanges
+   - Normalizes OANDA's order/trade/position models to match existing schemas
+   - Maps forex instruments (EUR_USD) to internal ticker format
+   - Handles OANDA's unit-based position sizing vs crypto's lot sizing
+
+2. Authentication & Connection Management
+   - Bearer token rotation strategy (OANDA tokens don't expire but should be rotatable)
+   - Rate limit handling (OANDA doesn't publish explicit limits; implement adaptive backoff)
+   - Connection pooling with keep-alive for streaming endpoints
+   - Graceful degradation if OANDA connectivity fails
+
+3. Market Data Integration
+   - Candle/OHLCV ingestion via `/v3/accounts/{accountID}/instruments/{instrument}/candles`
+   - Streaming price feed via `/v3/accounts/{accountID}/pricing/stream` (250ms throttling)
+   - Normalization: OANDA uses mid/bid/ask pricing; map to exchange-standard format
+   - Handle OANDA's daily alignment (17:00 ET) for daily candles
+   - Store in TimescaleDB hypertables with efficient compression
+
+4. Order Management Translation
+   - Map crypto order types (LIMIT, MARKET, STOP_LIMIT) to OANDA equivalents
+   - Handle OANDA's "units" (positive=long, negative=short) vs directional side parameter
+   - Implement clientExtensions for order tracking (correlate with internal order IDs)
+   - Position closure semantics: OANDA's PUT close vs exchange cancel+reverse
+
+5. Position & Trade Reconciliation
+   - OANDA positions are per-instrument nets; reconcile with multi-exchange portfolio
+   - Handle partial trade closures correctly
+   - Transaction log syncing via `/v3/accounts/{accountID}/transactions`
+   - Conflict resolution if internal state diverges from OANDA
+
+6. Error Handling & Observability
+   - OANDA-specific error codes (e.g., insufficient margin, invalid instrument)
+   - Structured logging with correlation IDs
+   - Prometheus metrics: API latency, rate limit hits, order fill rates
+   - Health checks: periodic account summary validation
+
+7. Async Implementation Requirements
+   - Use httpx with HTTP/2 multiplexing for REST calls
+   - Separate asyncio task for streaming price feed (auto-reconnect on disconnect)
+   - Non-blocking order submission with timeout handling
+   - Avoid deprecated asyncio patterns (use TaskGroup, not gather with return_exceptions)
+
+8. Security Considerations
+   - Never log or expose bearer token
+   - Token stored in environment variables or secure vault (HashiCorp Vault/AWS Secrets Manager)
+   - TLS 1.3 enforcement
+   - IP whitelisting recommendation (OANDA supports this)
+
+Provide:
+- Complete broker adapter class with type hints (Python 3.12+)
+- Database schema additions (if needed beyond existing multi-broker tables)
+- Configuration structure (YAML/Pydantic model)
+- Example usage showing order placement and market data subscription
+- Migration strategy from crypto-only to hybrid forex/crypto
+Key Technical Specifications
+markdownCritical implementation details:
+
+OANDA Quirks to Handle:
+- Transaction IDs are strings, not integers (unlike most exchanges)
+- Prices are decimal strings; use Python's `decimal.Decimal` for precision
+- Instruments use underscore notation (EUR_USD not EUR/USD or EURUSD)
+- No native support for order books; only streaming bid/ask spreads
+- "Candles" endpoint returns max 5000 candles; implement pagination for historical data
+- Streaming endpoint may send duplicate prices during reconnects; deduplicate by timestamp
+
+Performance Targets:
+- Order submission latency: <100ms p95
+- Streaming price ingestion: handle 4 updates/sec/instrument without backpressure
+- Database write throughput: >1000 candle inserts/sec
+- Memory footprint: <50MB per active instrument's price history
+
+Testing Requirements:
+- Unit tests with mocked OANDA responses
+- Integration tests against fxPractice (demo) account
+- Load test: 50 concurrent instruments with streaming prices
+- Chaos engineering: simulate OANDA API downtime mid-trade
+Edge Cases to Address
+markdownHandle these OANDA-specific scenarios:
+
+1. Weekend Gaps: Forex markets close Friday 17:00 ET, reopen Sunday 17:00 ET. 
+   - How to represent the gap in candle data?
+   - Should the system halt trading logic or use last-known prices?
+
+2. Negative Balance Protection: OANDA has automatic closeouts if equity falls below 
+   margin requirements. Ensure internal position tracking reflects forced liquidations.
+
+3. Instrument Availability: Not all forex pairs tradeable on all accounts (depends 
+   on regulatory jurisdiction). Implement runtime instrument discovery via 
+   `/v3/accounts/{accountID}/instruments`.
+
+4. Price Precision: OANDA returns prices with varying decimal places (e.g., JPY pairs 
+   have 3 decimals, others have 5). Use instrument-specific precision from metadata.
+
+5. Streaming Reconnection: If WebSocket/HTTP stream disconnects, fetch missed prices 
+   via REST `/v3/accounts/{accountID}/pricing` before resuming stream to avoid gaps.
+
+Architectural Clarity: I'm not asking the LLM to "merge documentation" but to solve a systems integration problem with explicit constraints.
+Contextual Grounding: Referencing my existing broker integrations, the LLM understands the target abstraction level rather than generating isolated OANDA code.
+
+No Hallucination: Concrete requirements (rate limit handling, decimal precision, streaming reconnection) force the LLM to engage with OANDA's actual API behavior rather than inventing plausible-sounding but incorrect patterns.
+Modern Standards Enforcement: I'm Explicitly demanding Python 3.12+, httpx, async best practices, and deprecation avoidance ensures you don't receive outdated requests library examples or asyncio.gather() antipatterns.
+Production Orientation: Security, observability, error handling, and testing aren't afterthoughts—they're first-class requirements that shape the design.
+
+Post-Generation Validation
+Once the LLM provides the integration code, validate against:
+
+OANDA's Official Examples: Cross-reference with their GitHub repositories (though often outdated; prioritize API docs).
+Decimal Precision: Confirm all price handling uses Decimal, not float.
+Authentication Flow: Test token in both live and demo environments.
+Streaming Resilience: Simulate network interruptions; verify auto-reconnect logic.
+Schema Compatibility: Ensure OANDA data fits existing database constraints without lossy conversions.
+
+Don't generates code using deprecated libraries (e.g., requests, asyncio.coroutine decorators).
+Address forex-specific nuances (weekend gaps, unit-based sizing), Please double-check responses. Sonnet 4.5

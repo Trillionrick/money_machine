@@ -1,0 +1,16 @@
+{
+  "name": "money-machine-arbitrage-encoder",
+  "version": "1.0.0",
+  "description": "JavaScript encoding tools for flash loan arbitrage",
+  "main": "encode_arb_data.js",
+  "scripts": {
+    "encode": "node encode_arb_data.js",
+    "test": "echo \"No tests yet\""
+  },
+  "dependencies": {
+    "ethers": "^5.7.2"
+  },
+  "devDependencies": {},
+  "author": "",
+  "license": "MIT"
+}

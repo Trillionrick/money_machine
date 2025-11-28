@@ -1,0 +1,45 @@
+﻿$(document).ready(function () {
+    //  NOTE TO ADMINISTRATORS
+    //  =====================================================================
+    //  1. Text of the message must be contained between the double (") quotes.
+    //  2. Text itself must not contain any single (' - apostrophe) or double (") quotes.
+    //  3. Valid HTML may be used. e.g. - "<strong>this</strong> word is bold."
+    //  4. Although there may be TEXT in the serverMessage value, it will not display unless you set STEP 2 to true.
+
+    //  STEP 1:
+    //  Enter the desired text.
+    /*var serverMessage = "<p>NFA\'s name and logo are being used fraudulently to solicit funds for participation in an internship program and digital currency platform trading course. <a style=\'color: #ffffff;\' href=\'https://www.nfa.futures.org/alert-fraudulent-website.html\'>Learn more about the scam</a>.</p>";*/
+    var serverMessage = "<p>Due to maintenance, the following systems will be unavailable from 8:00 a.m. until 3:00 p.m. CT on Sunday, February 25, 2024: Online Registration System (ORS), BASIC Data Entry, Security Futures Products Training, Online Payments, Online Arbitration Claims, Arbitrator Profile, Arbitrator Training, Employment Application and Profile System, and all Electronic Filings Systems including EasyFile, Exemptions, Annual Questionnaire, and Disclosure Documents. We apologize for any inconvenience.</p>";
+    var serverMessage2 = "<p>Please be advised that Microsoft is experiencing issues with their email system, which affects the ability to authenticate access to NFA’s systems using email as a multifactor authentication. The option to authenticate using phone and text is currently available. We expect the issue to be resolved soon. We apologize for any inconvenience.</p>";
+	//var serverMessage2 = "<p>Due to maintenance, NFA's website may be unavailable from 4:30 p.m. until 5:00 p.m. CT today, October 19, 2023. We apologize for any inconvenience.</p>";
+
+
+
+    //  STEP 2:
+    //  Turn message on/off by setting the serverMessageOn value to true or false (no quotes).
+    var serverMessageOn = false;
+    var serverMessageOn2 = false;
+
+    //  STEP 3:
+    //  Set the message level.
+    //  1. Value of "1" - displays message as an informational alert (green banner)
+    //  2. Value of "2" - displays message as an urgent alert (red banner)
+    var serverMessageLevel = 2;
+    var serverMessageLevel2 = 2;
+	
+ 
+    //  =====================================================================
+    //  ADMINISTRATORS DO NOT MODIFY THE CODE BELOW
+    //  =====================================================================
+
+    // This only fires if the serverMessageOn is set to true in SETP 2.
+    if (serverMessageOn) {
+        displayServerMessage(serverMessageLevel,1000,serverMessage);
+    }
+
+    // This only fires if the serverMessageOn is set to true in SETP 2.
+    if (serverMessageOn2) {
+        displayServerMessage(serverMessageLevel2, 1000, serverMessage2);
+    }
+
+});

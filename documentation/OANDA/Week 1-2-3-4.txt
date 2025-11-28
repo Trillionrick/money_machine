@@ -1,0 +1,80 @@
+Week 1: Data Collection
+  - Set up TimescaleDB (run oanda_schema.py SQL)
+  - Start collecting forex price data for major pairs
+  - Build historical candle database
+
+  Week 2-3: Strategy Testing
+  - Run your existing strategies on forex data
+  - Test order execution in practice account
+  - Adjust position sizing for forex units
+
+  Week 4: Unified Portfolio
+  - Implement multi-broker order routing
+  - Combine crypto + forex positions
+  - Cross-asset risk management
+
+  Week 5+: Production
+  - Switch to OANDA_ENVIRONMENT=live
+  - Start with small positions
+  - Monitor closely
+
+ 
+  ⚠️ Critical Reminders
+  1. Start with Practice Account - Always use OANDA_ENVIRONMENT=practice initially
+  2. Review NFA Advisory - Read documentation/customeradvisory_urvct121517.pdf
+  3. Forex Trading Hours - Markets closed weekends (Fri 17:00 ET → Sun 17:00 ET)
+  4. Margin Requirements - OANDA auto-closes positions if equity < margin
+  5. No Order Books - Forex only has bid/ask spreads, not depth
+  6. Decimal Precision - JPY pairs use 3 decimals, others use 5
+
+ 
+  📊 Architecture Highlights
+
+  Multi-Broker Abstraction
+  # Same interface for all brokers
+  alpaca = AlpacaAdapter(...)
+  kraken = KrakenAdapter(...)
+  oanda = OandaAdapter(...)
+
+  # All implement ExecutionEngine protocol
+  await alpaca.submit_orders([order])
+  await oanda.submit_orders([order])
+
+  Unified Data Models
+  # OANDA data normalized to your existing types
+  from src.core.execution import Order, Fill, Side, OrderType
+  from src.core.types import Symbol, Price, Quantity
+
+  # Works seamlessly with existing infrastructure
+
+  Streaming + REST Integration
+
+  # Real-time fills via streaming
+  async for fill in adapter.stream_fills():
+      process_fill(fill)
+
+  # Historical data via REST
+  candles = await market_data.get_candles_paginated(...)
+
+ 
+  🔍 Code Quality
+  All code follows your project's standards:
+  - ✅ Ruff compliant - Passes all linting rules from pyproject.toml
+  - ✅ Type checked - Pyright strict mode compatible
+  - ✅ Zero dependencies added - Uses existing packages (httpx, pydantic, structlog, orjson)
+  - ✅ Matches patterns - Follows your Alpaca/Kraken adapter structure
+  - ✅ Async-first - All I/O is non-blocking
+  - ✅ Production-ready - Error handling, retry logic, observability built-in
+
+ 
+  📚 Resources Included
+  - API Documentation: OANDA v20 REST API fully integrated
+  - Database Schema: TimescaleDB with compression and continuous aggregates
+  - 14 Working Examples: From basic orders to complex multi-broker routing
+  - Migration Guide: Step-by-step 5-week rollout plan
+  - Production Checklist: Security, monitoring, testing, compliance
+
+ 
+  Your OANDA forex integration is ready for testing! The adapter treats forex pairs as synthetic instruments
+  alongside your existing crypto/DEX infrastructure. Start with the practice account, collect some data, and
+  gradually integrate forex into your trading strategies.

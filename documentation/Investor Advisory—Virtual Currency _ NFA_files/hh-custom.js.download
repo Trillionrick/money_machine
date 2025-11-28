@@ -1,0 +1,68 @@
+$(document).ready(function(e) {
+    var href = window.location.href
+    let hash = href;//document.location.hash;
+    if(hash){
+        $('[href="${href}"]').tab('show');
+    }
+    
+    
+    $('.collapse').on('shown.bs.collapse', function(e) {
+      var $card = $(e.currentTarget).closest('.accordion-item');
+      var $navHeight = $('.navbar.fixed-top.py-0').height();
+      $('html,body').animate({
+        scrollTop: $card.offset().top - $navHeight
+      }, 250);
+    });
+    
+    //$('#table').bootstrapTable();
+    // selector: '[data-toggle=tooltip]'
+    $('#table').DataTable();
+    $('body').tooltip({
+        selector: '[data-bs-toggle=tooltip]'
+    });
+    
+});
+
+// when the hash changes, test if hash exists and
+// show that tab
+window.addEventListener('hashchange', e => {
+  var href = window.location.href
+  let hash = href;//e.target.location.hash;
+  if(hash){
+    $(`a[href="${href}"]`).tab('show');
+  }
+});
+
+
+window.addEventListener("load", (event) => {
+    var href = window.location.href;
+    var url = new URL(href);
+    var queryString = new URLSearchParams(url.search);
+    if(queryString.has('topic')) {
+        var topic = queryString.get('topic');
+        $('.bootstrap-table-filter-control-topic').val(topic);
+    }
+    
+    if(queryString.has('category')) {
+        var category = queryString.get('category');
+        $('input.bootstrap-table-filter-control-category').val(category);
+    }
+});
+
+//$(document).ready(function() {
+    //$('.collapse').on('shown.bs.collapse', function(e) {
+      //console.log("tab show when document ready and collapse triggered");
+      //var $card = $(e.currentTarget).closest('.accordion-item');
+      //var $navHeight = $('.navbar.fixed-top.py-0').height();
+      //$('html,body').animate({
+       // scrollTop: $card.offset().top - $navHeight
+     // }, 250);
+   // });
+    
+    ////$('#table').bootstrapTable();
+    ////        selector: '[data-toggle=tooltip]'
+    //$('#table').DataTable();
+    //$('body').tooltip({
+    //    selector: '[data-bs-toggle=tooltip]'
+  //  });
+//})

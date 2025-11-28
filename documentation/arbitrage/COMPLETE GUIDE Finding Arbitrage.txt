@@ -1,0 +1,1515 @@
+COMPLETE GUIDE: Finding Arbitrage Opportunities
+
+  I'll give you 4 methods ranging from manual to fully automated:
+
+  ---
+  📊 METHOD 1: Use Your Shaggy Dogg DEX Dashboard (We Just Built!)
+
+  Step 1: Add the Arbitrage Dashboard
+
+  First, let's integrate the dashboard we created:
+
+● Write(src/pages/ArbitrageScanner.tsx)
+  ⎿  Wrote 274 lines to src/pages/ArbitrageScanner.tsx
+     /**
+      * Arbitrage Opportunity Scanner Page
+      * Real-time detection of profitable arbitrage opportunities
+      */
+     import { useState, useEffect } from 'react';
+     import { ArbitrageDashboard } from '../components/arbitrage/ArbitrageDashboard';
+     import { useMultiDexComparison, type ArbitrageToken } from '../hooks/useArbitrageMonitor';
+     import { formatUnits, parseUnits, type Address } from 'viem';
+     import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
+     … +264 lines (ctrl+o to expand)
+
+● Now let me create a complete guide with all methods:
+
+● Write(HOW_TO_FIND_ARBITRAGE.md)
+  ⎿  Wrote 716 lines to HOW_TO_FIND_ARBITRAGE.md
+     # How to Find Arbitrage Opportunities
+     ## Complete Guide to Detecting Profitable Trades
+     ---
+     ## 🎯 4 METHODS TO FIND OPPORTUNITIES
+     1. **Your DEX Dashboard** (Easiest - We just built it!)
+     2. **DEX Aggregators** (Manual checking)
+     3. **On-Chain Data Tools** (Advanced)
+     … +706 lines (ctrl+o to expand)
+
+● ---
+  ✅ COMPLETE! Here's How to Find Arbitrage Opportunities
+
+  I've created a complete system with 4 different methods to find profitable arbitrage opportunities!
+
+  ---
+  📁 New Files Created
+
+  1. src/pages/ArbitrageScanner.tsx ⭐
+
+  Your own real-time arbitrage scanner with:
+  - Live price comparison across DEXes
+  - Automatic spread calculator
+  - Profit estimator (gross & net)
+  - Execution instructions button
+  - Historical opportunities tracker
+
+  2. HOW_TO_FIND_ARBITRAGE.md
+
+  Complete 2000+ word guide covering:
+  - 4 different methods to find opportunities
+  - Real-world examples
+  - Tools and websites
+  - Automated monitoring scripts
+  - Success strategies
+  - Common mistakes to avoid
+
+  ---
+  🚀 QUICK START (5 Minutes)
+
+  Step 1: Add Scanner to Your App
+
+  File: src/App.tsx
+
+  import { ArbitrageScanner } from './pages/ArbitrageScanner';
+
+  // Add this route:
+  <Route path="/arbitrage-scanner" element={<ArbitrageScanner />} />
+
+  Step 2: Start Server
+
+  npm run dev
+
+  Step 3: Visit Scanner
+
+  http://localhost:5173/arbitrage-scanner
+
+  You'll see:
+  - Live prices from Uniswap
+  - Price spread calculator
+  - Profit estimator
+  - "Show Execution Instructions" button
+
+  ---
+  🎯 THE 4 METHODS
+
+  ⭐ Method 1: Your DEX Dashboard (EASIEST!)
+
+  Your Custom Scanner - Just built it!
+
+  ✅ Real-time monitoring
+  ✅ Auto-calculations
+  ✅ Execution instructions
+  ✅ No external tools needed
+
+  How it works:
+  1. Select token pair (WETH/USDC)
+  2. Select amount (1, 10, 100 WETH)
+  3. Scanner shows live prices from multiple DEXes
+  4. If spread > 0.5% → Shows "Profitable" alert
+  5. Click button → Get exact flash loan parameters!
+
+  ---
+  🔍 Method 2: DEX Aggregators (MANUAL)
+
+  Use existing tools:
+
+  1inch.io:
+  1. Go to app.1inch.io
+  2. Check: 100 WETH → USDC
+  3. Note price: e.g., 300,000 USDC
+  4. Compare with SushiSwap
+  5. If different → Arbitrage!
+
+  Dex Screener:
+  1. Visit dexscreener.com
+  2. Search "WETH/USDC"
+  3. See all DEX prices side-by-side
+  4. Spot the spread
+
+  GeckoTerminal:
+  1. Visit geckoterminal.com
+  2. Search pair
+  3. Compare prices
+  4. Set alerts
+
+  ---
+  📈 Method 3: On-Chain Data (ADVANCED)
+
+  Read directly from blockchain:
+
+  Use the monitoring script I included in the guide:
+
+  // Checks Uniswap vs SushiSwap every 10 seconds
+  node scripts/monitorPrices.js
+
+  Shows:
+  ═══════════════════════════════════════
+  Uniswap:   299,500 USDC
+  SushiSwap: 301,200 USDC
+  Spread:    0.57% ✅
+  ═══════════════════════════════════════
+  ✅ ARBITRAGE OPPORTUNITY DETECTED!
+
+  ---
+  🤖 Method 4: Automated Bot (EXPERT)
+
+  Fully automated monitoring - Script provided in guide!
+
+  - WebSocket connection
+  - Real-time alerts
+  - Auto-execution (optional)
+  - 24/7 monitoring
+
+  ---
+  💰 EXAMPLE: Find & Execute Opportunity
+
+  Your Scanner Shows:
+
+  ═══════════════════════════════════════
+  LIVE PRICE SPREAD
+
+  Pair: WETH/USDC
+  Amount: 100 WETH
+
+  Uniswap V2:  299,500 USDC
+  SushiSwap:   301,200 USDC
+
+  Price Spread: 0.57% ✅ PROFITABLE!
+
+  Estimated Gross Profit: ~1,700 USDC (0.57 WETH)
+
+  [Show Execution Instructions] ← CLICK THIS
+  ═══════════════════════════════════════
+
+  Click Button → Get Instructions:
+
+  To execute this arbitrage:
+
+  1. Parameters:
+     - Borrow: 100 WETH
+     - Expected Profit: 0.57 WETH
+     - Gas needed: ~350,000
+
+  2. Update encodeArbData_optimized.js:
+     borrowAmount: 100
+     expectedProfit: 0.57
+
+  3. Run: node encodeArbData_optimized.js
+
+  4. Copy encoded data to Remix
+
+  5. Execute flash loan → Profit!
+
+  ---
+  📊 What Makes an Opportunity Good?
+
+  ✅ PROFITABLE Opportunity:
+
+  Spread: 0.8%           ✅ > 0.5%
+  Amount: 100 WETH       ✅ Good size
+  Gas Price: 35 Gwei     ✅ < 50
+  Liquidity: $50M        ✅ > $1M
+  Net Profit: 0.6 WETH   ✅ > 0.3
+
+  → EXECUTE!
+
+  ❌ SKIP This:
+
+  Spread: 0.2%           ❌ Too small
+  Gas Price: 150 Gwei    ❌ Too high
+  Liquidity: $100K       ❌ Low
+  Net Profit: 0.05 WETH  ❌ Not worth it
+
+  → WAIT FOR BETTER
+
+  ---
+  🎯 PRACTICAL WORKFLOW
+
+  Daily Routine:
+
+  Morning (10 min):
+  1. Open scanner: localhost:5173/arbitrage-scanner
+  2. Check WETH/USDC spread
+  3. Note any > 0.5%
+  4. Check gas prices
+
+  During Day:
+  - Refresh periodically
+  - Watch for volatility
+  - Monitor alerts
+
+  Evening (Low Gas):
+  1. Wait for gas < 30 Gwei
+  2. Check if opportunity still exists
+  3. Run encoding script
+  4. Execute flash loan
+  5. Profit! 💰
+
+  ---
+  ⚠️ Before Executing - Verify:
+
+  1. ✅ Spread still exists (check 30 seconds before)
+  2. ✅ Gas < 50 Gwei (check etherscan.io/gastracker)
+  3. ✅ Liquidity > $1M (check dexscreener.com)
+  4. ✅ Net profit > 0.3 WETH (after all fees)
+  5. ✅ Encoding script updated (correct amounts)
+
+  ---
+  🔥 Pro Tips
+
+  1. Best Times to Find Opportunities
+
+  High Volatility:
+  - 8-10 AM EST (market open)
+  - Major news announcements
+  - Large liquidation events
+
+  Low Gas:
+  - 12 AM - 4 AM EST
+  - Sundays
+  - Execute then!
+
+  2. Best Token Pairs
+
+  Start with:
+  - WETH/USDC (most liquid)
+  - WETH/USDT (high volume)
+  - USDC/DAI (stablecoins - lower profit but consistent)
+
+  Avoid:
+  - Low-volume pairs
+  - New tokens
+  - Exotic pairs
+
+  3. Use Multiple Sources
+
+  Don't trust one source:
+  - ✅ Your dashboard
+  - ✅ Dex Screener
+  - ✅ 1inch
+  - ✅ Manual Uniswap check
+
+  All agree → Execute!
+
+  ---
+  📚 Complete Documentation
+
+  Read These:
+
+  1. HOW_TO_FIND_ARBITRAGE.md - Complete guide (start here!)
+  2. ARBITRAGE_INTEGRATION_GUIDE.md - How to integrate
+  3. documentation/Arbitrage_solidity/ENHANCEMENT_GUIDE.md - Math formulas
+
+  Use These Tools:
+
+  1. Your Scanner - localhost:5173/arbitrage-scanner
+  2. Dex Screener - https://dexscreener.com
+  3. Gas Tracker - https://etherscan.io/gastracker
+  4. 1inch - https://app.1inch.io
+
+  ---
+  ✅ Next Steps
+
+  Today:
+
+  1. ✅ Add ArbitrageScanner route to your app
+  2. ✅ Visit the scanner
+  3. ✅ Watch prices for 1 hour
+  4. ✅ Understand the spread calculation
+
+  This Week:
+
+  1. Monitor daily for opportunities
+  2. Document patterns (when do they appear?)
+  3. Paper trade (practice without executing)
+  4. Learn the timing
+
+  Next Week:
+
+  1. Deploy flash loan contract to testnet
+  2. Execute first test trade
+  3. Verify profitability
+  4. Scale up gradually
+
+  ---
+  🎉 You Now Have:
+
+  ✅ Custom arbitrage scanner with live prices
+  ✅ Automatic profit calculator
+  ✅ Execution instruction generator
+  ✅ 4 different methods to find opportunities
+  ✅ Complete documentation with examples
+  ✅ Monitoring scripts for automation
+
+  Everything you need to find and execute profitable arbitrage!
+
+  ---
+  🚀 Start Now!
+
+  1. Add the scanner route (1 line of code)
+  2. Visit: localhost:5173/arbitrage-scanner
+  3. Watch the live prices
+  4. When you see spread > 0.5% → Follow instructions!
+
+  Your arbitrage hunting journey starts here! 💰🎯
+
+========================================
+========================================
+
+Let me break down exactly what this output means, section by section:
+
+
+  📋 WHAT THIS OUTPUT MEANS
+
+  ✅ Section 1: Contract Validation
+
+  ✅ Contract address validated: 0xBDaFddc47d1cBac27f80A918908922aA6BF4B5BC
+
+  Meaning: The script confirmed your deployed contract address is valid. This is the contract that will receive the borrowed funds and execute       
+  the arbitrage.
+
+
+  📊 Section 2: Configuration
+
+  Borrow Amount: 100.0 WETH
+  Min Profit: 0.5 WETH
+  Expected Profit: 2.0 WETH
+  Gas Estimate: 350000 units
+
+  Meaning: This is your arbitrage plan:
+  - Borrow 100 WETH from Aave using a flash loan
+  - Minimum acceptable profit: 0.5 WETH (you won't execute if profit is below this)
+  - Expected profit: 2.0 WETH (if everything goes as planned)
+  - Gas usage estimate: 350,000 gas units
+
+
+  🔄 Section 3: Swap Configuration
+
+  Path: WETH → USDC → WETH
+  Fee Tier: 0.3%
+  Slippage Tolerance: 0.5%
+  Min Output: 101.49 WETH
+  Deadline: 11/27/2025, 6:31:42 PM
+
+  Meaning: This is your arbitrage path:
+  1. Start with: 100 WETH (borrowed)
+  2. Swap WETH → USDC on first DEX (pay 0.3% fee)
+  3. Swap USDC → WETH on second DEX (pay 0.3% fee)
+  4. End with: At least 101.49 WETH (or transaction fails)
+  5. Deadline: Transaction expires at 6:31:42 PM (20 minutes from when you ran the script)
+
+  The Goal: End up with more WETH than you borrowed!
+
+
+  💰 Section 4: Profitability Analysis (MOST IMPORTANT!)
+
+  Expected Gross Profit: 2.0 WETH
+  Flash Loan Fee (0.05%): 0.05 WETH
+  Gas Cost (50 Gwei): 0.0175 ETH
+  Slippage Cost (0.5%): 0.5 WETH
+-------------------------------------
+  Net Profit: 1.4325 WETH ✅
+  Profitable: ✅ YES
+  Break-Even Spread: 0.06%
+  ROI: 1.43%
+
+  Meaning - The Math Breakdown:
+
+  Revenue:
+  - You expect to make 2.0 WETH gross profit (from price difference)
+
+  Costs:
+  - Flash loan fee: 0.05 WETH (Aave charges 0.05%)
+  - Gas cost: 0.0175 ETH (assuming 50 Gwei gas price)
+  - Slippage: 0.5 WETH (price impact from your large trade)
+
+  Net Profit:
+  2.0 WETH - 0.05 - 0.0175 - 0.5 = 1.4325 WETH profit! 🎉
+
+  Additional Metrics:
+  - Break-even: You only need 0.06% price difference to break even
+  - ROI: You're making 1.43% return on 100 WETH borrowed
+
+
+  📦 Section 5: Encoded Data
+
+  swapData:
+
+  0xc04b8d59000000000000...
+  Meaning: This is the encoded instruction for Uniswap V3 Router telling it:
+  - Swap WETH → USDC → WETH
+  - Use 100 WETH as input
+  - Send output to your contract
+  - Expire at the deadline
+
+  arbData (The Important One!):
+
+  0x00000000000000000000...
+  Meaning: This is the complete package containing:
+  1. Router address (Uniswap V3)
+  2. The swap instructions (swapData above)
+  3. Expected final token (WETH)
+  4. Minimum profit required (0.5 WETH)
+  5. Expected profit (2.0 WETH)
+  6. Gas estimate (350,000)
+
+  This is what you'll paste into Remix!
+
+
+  🚀 Section 6: How to Execute in Remix
+
+  1. loanAsset: 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2
+  2. loanAmount: 100000000000000000000
+  3. arbData: 0x0000000000...
+
+  Meaning: In Remix, find your deployed contract and call the requestFlashLoan function with these 3 parameters:
+
+  1. loanAsset: WETH address
+  2. loanAmount: 100 WETH in Wei (100 with 18 zeros)
+  3. arbData: The encoded package (copy the long hex string)
+
+
+  ⚠️ Section 7: Pre-Flight Checklist
+
+  ✅ Net profit is positive: 1.4325 WETH
+  ✅ Net profit > min profit: 1.4325 > 0.5
+  ✅ ROI > 1%: 1.43%
+  ✅ Gas price is reasonable: 50.0 Gwei
+  ✅ Contract address is set
+  ✅ Deadline is in the future
+
+  Meaning: The script ran automated safety checks:
+  - ✅ You'll make money (1.4325 WETH profit)
+  - ✅ Profit exceeds your minimum requirement
+  - ✅ ROI is good (1.43%)
+  - ✅ Gas price is reasonable (50 Gwei)
+  - ✅ Contract address is valid
+  - ✅ Deadline hasn't expired yet
+
+  All green! Safe to proceed (but read warnings below)
+
+
+  ⚠️ Section 8: Final Warnings
+
+  1. Test on testnet first!
+  2. Verify liquidity exists in the pools
+  3. Monitor gas prices before execution
+  4. Use simulateArbitrage() to verify opportunity
+
+  Meaning - CRITICAL WARNINGS:
+
+  1. Test on testnet: Don't use real money first! Deploy to Sepolia/Goerli testnet
+  2. Check liquidity: Make sure the pools have enough WETH/USDC to handle your 100 WETH trade
+  3. Gas prices: 50 Gwei was just an estimate - check actual gas prices before executing
+  4. Simulate first: Use the contract's simulateArbitrage() function to verify the opportunity is real
+
+
+  📊 Section 9: Risk Analysis (RAAV)
+
+  Failure Probability: 10%
+  Expected Loss (if failed): 0.0175 ETH
+  Risk-Adjusted Loss: 0.00175 ETH
+  Risk-Adjusted Value (RAAV): 1.43075 WETH
+
+  Meaning: Advanced risk calculation:
+  - 10% chance the transaction fails (front-running, price movement, etc.)
+  - If it fails: You lose 0.0175 ETH in gas (no profit)
+  - Risk-adjusted profit: 1.43 WETH (accounting for failure risk)
+
+  Interpretation: Still profitable even considering the risk!
+
+
+  🧪 Section 10: Pre-Execution Simulation
+
+  This is code you should run BEFORE executing the real arbitrage:
+
+  const simulation = await contract.simulateArbitrage(...)
+
+  Meaning: This will:
+  1. Read actual pool reserves from Uniswap/SushiSwap
+  2. Calculate exact price impact
+  3. Tell you if it's still profitable
+  4. Costs 0 gas (it's a view function)
+
+  This is like a test run before spending real money!
+
+
+  🎯 BOTTOM LINE - WHAT TO DO NEXT
+
+  ⚠️ THIS IS A SIMULATED EXAMPLE!
+
+  IMPORTANT: The script used example values:
+  - 2.0 WETH expected profit is made up
+  - The actual arbitrage opportunity may not exist
+  - The WETH → USDC → WETH path might not be profitable right now
+
+  ✅ BEFORE EXECUTING:
+
+  1. Find a REAL arbitrage opportunity:
+    - Compare prices on different DEXs
+    - Look for actual price differences
+    - Use tools like DEX aggregators
+  2. Update the script with real values:
+    - Real expected profit
+    - Actual pool addresses
+    - Current gas prices
+  3. Run simulation FIRST:
+  contract.simulateArbitrage(uniswapPair, sushiswapPair, amount, direction)
+  4. Test on testnet:
+    - Deploy to Sepolia
+    - Test with testnet tokens
+    - Verify everything works
+  5. Then and only then: Execute on mainnet
+
+
+  📝 WHAT THE ENCODED DATA DOES
+
+  When you paste that arbData into Remix and call requestFlashLoan:
+
+  1. Aave lends you 100 WETH instantly
+  2. Your contract receives it and executes the swaps:
+    - WETH → USDC on DEX1
+    - USDC → WETH on DEX2
+  3. Contract checks profit: Must have at least 100.55 WETH (100 + 0.05% fee + 0.5 min profit)
+  4. Repays Aave: 100.05 WETH (100 borrowed + 0.05 fee)
+  5. Keeps the profit: 1.4325 WETH (in this example)
+
+  All happens in ONE transaction - either all succeeds or all reverts!
+
+
+  ⚠️ FINAL WARNING
+
+  This output is showing you HOW it works, not a guaranteed profitable trade!
+
+  The 2 WETH profit is just an example. You need to:
+  1. Find real price differences
+  2. Verify liquidity exists
+  3. Test thoroughly
+  4. Use at your own risk
+
+  DO NOT execute this on mainnet without finding a real arbitrage opportunity first!
+
+=============================================================================
+=============================================================================
+
+arbitrage_money_enhanced_optimized.sol
+
+
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.25;
+
+/**
+ * @title EnhancedHighSpeedArbRunner (Stack-Optimized)
+ * @notice Advanced Flash Loan Arbitrage Contract - Optimized to avoid "Stack Too Deep" errors
+ * @dev This version reduces local variables by using helper functions and structs
+ */
+
+interface IERC20 {
+    function approve(address spender, uint256 amount) external returns (bool);
+    function balanceOf(address account) external view returns (uint256);
+    function transfer(address to, uint256 amount) external returns (bool);
+    function decimals() external view returns (uint8);
+}
+
+interface IAavePool {
+    function flashLoanSimple(
+        address receiverAddress,
+        address asset,
+        uint256 amount,
+        bytes calldata params,
+        uint16 referralCode
+    ) external;
+}
+
+interface IFlashLoanReceiver {
+    function executeOperation(
+        address asset,
+        uint256 amount,
+        uint256 premium,
+        address initiator,
+        bytes calldata params
+    ) external returns (bool);
+}
+
+interface IUniswapV2Pair {
+    function getReserves() external view returns (uint112 reserve0, uint112 reserve1, uint32 blockTimestampLast);
+    function token0() external view returns (address);
+    function token1() external view returns (address);
+}
+
+contract EnhancedHighSpeedArbRunner is IFlashLoanReceiver {
+    // ========== CONSTANTS & IMMUTABLES ==========
+
+    address public immutable AAVE_POOL;
+    address public immutable UNI_V3_ROUTER;
+    address public immutable WETH;
+
+    uint256 public constant AAVE_V3_FLASH_FEE_BPS = 5;
+    uint256 public constant BPS_DENOMINATOR = 10000;
+    uint256 public constant MIN_PROFIT_MARGIN_BPS = 10;
+
+    uint256 public maxGasPrice = 100 gwei;
+    uint256 public slippageTolerance = 50;
+
+    address public owner;
+
+    // ========== STRUCTS ==========
+
+    struct ArbPlan {
+        address routerAddress;
+        bytes swapData;
+        address finalToken;
+        uint256 minProfit;
+        uint256 expectedProfit;
+        uint256 gasEstimate;
+    }
+
+    struct MultiHopPath {
+        address[] tokens;
+        address[] routers;
+        uint24[] fees;
+        uint256 amountIn;
+        uint256 expectedOut;
+    }
+
+    struct ProfitabilityCheck {
+        uint256 grossProfit;
+        uint256 flashLoanFee;
+        uint256 gasCost;
+        uint256 slippageCost;
+        uint256 netProfit;
+        bool isProfitable;
+    }
+
+    struct AMMReserves {
+        uint256 reserve0;
+        uint256 reserve1;
+        address token0;
+        address token1;
+    }
+
+    // NEW: Struct to reduce stack depth in executeOperation
+    struct ExecutionContext {
+        uint256 gasStart;
+        uint256 amountOwed;
+        uint256 finalBalance;
+        uint256 actualProfit;
+        uint256 gasUsed;
+        uint256 gasCost;
+    }
+
+    // ========== EVENTS ==========
+
+    event ArbitrageExecuted(
+        address indexed asset,
+        uint256 borrowAmount,
+        uint256 profit,
+        uint256 gasCost,
+        uint256 timestamp
+    );
+
+    event ProfitabilityAnalysis(
+        uint256 grossProfit,
+        uint256 flashLoanFee,
+        uint256 gasCost,
+        uint256 netProfit,
+        bool approved
+    );
+
+    event FlashLoanInitiated(
+        address indexed asset,
+        uint256 amount,
+        uint256 estimatedProfit
+    );
+
+    event ConfigUpdated(
+        uint256 maxGasPrice,
+        uint256 slippageTolerance
+    );
+
+    event EmergencyWithdrawal(
+        address indexed token,
+        uint256 amount,
+        address indexed to
+    );
+
+    // ========== MODIFIERS ==========
+
+    modifier onlyOwner() {
+        require(msg.sender == owner, "HSA: Only owner");
+        _;
+    }
+
+    modifier gasOptimized() {
+        require(tx.gasprice <= maxGasPrice, "HSA: Gas price too high");
+        _;
+    }
+
+    // ========== CONSTRUCTOR ==========
+
+    constructor(
+        address _aavePool,
+        address _uniV3Router,
+        address _weth
+    ) {
+        require(_aavePool != address(0), "HSA: Invalid Aave pool");
+        require(_uniV3Router != address(0), "HSA: Invalid router");
+        require(_weth != address(0), "HSA: Invalid WETH");
+
+        owner = msg.sender;
+        AAVE_POOL = _aavePool;
+        UNI_V3_ROUTER = _uniV3Router;
+        WETH = _weth;
+    }
+
+    // ========== CORE ARBITRAGE FUNCTIONS ==========
+
+    function requestFlashLoan(
+        address loanAsset,
+        uint256 loanAmount,
+        bytes calldata arbData
+    ) external onlyOwner gasOptimized {
+        ArbPlan memory plan = _decodePlan(arbData);
+
+        ProfitabilityCheck memory check = calculateProfitability(
+            loanAmount,
+            plan.expectedProfit,
+            plan.gasEstimate
+        );
+
+        emit ProfitabilityAnalysis(
+            check.grossProfit,
+            check.flashLoanFee,
+            check.gasCost,
+            check.netProfit,
+            check.isProfitable
+        );
+
+        require(check.isProfitable, "HSA: Not profitable");
+        require(check.netProfit >= plan.minProfit, "HSA: Below min profit threshold");
+
+        emit FlashLoanInitiated(loanAsset, loanAmount, check.netProfit);
+
+        IAavePool(AAVE_POOL).flashLoanSimple(
+            address(this),
+            loanAsset,
+            loanAmount,
+            arbData,
+            0
+        );
+    }
+
+    /**
+     * @notice Optimized executeOperation - Reduced local variables
+     * @dev Uses struct and helper functions to avoid stack too deep
+     */
+    function executeOperation(
+        address asset,
+        uint256 amount,
+        uint256 premium,
+        address, // initiator
+        bytes calldata params
+    ) external override returns (bool) {
+        require(msg.sender == AAVE_POOL, "HSA: Unauthorized caller");
+
+        // Use struct to reduce stack depth
+        ExecutionContext memory ctx;
+        ctx.gasStart = gasleft();
+
+        ArbPlan memory plan = _decodePlan(params);
+        require(plan.finalToken == asset, "HSA: Token mismatch");
+
+        ctx.amountOwed = amount + premium;
+
+        // Execute the swap
+        _executeSwap(asset, amount, plan.routerAddress, plan.swapData);
+
+        // Validate profit and repay
+        ctx.finalBalance = IERC20(asset).balanceOf(address(this));
+        _validateAndRepay(asset, ctx.amountOwed, ctx.finalBalance, amount, plan.minProfit);
+
+        // Calculate metrics
+        ctx.actualProfit = ctx.finalBalance - ctx.amountOwed;
+        ctx.gasUsed = ctx.gasStart - gasleft();
+        ctx.gasCost = ctx.gasUsed * tx.gasprice;
+
+        emit ArbitrageExecuted(
+            asset,
+            amount,
+            ctx.actualProfit,
+            ctx.gasCost,
+            block.timestamp
+        );
+
+        return true;
+    }
+
+    // ========== INTERNAL HELPER FUNCTIONS (Reduce Stack Depth) ==========
+
+    /**
+     * @dev Execute swap - extracted to reduce stack depth
+     */
+    function _executeSwap(
+        address asset,
+        uint256 amount,
+        address router,
+        bytes memory swapData
+    ) internal {
+        _approveToken(asset, router, amount);
+
+        (bool success, bytes memory returnData) = router.call(swapData);
+        require(success, _getRevertMsg(returnData));
+    }
+
+    /**
+     * @dev Validate profit and repay loan - extracted to reduce stack depth
+     */
+    function _validateAndRepay(
+        address asset,
+        uint256 amountOwed,
+        uint256 finalBalance,
+        uint256 borrowAmount,
+        uint256 minProfit
+    ) internal {
+        require(finalBalance > amountOwed, "HSA: Loss detected");
+
+        uint256 minProfitWithMargin = _calculateMinProfitWithMargin(borrowAmount, minProfit);
+        require(
+            finalBalance >= amountOwed + minProfitWithMargin,
+            "HSA: Insufficient profit margin"
+        );
+
+        _approveToken(asset, AAVE_POOL, amountOwed);
+    }
+
+    // ========== PROFITABILITY CALCULATIONS ==========
+
+    function calculateProfitability(
+        uint256 borrowAmount,
+        uint256 expectedGrossProfit,
+        uint256 gasEstimate
+    ) public view returns (ProfitabilityCheck memory check) {
+        check.flashLoanFee = (borrowAmount * AAVE_V3_FLASH_FEE_BPS) / BPS_DENOMINATOR;
+        check.gasCost = gasEstimate * tx.gasprice;
+        check.slippageCost = (borrowAmount * slippageTolerance) / BPS_DENOMINATOR;
+        check.grossProfit = expectedGrossProfit;
+
+        uint256 totalCosts = check.flashLoanFee + check.gasCost + check.slippageCost;
+
+        if (check.grossProfit > totalCosts) {
+            check.netProfit = check.grossProfit - totalCosts;
+            check.isProfitable = true;
+        } else {
+            check.netProfit = 0;
+            check.isProfitable = false;
+        }
+
+        return check;
+    }
+
+    function getAmountOut(
+        uint256 reserveIn,
+        uint256 reserveOut,
+        uint256 amountIn,
+        uint256 poolFeeBps
+    ) public pure returns (uint256 amountOut) {
+        require(amountIn > 0, "HSA: Insufficient input");
+        require(reserveIn > 0 && reserveOut > 0, "HSA: Insufficient liquidity");
+
+        uint256 amountInWithFee = amountIn * (BPS_DENOMINATOR - poolFeeBps);
+        uint256 numerator = reserveOut * amountInWithFee;
+        uint256 denominator = (reserveIn * BPS_DENOMINATOR) + amountInWithFee;
+
+        amountOut = numerator / denominator;
+        return amountOut;
+    }
+
+    function calculatePriceImpact(
+        uint256 reserveIn,
+        uint256 reserveOut,
+        uint256 amountIn,
+        uint256 poolFeeBps
+    ) public pure returns (uint256 priceImpactBps) {
+        uint256 initialPrice = (reserveOut * BPS_DENOMINATOR) / reserveIn;
+        uint256 amountOut = getAmountOut(reserveIn, reserveOut, amountIn, poolFeeBps);
+
+        if (amountOut == 0) return BPS_DENOMINATOR;
+
+        uint256 avgExecutionPrice = (amountOut * BPS_DENOMINATOR) / amountIn;
+
+        if (avgExecutionPrice >= initialPrice) return 0;
+
+        priceImpactBps = ((initialPrice - avgExecutionPrice) * BPS_DENOMINATOR) / initialPrice;
+        return priceImpactBps;
+    }
+
+    function simulateArbitrage(
+        address pairAddress1,
+        address pairAddress2,
+        uint256 borrowAmount,
+        bool zeroForOne
+    ) external view returns (
+        uint256 expectedProfit,
+        uint256 priceImpact1,
+        uint256 priceImpact2,
+        bool isProfitable
+    ) {
+        AMMReserves memory reserves1 = _getReserves(pairAddress1);
+        AMMReserves memory reserves2 = _getReserves(pairAddress2);
+
+        uint256 amountOut1 = getAmountOut(
+            zeroForOne ? reserves1.reserve0 : reserves1.reserve1,
+            zeroForOne ? reserves1.reserve1 : reserves1.reserve0,
+            borrowAmount,
+            30
+        );
+
+        uint256 amountOut2 = getAmountOut(
+            zeroForOne ? reserves2.reserve1 : reserves2.reserve0,
+            zeroForOne ? reserves2.reserve0 : reserves2.reserve1,
+            amountOut1,
+            30
+        );
+
+        if (amountOut2 > borrowAmount) {
+            expectedProfit = amountOut2 - borrowAmount;
+            uint256 flashFee = (borrowAmount * AAVE_V3_FLASH_FEE_BPS) / BPS_DENOMINATOR;
+            isProfitable = expectedProfit > flashFee;
+        }
+
+        priceImpact1 = calculatePriceImpact(
+            zeroForOne ? reserves1.reserve0 : reserves1.reserve1,
+            zeroForOne ? reserves1.reserve1 : reserves1.reserve0,
+            borrowAmount,
+            30
+        );
+
+        priceImpact2 = calculatePriceImpact(
+            zeroForOne ? reserves2.reserve1 : reserves2.reserve0,
+            zeroForOne ? reserves2.reserve0 : reserves2.reserve1,
+            amountOut1,
+            30
+        );
+
+        return (expectedProfit, priceImpact1, priceImpact2, isProfitable);
+    }
+
+    function calculateBreakEvenSpread(
+        uint256 borrowAmount,
+        uint256 gasEstimate
+    ) public view returns (uint256 breakEvenBps) {
+        uint256 flashFee = (borrowAmount * AAVE_V3_FLASH_FEE_BPS) / BPS_DENOMINATOR;
+        uint256 gasCost = gasEstimate * tx.gasprice;
+        uint256 totalCost = flashFee + gasCost;
+
+        breakEvenBps = (totalCost * BPS_DENOMINATOR) / borrowAmount;
+        return breakEvenBps;
+    }
+
+    function calculateRAAV(
+        uint256 netProfit,
+        uint256 gasCost,
+        uint256 failureProbabilityBps
+    ) public pure returns (uint256 raav) {
+        uint256 expectedLoss = (gasCost * failureProbabilityBps) / BPS_DENOMINATOR;
+
+        if (netProfit > expectedLoss) {
+            raav = netProfit - expectedLoss;
+        } else {
+            raav = 0;
+        }
+
+        return raav;
+    }
+
+    // ========== MULTI-HOP SUPPORT ==========
+
+    function executeMultiHop(
+        MultiHopPath memory path
+    ) internal returns (uint256 finalAmount) {
+        require(path.tokens.length >= 2, "HSA: Invalid path length");
+        require(path.tokens.length == path.routers.length + 1, "HSA: Path/router mismatch");
+
+        uint256 currentAmount = path.amountIn;
+
+        for (uint256 i = 0; i < path.routers.length; i++) {
+            address tokenIn = path.tokens[i];
+            address tokenOut = path.tokens[i + 1];
+            address router = path.routers[i];
+
+            _approveToken(tokenIn, router, currentAmount);
+            currentAmount = IERC20(tokenOut).balanceOf(address(this));
+        }
+
+        return currentAmount;
+    }
+
+    // ========== CONFIGURATION ==========
+
+    function setMaxGasPrice(uint256 _maxGasPrice) external onlyOwner {
+        require(_maxGasPrice > 0, "HSA: Invalid gas price");
+        maxGasPrice = _maxGasPrice;
+        emit ConfigUpdated(maxGasPrice, slippageTolerance);
+    }
+
+    function setSlippageTolerance(uint256 _slippageTolerance) external onlyOwner {
+        require(_slippageTolerance <= 500, "HSA: Slippage too high");
+        slippageTolerance = _slippageTolerance;
+        emit ConfigUpdated(maxGasPrice, slippageTolerance);
+    }
+
+    function rescueFunds(address token, uint256 amount) external onlyOwner {
+        IERC20(token).transfer(owner, amount);
+        emit EmergencyWithdrawal(token, amount, owner);
+    }
+
+    function transferOwnership(address newOwner) external onlyOwner {
+        require(newOwner != address(0), "HSA: Invalid owner");
+        owner = newOwner;
+    }
+
+    // ========== INTERNAL UTILITIES ==========
+
+    function _decodePlan(bytes memory data) internal pure returns (ArbPlan memory) {
+        return abi.decode(data, (ArbPlan));
+    }
+
+    function _approveToken(address token, address spender, uint256 amount) internal {
+        IERC20(token).approve(spender, amount);
+    }
+
+    function _calculateMinProfitWithMargin(
+        uint256 borrowAmount,
+        uint256 minProfit
+    ) internal pure returns (uint256) {
+        uint256 safetyMargin = (borrowAmount * MIN_PROFIT_MARGIN_BPS) / BPS_DENOMINATOR;
+        return minProfit + safetyMargin;
+    }
+
+    function _getReserves(address pairAddress) internal view returns (AMMReserves memory reserves) {
+        IUniswapV2Pair pair = IUniswapV2Pair(pairAddress);
+        (uint112 reserve0, uint112 reserve1,) = pair.getReserves();
+
+        reserves.reserve0 = uint256(reserve0);
+        reserves.reserve1 = uint256(reserve1);
+        reserves.token0 = pair.token0();
+        reserves.token1 = pair.token1();
+
+        return reserves;
+    }
+
+    function _getRevertMsg(bytes memory returnData) internal pure returns (string memory) {
+        if (returnData.length < 68) return "HSA: Swap failed";
+
+        assembly {
+            returnData := add(returnData, 0x04)
+        }
+
+        return abi.decode(returnData, (string));
+    }
+
+    receive() external payable {}
+}
+
+=================================================
+=================================================
+
+encodeArbData_optimized.js
+
+// Enhanced Arbitrage Data Encoding Script
+// ✅ COMPATIBLE WITH: arbitrage_money_enhanced_optimized.sol
+// ✅ ALSO WORKS WITH: arbitrage_money_enhanced.sol (if compiled with viaIR)
+//
+// This script encodes arbitrage parameters for the EnhancedHighSpeedArbRunner contract
+
+const ethers = require("ethers");
+
+async function main() {
+    console.log("=".repeat(80));
+    console.log("ENHANCED ARBITRAGE DATA ENCODER (Optimized Contract Version)");
+    console.log("Compatible with: arbitrage_money_enhanced_optimized.sol");
+    console.log("=".repeat(80));
+
+    // --- CONFIGURATION CONSTANTS ---
+    const WETH = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2";
+    const USDC = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48"; // Example token
+    const CONTRACT_ADDRESS = "0xBDaFddc47d1cBac27f80A918908922aA6BF4B5BC"; // ⚠️ UPDATE THIS AFTER DEPLOYMENT!
+    const UNI_V3_ROUTER = "0xE592427A0AEce92De3Edee1F18E0157C05861564";
+
+    // --- VALIDATE CONTRACT ADDRESS ---
+    if (CONTRACT_ADDRESS === "0xYOUR_DEPLOYED_CONTRACT_ADDRESS") {
+        console.log("\n❌ ERROR: Contract address not set!");
+        console.log("=".repeat(80));
+        console.log("\n📋 Please follow these steps:\n");
+        console.log("1. Deploy arbitrage_money_enhanced_optimized.sol in Remix");
+        console.log("2. Copy the deployed contract address");
+        console.log("3. Update line 10 in this script:");
+        console.log('   const CONTRACT_ADDRESS = "0xYOUR_ACTUAL_ADDRESS";');
+        console.log("\n💡 Or use a test address to see the encoding:");
+        console.log('   const CONTRACT_ADDRESS = "0x1111111111111111111111111111111111111111";');
+        console.log("\n⚠️  WARNING: Don't execute transactions with a test address!");
+        console.log("=".repeat(80));
+        throw new Error("CONTRACT_ADDRESS placeholder not updated");
+    }
+
+    // Validate it's a valid Ethereum address
+    if (!ethers.utils.isAddress(CONTRACT_ADDRESS)) {
+        console.log("\n❌ ERROR: Invalid Ethereum address!");
+        console.log("=".repeat(80));
+        console.log(`\nProvided address: ${CONTRACT_ADDRESS}`);
+        console.log("\nEthereum addresses must:");
+        console.log("- Start with '0x'");
+        console.log("- Be 42 characters long (0x + 40 hex characters)");
+        console.log("- Contain only valid hex characters (0-9, a-f, A-F)");
+        console.log("\nExample valid address:");
+        console.log("0xd9145CCE52D386f254917e481eB44e9943F39138");
+        console.log("=".repeat(80));
+        throw new Error("Invalid CONTRACT_ADDRESS format");
+    }
+
+    console.log("\n✅ Contract address validated:", CONTRACT_ADDRESS);
+
+    // Pool fee tiers (Uniswap V3)
+    const FEE_LOW = 500;      // 0.05%
+    const FEE_MEDIUM = 3000;  // 0.3%
+    const FEE_HIGH = 10000;   // 1%
+
+    // --- ARBITRAGE PARAMETERS ---
+    const borrowAmount = ethers.utils.parseEther("100"); // 100 WETH
+    const minProfit = ethers.utils.parseEther("0.5");    // 0.5 WETH minimum
+    const expectedProfit = ethers.utils.parseEther("2"); // 2 WETH expected
+    const gasEstimate = 350000; // Estimated gas units (optimized contract uses ~350k)
+
+    // --- STEP 1: ENCODE SWAP PATH ---
+    // Example: WETH → USDC → WETH (circular arbitrage)
+    const path = ethers.utils.solidityPack(
+        ["address", "uint24", "address", "uint24", "address"],
+        [WETH, FEE_MEDIUM, USDC, FEE_MEDIUM, WETH]
+    );
+
+    console.log("\n📊 Configuration:");
+    console.log(`   Borrow Amount: ${ethers.utils.formatEther(borrowAmount)} WETH`);
+    console.log(`   Min Profit: ${ethers.utils.formatEther(minProfit)} WETH`);
+    console.log(`   Expected Profit: ${ethers.utils.formatEther(expectedProfit)} WETH`);
+    console.log(`   Gas Estimate: ${gasEstimate} units`);
+
+    // --- STEP 2: ENCODE UNISWAP V3 SWAP DATA ---
+    const routerIface = new ethers.utils.Interface([
+        "function exactInput((bytes path,address recipient,uint256 deadline,uint256 amountIn,uint256 amountOutMinimum)) returns (uint256)"
+    ]);
+
+    const deadline = Math.floor(Date.now() / 1000) + 1200; // 20 minutes from now
+
+    // Calculate minimum output with slippage tolerance (0.5%)
+    const slippageTolerance = 50; // 0.5% in basis points
+    const expectedOutput = borrowAmount.add(expectedProfit);
+    const minAmountOut = expectedOutput.mul(10000 - slippageTolerance).div(10000);
+
+    const swapData = routerIface.encodeFunctionData("exactInput", [{
+        path,
+        recipient: CONTRACT_ADDRESS,
+        deadline,
+        amountIn: borrowAmount,
+        amountOutMinimum: minAmountOut
+    }]);
+
+    console.log("\n🔄 Swap Configuration:");
+    console.log(`   Path: WETH → USDC → WETH`);
+    console.log(`   Fee Tier: ${FEE_MEDIUM / 10000}%`);
+    console.log(`   Slippage Tolerance: ${slippageTolerance / 100}%`);
+    console.log(`   Min Output: ${ethers.utils.formatEther(minAmountOut)} WETH`);
+    console.log(`   Deadline: ${new Date(deadline * 1000).toLocaleString()}`);
+
+    // --- STEP 3: CALCULATE PROFITABILITY METRICS ---
+
+    // Aave V3 flash loan fee: 0.05%
+    const AAVE_V3_FEE_BPS = 5;
+    const flashLoanFee = borrowAmount.mul(AAVE_V3_FEE_BPS).div(10000);
+
+    // Estimate gas cost (assuming 50 Gwei)
+    const gasPrice = ethers.utils.parseUnits("50", "gwei");
+    const gasCost = gasPrice.mul(gasEstimate);
+
+    // Slippage cost estimate
+    const slippageCost = borrowAmount.mul(slippageTolerance).div(10000);
+
+    // Net profit calculation
+    const totalCosts = flashLoanFee.add(gasCost).add(slippageCost);
+    const netProfit = expectedProfit.sub(totalCosts);
+
+    console.log("\n💰 Profitability Analysis:");
+    console.log(`   Expected Gross Profit: ${ethers.utils.formatEther(expectedProfit)} WETH`);
+    console.log(`   Flash Loan Fee (0.05%): ${ethers.utils.formatEther(flashLoanFee)} WETH`);
+    console.log(`   Gas Cost (50 Gwei): ${ethers.utils.formatEther(gasCost)} ETH`);
+    console.log(`   Slippage Cost (0.5%): ${ethers.utils.formatEther(slippageCost)} WETH`);
+    console.log(`   ----------------------------------------`);
+    console.log(`   Net Profit: ${ethers.utils.formatEther(netProfit)} WETH`);
+    console.log(`   Profitable: ${netProfit.gt(0) ? "✅ YES" : "❌ NO"}`);
+
+    // Calculate break-even spread
+    const breakEvenCost = flashLoanFee.add(gasCost);
+    const breakEvenBps = breakEvenCost.mul(10000).div(borrowAmount);
+    console.log(`   Break-Even Spread: ${breakEvenBps.toNumber() / 100}%`);
+
+    // Calculate ROI
+    const roi = netProfit.mul(10000).div(borrowAmount);
+    console.log(`   ROI: ${roi.toNumber() / 100}%`);
+
+    // --- STEP 4: ENCODE ARBPLAN STRUCT ---
+
+    // IMPORTANT: This struct MUST match the contract definition!
+    // From arbitrage_money_enhanced_optimized.sol:
+    //
+    // struct ArbPlan {
+    //     address routerAddress;
+    //     bytes swapData;
+    //     address finalToken;
+    //     uint256 minProfit;
+    //     uint256 expectedProfit;
+    //     uint256 gasEstimate;
+    // }
+
+    const arbData = ethers.utils.defaultAbiCoder.encode(
+        ["tuple(address routerAddress, bytes swapData, address finalToken, uint256 minProfit, uint256 expectedProfit, uint256 gasEstimate)"],
+        [{
+            routerAddress: UNI_V3_ROUTER,
+            swapData,
+            finalToken: WETH,
+            minProfit,
+            expectedProfit,
+            gasEstimate
+        }]
+    );
+
+    console.log("\n📦 Encoded Data:");
+    console.log("=".repeat(80));
+    console.log("\n✅ Encoded swapData:");
+    console.log(swapData);
+    console.log("\n✅ Encoded arbData (Full Payload for requestFlashLoan):");
+    console.log(arbData);
+
+    // --- STEP 5: GENERATE FUNCTION CALL INSTRUCTIONS ---
+
+    console.log("\n🚀 Ready to Execute:");
+    console.log("=".repeat(80));
+    console.log("\n📋 In Remix, call requestFlashLoan with these parameters:");
+    console.log(`\n1. loanAsset: ${WETH}`);
+    console.log(`2. loanAmount: ${borrowAmount.toString()}`);
+    console.log(`3. arbData: ${arbData}`);
+    console.log(`\n--- OR in JavaScript/Ethers.js: ---`);
+    console.log(`\nconst tx = await contract.requestFlashLoan(`);
+    console.log(`    "${WETH}",`);
+    console.log(`    "${borrowAmount.toString()}",`);
+    console.log(`    "${arbData}"`);
+    console.log(`);\n`);
+    console.log(`await tx.wait();`);
+    console.log(`console.log("Transaction hash:", tx.hash);\n`);
+
+    // --- STEP 6: SAFETY CHECKS ---
+
+    console.log("⚠️  Pre-Flight Checklist:");
+    console.log("=".repeat(80));
+
+    const checks = [
+        {
+            name: "Net profit is positive",
+            passed: netProfit.gt(0),
+            value: ethers.utils.formatEther(netProfit) + " WETH"
+        },
+        {
+            name: "Net profit > min profit",
+            passed: netProfit.gt(minProfit),
+            value: `${ethers.utils.formatEther(netProfit)} > ${ethers.utils.formatEther(minProfit)}`
+        },
+        {
+            name: "ROI > 1%",
+            passed: roi.gt(100),
+            value: `${roi.toNumber() / 100}%`
+        },
+        {
+            name: "Gas price is reasonable",
+            passed: gasPrice.lte(ethers.utils.parseUnits("100", "gwei")),
+            value: ethers.utils.formatUnits(gasPrice, "gwei") + " Gwei"
+        },
+        {
+            name: "Contract address is set",
+            passed: CONTRACT_ADDRESS !== "0xYOUR_DEPLOYED_CONTRACT_ADDRESS",
+            value: CONTRACT_ADDRESS
+        },
+        {
+            name: "Deadline is in the future",
+            passed: deadline > Math.floor(Date.now() / 1000),
+            value: new Date(deadline * 1000).toLocaleString()
+        }
+    ];
+
+    let allPassed = true;
+    checks.forEach(check => {
+        const status = check.passed ? "✅" : "❌";
+        console.log(`${status} ${check.name}: ${check.value}`);
+        if (!check.passed) allPassed = false;
+    });
+
+    console.log("\n" + "=".repeat(80));
+    if (allPassed) {
+        console.log("✅ ALL CHECKS PASSED - READY TO EXECUTE!");
+        console.log("\n⚠️  FINAL WARNINGS:");
+        console.log("   1. Test on testnet first!");
+        console.log("   2. Verify liquidity exists in the pools");
+        console.log("   3. Monitor gas prices before execution");
+        console.log("   4. Use simulateArbitrage() to verify opportunity");
+    } else {
+        console.log("❌ SOME CHECKS FAILED - REVIEW BEFORE EXECUTING!");
+        console.log("\n🔧 Fix the issues above before proceeding.");
+    }
+    console.log("=".repeat(80));
+
+    // --- STEP 7: RISK ANALYSIS ---
+
+    console.log("\n📊 Risk Analysis (RAAV Calculation):");
+    console.log("=".repeat(80));
+
+    // Calculate Risk-Adjusted Arbitrage Value (RAAV)
+    const failureProbability = 1000; // 10% chance of failure (1000 BPS)
+    const expectedLoss = gasCost.mul(failureProbability).div(10000);
+    const raav = netProfit.sub(expectedLoss);
+
+    console.log(`   Failure Probability: ${failureProbability / 100}%`);
+    console.log(`   Expected Loss (if failed): ${ethers.utils.formatEther(gasCost)} ETH`);
+    console.log(`   Risk-Adjusted Loss: ${ethers.utils.formatEther(expectedLoss)} ETH`);
+    console.log(`   Risk-Adjusted Value (RAAV): ${ethers.utils.formatEther(raav)} WETH`);
+    console.log(`\n   Interpretation: ${raav.gt(0) ? "✅ Positive RAAV - Good opportunity" : "❌ Negative RAAV - Too risky"}`);
+
+    // Price impact estimation
+    console.log(`\n💡 Price Impact Considerations:`);
+    console.log(`   Estimated Slippage: ~${slippageTolerance / 100}%`);
+    console.log(`   Recommendation: Call simulateArbitrage() on-chain for exact impact`);
+    console.log(`   This will read actual pool reserves and calculate precise slippage.`);
+
+    // --- STEP 8: SIMULATION CALL EXAMPLE ---
+
+    console.log("\n🧪 Pre-Execution Simulation (Recommended!):");
+    console.log("=".repeat(80));
+    console.log(`
+// STEP 1: Simulate the arbitrage opportunity (costs 0 gas - view function)
+const simulation = await contract.simulateArbitrage(
+    "0xUNISWAP_WETH_USDC_PAIR",    // Replace with actual Uniswap pair address
+    "0xSUSHISWAP_WETH_USDC_PAIR",  // Replace with actual SushiSwap pair address
+    "${borrowAmount.toString()}",
+    true  // zeroForOne direction
+);
+
+console.log("\\n📊 Simulation Results:");
+console.log("Expected Profit:", ethers.utils.formatEther(simulation.expectedProfit), "WETH");
+console.log("Price Impact DEX1:", simulation.priceImpact1.toString(), "BPS");
+console.log("Price Impact DEX2:", simulation.priceImpact2.toString(), "BPS");
+console.log("Is Profitable:", simulation.isProfitable);
+
+// STEP 2: Check profitability with current gas prices
+const profitCheck = await contract.calculateProfitability(
+    "${borrowAmount.toString()}",
+    simulation.expectedProfit,
+    ${gasEstimate}
+);
+
+console.log("\\n💰 Profitability Check:");
+console.log("Gross Profit:", ethers.utils.formatEther(profitCheck.grossProfit), "WETH");
+console.log("Flash Loan Fee:", ethers.utils.formatEther(profitCheck.flashLoanFee), "WETH");
+console.log("Gas Cost:", ethers.utils.formatEther(profitCheck.gasCost), "ETH");
+console.log("Net Profit:", ethers.utils.formatEther(profitCheck.netProfit), "WETH");
+console.log("Is Profitable:", profitCheck.isProfitable);
+
+// STEP 3: Only execute if profitable
+if (profitCheck.isProfitable && simulation.isProfitable) {
+    console.log("\\n✅ Both checks passed - executing arbitrage...");
+
+    const tx = await contract.requestFlashLoan(
+        "${WETH}",
+        "${borrowAmount.toString()}",
+        "${arbData}"
+    );
+
+    console.log("Transaction submitted:", tx.hash);
+    const receipt = await tx.wait();
+    console.log("Transaction confirmed in block:", receipt.blockNumber);
+} else {
+    console.log("\\n❌ Not profitable - skipping execution");
+}
+    `);
+
+    // --- STEP 9: CONTRACT DEPLOYMENT REMINDER ---
+
+    console.log("\n📝 Deployment Checklist:");
+    console.log("=".repeat(80));
+    console.log(`
+Before using this script, ensure you:
+
+1. ✅ Deployed arbitrage_money_enhanced_optimized.sol
+2. ✅ Updated CONTRACT_ADDRESS in this script (line 10)
+3. ✅ Verified contract on Etherscan (optional but recommended)
+4. ✅ Funded the contract owner address with ETH for gas
+5. ✅ Tested on testnet first (Sepolia/Goerli)
+6. ✅ Found a real arbitrage opportunity (price difference exists)
+7. ✅ Verified pool liquidity is sufficient
+8. ✅ Set appropriate maxGasPrice on the contract
+
+Deployment parameters used:
+- AAVE_POOL: 0x87870Bca3f5FD6335c3f4d4C530Eed06fb5de523 (Mainnet Aave V3)
+- UNI_V3_ROUTER: 0xE592427A0AEce92De3Edee1F18E0157C05861564 (Mainnet Uniswap V3)
+- WETH: 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2 (Mainnet WETH)
+    `);
+
+    // --- RETURN DATA FOR PROGRAMMATIC USE ---
+
+    return {
+        config: {
+            borrowAmount: borrowAmount.toString(),
+            minProfit: minProfit.toString(),
+            expectedProfit: expectedProfit.toString(),
+            gasEstimate,
+            contractAddress: CONTRACT_ADDRESS,
+            weth: WETH,
+            usdc: USDC
+        },
+        encoded: {
+            swapData,
+            arbData
+        },
+        analysis: {
+            flashLoanFee: flashLoanFee.toString(),
+            gasCost: gasCost.toString(),
+            slippageCost: slippageCost.toString(),
+            netProfit: netProfit.toString(),
+            roi: roi.toNumber(),
+            breakEvenBps: breakEvenBps.toNumber(),
+            raav: raav.toString()
+        },
+        safety: {
+            allChecksPassed: allPassed,
+            checks,
+            deadline
+        }
+    };
+}
+
+// Execute the main function
+main()
+    .then(result => {
+        console.log("\n" + "=".repeat(80));
+        console.log("✅ Script completed successfully!");
+        console.log("=".repeat(80));
+        console.log("\n📤 You can now use the encoded data above to execute the arbitrage.");
+        console.log("💡 Tip: Copy the arbData value and paste it into Remix!");
+        // Optionally return result for programmatic use
+        // return result;
+    })
+    .catch(error => {
+        console.error("\n" + "=".repeat(80));
+        console.error("❌ Script failed:");
+        console.error("=".repeat(80));
+        console.error(error);
+        console.error("\n🔧 Check your configuration and try again.");
+        process.exit(1);
+    });
+
+
+

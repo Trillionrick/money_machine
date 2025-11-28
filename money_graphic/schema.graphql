@@ -17,3 +17,171 @@ type Transfer @entity(immutable: true) {
   blockTimestamp: BigInt!
   transactionHash: Bytes!
 }
+
+type Token @entity {
+  id: Bytes!
+  name: String
+  symbol: String
+  decimals: Int
+  totalSupply: BigInt!
+  holderCount: Int!
+  lastUpdatedBlock: BigInt!
+  lastUpdatedTimestamp: BigInt!
+}
+
+type HolderBalance @entity {
+  id: ID!
+  holder: Bytes!
+  token: Token!
+  balance: BigInt!
+  firstSeenBlock: BigInt!
+  lastUpdatedBlock: BigInt!
+  lastUpdatedTimestamp: BigInt!
+}
+
+type DailySnapshot @entity {
+  id: ID!
+  token: Token!
+  date: Int!
+  transferCount: Int!
+  volume: BigInt!
+  holderCount: Int!
+  totalSupply: BigInt!
+  blockNumber: BigInt!
+  blockTimestamp: BigInt!
+}
+
+type Vault @entity {
+  id: Bytes!
+  stakeToken: Bytes
+  rewardToken: Bytes
+  owner: Bytes
+  totalStaked: BigInt!
+  rewardRate: BigInt
+  periodFinish: BigInt
+  lastUpdate: BigInt
+  lastUpdatedBlock: BigInt!
+  lastUpdatedTimestamp: BigInt!
+}
+
+type StakeAction @entity(immutable: true) {
+  id: Bytes!
+  vault: Vault!
+  user: Bytes!
+  amount: BigInt!
+  blockNumber: BigInt!
+  blockTimestamp: BigInt!
+  transactionHash: Bytes!
+}
+
+type WithdrawAction @entity(immutable: true) {
+  id: Bytes!
+  vault: Vault!
+  user: Bytes!
+  amount: BigInt!
+  blockNumber: BigInt!
+  blockTimestamp: BigInt!
+  transactionHash: Bytes!
+}
+
+type RewardPaidAction @entity(immutable: true) {
+  id: Bytes!
+  vault: Vault!
+  user: Bytes!
+  reward: BigInt!
+  blockNumber: BigInt!
+  blockTimestamp: BigInt!
+  transactionHash: Bytes!
+}
+
+type RewardNotification @entity(immutable: true) {
+  id: Bytes!
+  vault: Vault!
+  amount: BigInt!
+  duration: BigInt!
+  blockNumber: BigInt!
+  blockTimestamp: BigInt!
+  transactionHash: Bytes!
+}
+
+# ========== ARBITRAGE TRACKING ==========
+
+type ArbitrageContract @entity {
+  id: Bytes! # contract address
+  owner: Bytes!
+  aavePool: Bytes!
+  uniV3Router: Bytes!
+  weth: Bytes!
+  maxGasPrice: BigInt!
+  slippageTolerance: BigInt!
+  totalExecutions: Int!
+  totalProfit: BigInt!
+  totalGasCost: BigInt!
+  createdBlock: BigInt!
+  createdTimestamp: BigInt!
+  lastUpdatedBlock: BigInt!
+  lastUpdatedTimestamp: BigInt!
+}
+
+type ArbitrageExecution @entity(immutable: true) {
+  id: Bytes! # transaction hash + log index
+  contract: ArbitrageContract!
+  asset: Bytes! # token borrowed
+  borrowAmount: BigInt!
+  profit: BigInt!
+  gasCost: BigInt!
+  netProfit: BigInt! # profit - gasCost
+  gasPrice: BigInt!
+  blockNumber: BigInt!
+  blockTimestamp: BigInt!
+  transactionHash: Bytes!
+}
+
+type FlashLoanInitiated @entity(immutable: true) {
+  id: Bytes! # transaction hash + log index
+  contract: ArbitrageContract!
+  asset: Bytes!
+  amount: BigInt!
+  estimatedProfit: BigInt!
+  blockNumber: BigInt!
+  blockTimestamp: BigInt!
+  transactionHash: Bytes!
+}
+
+type ProfitabilityAnalysis @entity(immutable: true) {
+  id: Bytes! # transaction hash + log index
+  contract: ArbitrageContract!
+  grossProfit: BigInt!
+  flashLoanFee: BigInt!
+  gasCost: BigInt!
+  netProfit: BigInt!
+  approved: Boolean!
+  blockNumber: BigInt!
+  blockTimestamp: BigInt!
+  transactionHash: Bytes!
+}
+
+type ConfigUpdate @entity(immutable: true) {
+  id: Bytes! # transaction hash + log index
+  contract: ArbitrageContract!
+  maxGasPrice: BigInt!
+  slippageTolerance: BigInt!
+  blockNumber: BigInt!
+  blockTimestamp: BigInt!
+  transactionHash: Bytes!
+}
+
+# Daily aggregated arbitrage stats
+type DailyArbitrageSnapshot @entity {
+  id: ID! # contract address + date (YYYY-MM-DD)
+  contract: ArbitrageContract!
+  date: Int! # unix timestamp (day start)
+  executionCount: Int!
+  totalProfit: BigInt!
+  totalGasCost: BigInt!
+  netProfit: BigInt!
+  avgProfitPerTrade: BigInt!
+  successRate: BigDecimal! # percentage of profitable trades
+  blockNumber: BigInt!
+  blockTimestamp: BigInt!
+}

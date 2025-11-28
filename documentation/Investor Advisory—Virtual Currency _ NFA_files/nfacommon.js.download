@@ -1,0 +1,85 @@
+// function for links to outside applications
+var open_app = function open_app(app_in) {
+    window.open('https://' + location.host + app_in);
+}
+ 
+// global display banner message
+var displayServerMessage = function displayServerMessage(msgLevel, msgSpeed, msg) {
+    var alertInfoTpl = $('script[data-template="alertInfo"]').text();
+    var alertUrgentTpl = $('script[data-template="alertUrgent"]').text();
+    var serverMessageHTML = "";
+    var $bannerSelector;
+
+    if (msgLevel == 1) { // Informational Alert
+        serverMessageHTML = serverMessageHTML.concat(alertInfoTpl);
+        $bannerSelector = $('.nfa-server-alert-info');
+    } else { // Urgent Alert
+        serverMessageHTML = serverMessageHTML.concat(alertUrgentTpl);
+        $bannerSelector = $('.nfa-server-alert-urgent');
+    }
+    serverMessageHTML = serverMessageHTML.replace('{{SERVER_MESSAGE}}', msg);
+    $bannerSelector.removeClass('hidden').hide();
+    $bannerSelector.append(serverMessageHTML).slideDown(msgSpeed);
+}
+
+// clear cache api call
+var ClearCache = function ClearCache(validator) {
+    var commonDataHandler = new DataHandler();
+    var result;
+    result = commonDataHandler.clearCache(validator);
+    return result;
+}
+
+// get parameter value by name
+var getParameterByName = function getParameterByName(name, url) {
+    if (!url) url = window.location.href;
+    name = name.replace(/[\[\]]/g, "\\$&");
+    var regex = new RegExp("[?&]" + name + "(=([^&#]*)|&|#|$)"),
+        results = regex.exec(url);
+    if (!results) return null;
+    if (!results[2]) return '';
+    return decodeURIComponent(results[2].replace(/\+/g, " "));
+}
+
+// get copmuter name api call
+var getComputerName = function GetComputerName() {
+    var commonDataHandler = new DataHandler();
+    var result;
+    result = commonDataHandler.getComputerName();
+    return result;
+}
+
+
+$(document).ready(function () {
+
+    // global newsletter subscribe form actions 
+    $(".btn-our-subscribe").on("click", function () {
+         $('<form action="/subscribe/subscribe.asp" method="POST"><input type="hidden" name="email" value="' + $('#newsletterInputID').val() + '"></form>').appendTo("body").submit();
+    });
+    
+    
+    // clear cache option
+    // if the url querystring contains the key "clear" with the value "true" - the system will clear the cache.
+    var cacheValidator = getParameterByName('clear');
+    if (cacheValidator) {
+        var hasBeenCleared = ClearCache();
+        if (hasBeenCleared) {
+            displayServerMessage(1, 1000, "Server cache has been cleared.");
+        } else {
+            displayServerMessage(2, 1000, "An error occured. Server cache has NOT been cleared.");
+        }
+    }
+
+    // Get computer name option
+    // if the url querystring contains the key "server" with the value "true" the system will obtain the server name
+    // and display it in a banner.
+    var serverValidator = getParameterByName('server');
+    if (serverValidator) {
+        var computerName = getComputerName();
+        if (computerName.success) {
+            displayServerMessage(1, 1000, "Server name is " + computerName.result + ".");
+        } else {
+            displayServerMessage(2, 1000, "An error occured obtaining the server name.");
+        }
+    }
+});

@@ -1,0 +1,14 @@
+Staged and committed only the new tests, cassettes, and the pyproject dev-dependency update. Unrelated repo changes
+were left untouched.
+
+Commit: Add integration-friendly broker tests with vcrpy cassettes
+
+How do I run this for analysis?
+
+• Use the project venv:
+  - Full suite with coverage (replay cassettes, no live calls):
+    .venv/bin/python -m pytest
+  - Re-record integration cassettes with real endpoints: set creds and RUN_INTEGRATION=1, then run:
+    RUN_INTEGRATION=1 .venv/bin/python -m pytest tests/test_broker_integration.py -vv
+
+  That’s all you need to reproduce/verify.

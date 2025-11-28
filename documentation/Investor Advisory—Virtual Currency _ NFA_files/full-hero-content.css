@@ -1,0 +1,93 @@
+/* Added 7/1/22 CSS for diversity and inclusion hero banner */
+ h3.di-hero {
+	 color:#fff;
+	 margin: 0 0 .9rem 0;
+	 font-weight: bold;
+}
+ .di-hero {
+	 background:#e9edef;
+	 background-image: url('[system-asset]/images/test-diversity.jpg[/system-asset]');
+}
+ .di-hero.theme01 {
+	 background:#fff;
+}
+ .di-hero .col-md-7 {
+	 padding:0;
+}
+ @media only screen and (min-width: 768px){
+	 .di-hero {
+		 margin:0 0 0 0;
+	}
+	 .di-hero.theme01 {
+		 margin:0 0 6rem 0;
+	}
+	 .di-hero .col-md-7 {
+		 padding-left:15px;
+		 padding-right:15px;
+	}
+}
+ @media only screen and (min-width: 1200px){
+	 .di-hero .col-md-7 {
+		 padding-left:0px;
+		 padding-right:15px;
+	}
+}
+ .di-hero .col-md-5 {
+	 background:#e9edef;
+}
+ .di-hero-text {
+	 color:#101d49;
+	 text-align:center;
+	 padding:2rem 1rem;
+	 line-height:1.17;
+	 height:100%;
+}
+ .di-hero-text p:last-child {
+	 margin:0;
+}
+ @media only screen and (max-width: 767px){
+	 .home-body .di-hero-text {
+		 padding-bottom:0;
+	}
+	 .section.di-hero {
+		 padding-top:20px;
+	}
+}
+ @media only screen and (min-width: 768px){
+	 .di-hero .row {
+		 overflow: hidden;
+	}
+	 .di-hero .row [class*="col-"]{
+		 margin-bottom: -99999px;
+		 padding-bottom: 99999px;
+	}
+	 .di-hero-text {
+		 padding:1.5rem 1rem;
+	}
+}
+ @media only screen and (min-width: 992px){
+	 .di-hero-text {
+		 padding:2rem 1rem;
+	}
+}
+ @media only screen and (min-width: 1200px){
+	 .di-hero-text {
+		 padding:2rem 2.5rem;
+	}
+}
+ .di-content {
+	 text-align:center;
+	 color:#fff;
+}
+ .di-content a {
+	 color:#fff;
+}
+ .di-top {
+	 background:#1f2b43;
+	 padding:1rem 0;
+}
+ @media only screen and (min-width: 768px){
+	 .di-top {
+		 padding:2rem 0;
+	}
+}

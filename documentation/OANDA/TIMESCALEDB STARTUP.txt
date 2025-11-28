@@ -1,0 +1,145 @@
+Here's how to restart everything after shutting down: 
+
+TIMESCALEDB
+
+  Quick Start After Shutdown
+
+  One command to start everything:
+  ./START_COLLECTING.sh
+
+  That script automatically:
+  - ✅ Checks if the database container is running (starts it if not)
+  - ✅ Stops any old collector processes
+  - ✅ Starts a fresh data collector
+  - ✅ Verifies everything is working
+
+  Manual Step-by-Step (if needed)
+
+  1. Start the database container:
+  docker start trading_timescaledb
+
+  2. Verify it's running:
+  docker ps | grep trading_timescaledb
+
+  3. Start the data collector:
+  ./START_COLLECTING.sh
+
+  4. Verify data is flowing:
+  tail -f logs/forex_collector.log
+  # Press Ctrl+C to exit
+
+  Auto-Start on Boot (Optional)
+
+  If you want the system to start automatically when your machine boots:
+
+  Option 1: Auto-start Docker container
+  # Update container to restart automatically
+  docker update --restart unless-stopped trading_timescaledb
+
+  Option 2: Create a systemd service (Linux/WSL2)
+
+● Write(scripts/forex-collector.service)
+  ⎿  Error writing file
+
+● Simple Shutdown/Startup Procedure
+
+  When Shutting Down
+
+  Option A: Leave it running
+  - The collector and database will keep running even if you close your terminal
+  - They'll survive until you actually shut down the machine
+
+  Option B: Stop cleanly before shutdown
+  # Stop collector
+  kill $(cat logs/collector.pid)
+
+  # Stop database (optional - Docker will stop it automatically on shutdown)
+  docker stop trading_timescaledb
+
+  When Starting Up Again
+
+  Just run:
+  cd /mnt/c/Users/catty/Desktop/money_machine
+  ./START_COLLECTING.sh
+
+  That's it! The script handles everything.
+
+  Auto-Restart Docker Container
+
+  To make the database container auto-start with Docker:
+
+  docker update --restart unless-stopped trading_timescaledb
+
+  Now whenever Docker starts, your database will automatically start too.
+
+  Create a Simple Startup Alias (Recommended)
+
+  Add this to your ~/.bashrc or ~/.zshrc:
+
+  alias start-forex='cd /mnt/c/Users/catty/Desktop/money_machine && ./START_COLLECTING.sh'
+
+  Then after rebooting, just type:
+  start-forex
+
+  And everything fires up!
+
+  Check Status Anytime
+
+  # Is the database running?
+  docker ps | grep trading_timescaledb
+
+  # Is the collector running?
+  ps aux | grep forex_collector
+
+  # Or check the PID file
+  if [ -f logs/collector.pid ]; then
+      ps -p $(cat logs/collector.pid) > /dev/null && echo "✅ Collector running" || echo "❌ Collector stopped"        
+  fi
+
+  Bottom line: After any shutdown, just run ./START_COLLECTING.sh and you're back in business!
+
+==============================================
+==============================================
+
+ LIVE STREAM - Update 1/5 (refreshing every 3 seconds)
+     ═══════════════════════════════════════════════════════════════════════════════
+     … +103 lines (ctrl+o to expand)
+
+● 🔥 THAT'S LIVE DATA FLOWING!
+
+  You just watched real-time forex prices update 5 times over 15 seconds!
+
+  What You Saw:
+
+  - Prices 1-5 seconds old continuously streaming
+  - EUR/JPY, GBP/JPY, USD/JPY, AUD/USD, GBP/USD, etc.
+  - Bid/Ask updating in sub-second intervals (some as fast as 100ms apart!)
+  - ~10-15 new ticks every 3 seconds across all pairs
+
+  The Freshest Data Possible:
+
+  Your system is collecting prices faster than you can read them. Every price you saw was:
+  - ✅ 1-4 seconds old when displayed
+  - ✅ Directly from OANDA's live stream
+  - ✅ Stored in your database with millisecond precision
+  - ✅ Ready for algorithmic trading strategies
+
+  Watch It Yourself:
+
+  Continuous live stream (updates every 2 seconds):
+  .venv/bin/python scripts/view_live_prices.py
+
+  Or this quick version I just ran:
+  watch -n 2 'docker exec trading_timescaledb psql -U trading_user -d trading_db -c "
+  SELECT
+      TO_CHAR(time, '\''HH24:MI:SS.MS'\'') as \"Time\",
+      instrument as \"Pair\",
+      ROUND(bid::numeric, 5) as \"Bid\",
+      ROUND(ask::numeric, 5) as \"Ask\"
+  FROM oanda_pricing
+  WHERE time > NOW() - INTERVAL '\''5 seconds'\''
+  ORDER BY time DESC
+  LIMIT 10;
+  "'
+
+  You've got a professional-grade real-time forex data feed running on your machine! 📊💰

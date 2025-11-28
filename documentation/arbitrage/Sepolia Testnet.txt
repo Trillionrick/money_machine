@@ -1,0 +1,18 @@
+Sepolia Testnet:
+ 1. Go to Remix: https://remix.ethereum.org/
+  2. Upload your contract: EnhancedHighSpeedArbRunner.sol
+  3. Make sure you're on Sepolia in MetaMask
+  4. Deploy with these constructor parameters:
+  _aavePool: 0x6Ae43d3271ff6888e7Fc43Fd7321a503ff738951
+  _uniV3Router: 0xE592427A0AEce92De3Edee1F18E0157C05861564
+  _weth: 0xfFf9976782d46CC05630D1f6eBAb18b2324d6B14
+  4. (These are Sepolia testnet addresses)
+  5. Copy the deployed contract address from Remix
+
+==================================================
+==================================================
+
+source .venv/bin/activate && python run_arbitrage_test.py
+
+
+

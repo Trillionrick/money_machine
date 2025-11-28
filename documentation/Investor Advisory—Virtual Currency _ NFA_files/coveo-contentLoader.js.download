@@ -1,0 +1,13 @@
+ document.addEventListener("DOMContentLoaded", function()
+        {
+		var searchBoxRoot = document.getElementById("searchID");
+
+		// 2. Configure a search endpoint
+		Coveo.SearchEndpoint.configureCloudV2Endpoint("nationalfuturesassociationproduction7zpixki6", "xx32ce4dc6-b5ad-4d23-bd55-8bfffa63d652");	
+		
+		// 3. Initialize a Searchbox component
+		Coveo.initSearchbox(
+		  searchBoxRoot,
+		  "/search.html"
+		);
+	  });

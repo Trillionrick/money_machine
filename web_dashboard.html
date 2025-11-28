@@ -1,0 +1,804 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Arbitrage Scanner Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            color: #666;
+            font-size: 1.1em;
+        }
+
+        .status-bar {
+            display: flex;
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 20px;
+            background: #f5f5f5;
+            border-radius: 25px;
+            font-weight: 600;
+        }
+
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        .status-dot.running {
+            background: #10b981;
+        }
+
+        .status-dot.stopped {
+            background: #ef4444;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.2);
+        }
+
+        .card h2 {
+            font-size: 1.2em;
+            color: #667eea;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .stat-value {
+            font-size: 2.5em;
+            font-weight: bold;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .stat-label {
+            color: #999;
+            font-size: 0.9em;
+            margin-top: 5px;
+        }
+
+        .controls {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        .button-group {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            padding: 15px 30px;
+            border: none;
+            border-radius: 10px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .btn-start {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+        }
+
+        .btn-start:hover {
+            transform: scale(1.05);
+            box-shadow: 0 5px 15px rgba(16, 185, 129, 0.4);
+        }
+
+        .btn-stop {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            color: white;
+        }
+
+        .btn-stop:hover {
+            transform: scale(1.05);
+            box-shadow: 0 5px 15px rgba(239, 68, 68, 0.4);
+        }
+
+        .btn-stop:disabled, .btn-start:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .opportunities-list {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .opportunity-item {
+            background: #f9fafb;
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            transition: all 0.3s;
+        }
+
+        .opportunity-item:hover {
+            background: #f3f4f6;
+            transform: translateX(5px);
+        }
+
+        .opportunity-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .opportunity-symbol {
+            font-weight: bold;
+            font-size: 1.2em;
+            color: #667eea;
+        }
+
+        .opportunity-profit {
+            font-weight: bold;
+            color: #10b981;
+            font-size: 1.1em;
+        }
+
+        .opportunity-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+            font-size: 0.9em;
+            color: #666;
+        }
+
+        .alert {
+            background: #fef3c7;
+            border-left: 4px solid #f59e0b;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .alert-warning {
+            background: #fee2e2;
+            border-left-color: #ef4444;
+        }
+
+        .alert-success {
+            background: #d1fae5;
+            border-left-color: #10b981;
+        }
+
+        .timestamp {
+            color: #999;
+            font-size: 0.85em;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .controls .options {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .toggle {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: #f3f4f6;
+            padding: 10px 14px;
+            border-radius: 12px;
+            font-weight: 600;
+            color: #444;
+        }
+
+        .toggle input {
+            width: 18px;
+            height: 18px;
+        }
+
+        .wallet-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid #f1f5f9;
+        }
+
+        .wallet-row:last-child {
+            border-bottom: none;
+        }
+
+        .wallet-label {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .wallet-address {
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+            color: #4b5563;
+            font-size: 0.9em;
+        }
+
+        .pill {
+            padding: 6px 10px;
+            border-radius: 999px;
+            font-weight: 700;
+            font-size: 0.85em;
+        }
+
+        .pill.green {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .pill.gray {
+            background: #e5e7eb;
+            color: #374151;
+        }
+
+        .trades-list {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            margin-top: 20px;
+        }
+
+        .trade-item {
+            background: #f8fafc;
+            border-left: 4px solid #10b981;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+        }
+
+        .trade-item.dry-run {
+            border-left-color: #f59e0b;
+        }
+
+        .connection-status {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: white;
+            padding: 15px 25px;
+            border-radius: 25px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 600;
+        }
+
+        .emoji {
+            font-size: 1.5em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1><span class="emoji">💰</span> Arbitrage Scanner Dashboard</h1>
+            <p>Real-time monitoring and control for your arbitrage trading system</p>
+
+            <div class="status-bar">
+                <div class="status-indicator">
+                    <div class="status-dot" id="statusDot"></div>
+                    <span id="statusText">Connecting...</span>
+                </div>
+                <div class="status-indicator">
+                    <span class="emoji">⛽</span>
+                    <span id="gasPrice">-- Gwei</span>
+                </div>
+                <div class="status-indicator">
+                    <span class="emoji">💼</span>
+                    <span id="walletBalance">-- ETH</span>
+                </div>
+            </div>
+        </div>
+
+        <div id="alerts"></div>
+
+        <div class="controls">
+            <h2><span class="emoji">🎮</span> Controls</h2>
+            <div class="button-group">
+                <button class="btn-start" id="startBtn" onclick="startScanner()">
+                    <span class="emoji">▶️</span> Start Scanner
+                </button>
+                <button class="btn-stop" id="stopBtn" onclick="stopScanner()" disabled>
+                    <span class="emoji">⏹️</span> Stop Scanner
+                </button>
+            </div>
+            <div class="options">
+                <label class="toggle">
+                    <input type="checkbox" id="dryRunToggle" checked>
+                    Dry run (no live trades)
+                </label>
+                <label class="toggle">
+                    <input type="checkbox" id="autoExecuteToggle">
+                    Auto-execute profitable trades
+                </label>
+                <label class="toggle">
+                    <input type="checkbox" id="flashToggle" checked>
+                    Enable flash loans
+                </label>
+            </div>
+        </div>
+
+        <div class="grid">
+            <div class="card">
+                <h2><span class="emoji">⏱️</span> Uptime</h2>
+                <div class="stat-value" id="uptime">0s</div>
+                <div class="stat-label">System uptime</div>
+            </div>
+
+            <div class="card">
+                <h2><span class="emoji">🔍</span> Opportunities</h2>
+                <div class="stat-value" id="opportunitiesCount">0</div>
+                <div class="stat-label">Total found</div>
+            </div>
+
+            <div class="card">
+                <h2><span class="emoji">✅</span> Trades</h2>
+                <div class="stat-value" id="tradesCount">0</div>
+                <div class="stat-label">Executed</div>
+            </div>
+
+            <div class="card">
+                <h2><span class="emoji">💎</span> Total Profit</h2>
+                <div class="stat-value" id="totalProfit">0.00 ETH</div>
+                <div class="stat-label">Net profit</div>
+            </div>
+
+            <div class="card">
+                <h2><span class="emoji">👛</span> Wallets</h2>
+                <div class="wallet-row">
+                    <div class="wallet-label">
+                        <strong>Metamask</strong>
+                        <span class="wallet-address" id="metamaskAddress">Not set</span>
+                    </div>
+                    <span class="pill gray" id="metamaskBalance">--</span>
+                </div>
+                <div class="wallet-row">
+                    <div class="wallet-label">
+                        <strong>Rainbow</strong>
+                        <span class="wallet-address" id="rainbowAddress">Not set</span>
+                    </div>
+                    <span class="pill gray" id="rainbowBalance">--</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="opportunities-list">
+            <div class="section-header">
+                <h2><span class="emoji">🎯</span> Recent Opportunities</h2>
+                <span class="pill gray" id="executionMode">Dry run</span>
+            </div>
+            <div id="opportunitiesList">
+                <div class="alert">
+                    <strong>ℹ️ Waiting for opportunities...</strong>
+                    <p>The scanner will automatically detect profitable arbitrage opportunities.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="trades-list">
+            <div class="section-header">
+                <h2><span class="emoji">📦</span> Recent Trades</h2>
+                <span class="pill gray" id="tradeStatus">No executions yet</span>
+            </div>
+            <div id="tradesList">
+                <div class="alert">
+                    <strong>ℹ️ No trades yet.</strong>
+                    <p>Enable auto-execute to allow the engine to place trades when spreads meet your thresholds.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="connection-status" id="connectionStatus">
+        <div class="loading"></div>
+        <span>Connecting...</span>
+    </div>
+
+    <script>
+        let ws = null;
+        let isRunning = false;
+        let wallets = {};
+        let dryRunMode = true;
+        let autoExecuteMode = false;
+
+        // Connect to WebSocket
+        function connectWebSocket() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            ws = new WebSocket(`${protocol}//${window.location.host}/ws`);
+
+            ws.onopen = () => {
+                updateConnectionStatus(true);
+                loadStatus();
+            };
+
+            ws.onmessage = (event) => {
+                const message = JSON.parse(event.data);
+                handleWebSocketMessage(message);
+            };
+
+            ws.onclose = () => {
+                updateConnectionStatus(false);
+                setTimeout(connectWebSocket, 3000);
+            };
+
+            ws.onerror = (error) => {
+                console.error('WebSocket error:', error);
+                updateConnectionStatus(false);
+            };
+        }
+
+        function handleWebSocketMessage(message) {
+            switch(message.type) {
+                case 'init':
+                    updateStats(message.data.stats);
+                    updateWallets(message.data.wallets);
+                    updateRunningState(message.data.running);
+                    break;
+                case 'stats_update':
+                    updateStats(message.data);
+                    updateWallets(message.wallets);
+                    break;
+                case 'status':
+                    updateRunningState(message.running);
+                    showAlert(message.message, message.running ? 'success' : 'warning');
+                    break;
+                case 'opportunity':
+                    addOpportunity(message.data);
+                    break;
+                case 'trade':
+                    addTrade(message.data);
+                    break;
+            }
+        }
+
+        function updateConnectionStatus(connected) {
+            const status = document.getElementById('connectionStatus');
+            if (connected) {
+                status.innerHTML = '<div class="status-dot running"></div><span>Connected</span>';
+            } else {
+                status.innerHTML = '<div class="loading"></div><span>Reconnecting...</span>';
+            }
+        }
+
+        async function loadStatus() {
+            try {
+                const response = await fetch('/api/status');
+                const data = await response.json();
+                updateStats(data.stats);
+                updateWallets(data.wallets);
+                updateRunningState(data.running);
+                if (data.opportunities) {
+                    data.opportunities.forEach(addOpportunity);
+                }
+                if (data.trades) {
+                    data.trades.forEach(addTrade);
+                }
+            } catch (error) {
+                console.error('Failed to load status:', error);
+            }
+        }
+
+        function updateStats(stats) {
+            document.getElementById('uptime').textContent = formatUptime(stats.uptime_seconds || 0);
+            document.getElementById('opportunitiesCount').textContent = stats.opportunities_found || 0;
+            document.getElementById('tradesCount').textContent = stats.trades_executed || 0;
+            document.getElementById('totalProfit').textContent = `${(stats.total_profit_eth || 0).toFixed(4)} ETH`;
+            document.getElementById('gasPrice').textContent = `${(stats.gas_price_gwei || 0).toFixed(2)} Gwei`;
+            document.getElementById('walletBalance').textContent = `${(stats.wallet_balance_eth || 0).toFixed(4)} ETH`;
+            setExecutionMode();
+        }
+
+        function updateRunningState(running) {
+            isRunning = running;
+            const statusDot = document.getElementById('statusDot');
+            const statusText = document.getElementById('statusText');
+            const startBtn = document.getElementById('startBtn');
+            const stopBtn = document.getElementById('stopBtn');
+
+            if (running) {
+                statusDot.className = 'status-dot running';
+                statusText.textContent = 'Running';
+                startBtn.disabled = true;
+                stopBtn.disabled = false;
+            } else {
+                statusDot.className = 'status-dot stopped';
+                statusText.textContent = 'Stopped';
+                startBtn.disabled = false;
+                stopBtn.disabled = true;
+            }
+            setExecutionMode();
+        }
+
+        async function startScanner() {
+            try {
+                dryRunMode = document.getElementById('dryRunToggle').checked;
+                autoExecuteMode = document.getElementById('autoExecuteToggle').checked && !dryRunMode;
+                const enableFlash = document.getElementById('flashToggle').checked;
+
+                const response = await fetch('/api/start', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        dry_run: dryRunMode,
+                        enable_flash: enableFlash,
+                        auto_execute: autoExecuteMode,
+                    })
+                });
+                const data = await response.json();
+                if (data.error) {
+                    showAlert(data.error, 'error');
+                } else {
+                    showAlert('Scanner started successfully!', 'success');
+                }
+                setExecutionMode();
+            } catch (error) {
+                showAlert('Failed to start scanner: ' + error.message, 'error');
+            }
+        }
+
+        async function stopScanner() {
+            try {
+                const response = await fetch('/api/stop', { method: 'POST' });
+                const data = await response.json();
+                if (data.error) {
+                    showAlert(data.error, 'error');
+                } else {
+                    showAlert('Scanner stopped successfully!', 'success');
+                }
+            } catch (error) {
+                showAlert('Failed to stop scanner: ' + error.message, 'error');
+            }
+        }
+
+        function updateWallets(data) {
+            if (!data) return;
+            wallets = data;
+
+            const meta = data.metamask || {};
+            const rainbow = data.rainbow || {};
+
+            document.getElementById('metamaskAddress').textContent = meta.address || 'Not set';
+            document.getElementById('rainbowAddress').textContent = rainbow.address || 'Not set';
+
+            const metaBalance = meta.balance_eth;
+            const rainbowBalance = rainbow.balance_eth;
+
+            const metaBalanceEl = document.getElementById('metamaskBalance');
+            const rainbowBalanceEl = document.getElementById('rainbowBalance');
+
+            if (metaBalance !== null && metaBalance !== undefined) {
+                metaBalanceEl.textContent = `${metaBalance.toFixed(4)} ETH`;
+                metaBalanceEl.className = 'pill green';
+            } else {
+                metaBalanceEl.textContent = '--';
+                metaBalanceEl.className = 'pill gray';
+            }
+
+            if (rainbowBalance !== null && rainbowBalance !== undefined) {
+                rainbowBalanceEl.textContent = `${rainbowBalance.toFixed(4)} ETH`;
+                rainbowBalanceEl.className = 'pill green';
+            } else {
+                rainbowBalanceEl.textContent = '--';
+                rainbowBalanceEl.className = 'pill gray';
+            }
+        }
+
+        function setExecutionMode() {
+            const executionPill = document.getElementById('executionMode');
+            const tradeStatus = document.getElementById('tradeStatus');
+
+            if (autoExecuteMode) {
+                executionPill.textContent = 'Live auto-execution';
+                executionPill.className = 'pill green';
+                tradeStatus.textContent = 'Auto-execution enabled';
+                tradeStatus.className = 'pill green';
+            } else {
+                executionPill.textContent = dryRunMode ? 'Dry run' : 'Manual';
+                executionPill.className = 'pill gray';
+                tradeStatus.textContent = 'Auto-execution disabled';
+                tradeStatus.className = 'pill gray';
+            }
+        }
+
+        function addOpportunity(opp) {
+            const container = document.getElementById('opportunitiesList');
+            if (!opp) return;
+
+            if (container.firstElementChild && container.firstElementChild.classList.contains('alert')) {
+                container.innerHTML = '';
+            }
+
+            const item = document.createElement('div');
+            item.className = 'opportunity-item';
+            const timestamp = opp.timestamp ? new Date(opp.timestamp).toLocaleTimeString() : '--';
+
+            item.innerHTML = `
+                <div class="opportunity-header">
+                    <span class="opportunity-symbol">${opp.symbol || ''}</span>
+                    <span class="opportunity-profit">${(opp.edge_bps || 0).toFixed(2)} bps</span>
+                </div>
+                <div class="opportunity-details">
+                    <span>Path: ${opp.execution_path || 'regular'}</span>
+                    <span>CEX: ${(opp.cex_price || 0).toFixed(4)}</span>
+                    <span>DEX: ${(opp.dex_price || 0).toFixed(4)}</span>
+                    <span>Seen: ${timestamp}</span>
+                </div>
+            `;
+
+            container.prepend(item);
+            while (container.children.length > 6) {
+                container.removeChild(container.lastChild);
+            }
+        }
+
+        function addTrade(trade) {
+            const container = document.getElementById('tradesList');
+            if (!trade) return;
+
+            if (container.firstElementChild && container.firstElementChild.classList.contains('alert')) {
+                container.innerHTML = '';
+            }
+
+            const item = document.createElement('div');
+            item.className = `trade-item ${trade.executed ? '' : 'dry-run'}`;
+            const timestamp = trade.timestamp ? new Date(trade.timestamp).toLocaleTimeString() : '--';
+
+            item.innerHTML = `
+                <div class="opportunity-header">
+                    <span class="opportunity-symbol">${trade.symbol || ''}</span>
+                    <span class="opportunity-profit">${trade.executed ? 'Executed' : 'Dry run'}</span>
+                </div>
+                <div class="opportunity-details">
+                    <span>Mode: ${trade.mode || 'regular'}</span>
+                    <span>Size: ${trade.base_qty ? trade.base_qty.toFixed(4) : (trade.borrow_amount_eth ? trade.borrow_amount_eth.toFixed(2) + ' ETH borrow' : '--')}</span>
+                    <span>Edge: ${trade.edge_bps ? trade.edge_bps.toFixed(2) + ' bps' : '--'}</span>
+                    <span>Tx: ${trade.tx_hash ? trade.tx_hash.slice(0, 10) + '...' : 'N/A'}</span>
+                    <span>Time: ${timestamp}</span>
+                </div>
+            `;
+
+            container.prepend(item);
+            while (container.children.length > 6) {
+                container.removeChild(container.lastChild);
+            }
+
+            if (trade.executed) {
+                tradeStatus.textContent = 'Latest trade executed';
+                tradeStatus.className = 'pill green';
+            }
+        }
+
+        function showAlert(message, type = 'info') {
+            const alertsDiv = document.getElementById('alerts');
+            const alertClass = type === 'error' ? 'alert-warning' :
+                             type === 'success' ? 'alert-success' : '';
+
+            const alert = document.createElement('div');
+            alert.className = `alert ${alertClass}`;
+            alert.innerHTML = `<strong>${type === 'error' ? '❌' : type === 'success' ? '✅' : 'ℹ️'} ${message}</strong>`;
+
+            alertsDiv.appendChild(alert);
+            setTimeout(() => alert.remove(), 5000);
+        }
+
+        function formatUptime(seconds) {
+            const hours = Math.floor(seconds / 3600);
+            const minutes = Math.floor((seconds % 3600) / 60);
+            const secs = seconds % 60;
+            return `${hours}h ${minutes}m ${secs}s`;
+        }
+
+        // Initialize
+        connectWebSocket();
+        setInterval(() => {
+            if (isRunning) {
+                loadStatus();
+            }
+        }, 5000);
+    </script>
+</body>
+</html>

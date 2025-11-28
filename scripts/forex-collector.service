@@ -1,0 +1,25 @@
+[Unit]
+Description=Forex Data Collector for OANDA
+After=network.target docker.service
+Requires=docker.service
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+User=youruser
+WorkingDirectory=/mnt/c/Users/catty/Desktop/money_machine
+Environment="PYTHONUNBUFFERED=1"
+ExecStart=/usr/bin/python3 src/data_collection/forex_collector.py
+Restart=always
+RestartSec=10
+
+# Logging
+StandardOutput=append:/mnt/c/Users/catty/Desktop/money_machine/logs/forex_collector.log
+StandardError=append:/mnt/c/Users/catty/Desktop/money_machine/logs/forex_collector_error.log
+
+# Security
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

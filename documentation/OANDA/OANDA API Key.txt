@@ -1,0 +1,31 @@
+OANDA API: Build code to monitor strategies
+Please note, tokens are unique to each OANDA account and should be stored securely.
+Oanda API key
+e40e15bbe9f0ef2514c830c744ba76c7-1798a5e569420de88803588fca861288
+Revoke
+* By clicking Generate, you are acknowledging that you have read, understand and agree to be legally bound by the 
+API Agreement
+.
+Need more information?
+If you have any questions, please contact us at your convenience via api@oanda.com.
+
+========================================================
+========================================================
+
+Overview
+Authentication is required to access your live accounts. Personal traders can request a personal access token. If you already have an access token for use with the legacy REST API you can use it with the v20 API too.
+
+OANDA reserves the right to suspend personal access tokens or developer OAuth credentials if necessary based on system stability or other technical issues caused by the customer.
+
+Personal Strategy Traders
+A personal access token can be used to access your account through the OANDA v20 API. Once created, a token will grant access to all of your sub-accounts. Please note, your personal access token is like a password, so you should guard it carefully. These tokens are unique to an OANDA account and should be stored securely.
+
+Obtaining a Personal Access Token
+There is a link on your OANDA fxTrade account profile page titled “Manage API Access” (My Account -> My Services -> Manage API Access). From there, you can generate a personal access token to use with the OANDA API, as well as revoke a token you may currently have.
+
+Using a Personal Access Token
+After generating your token, you should keep it somewhere secure. OANDA does not retain your token so if it is lost or forgotten you must revoke it and generate a new one to keep API access.
+
+In order to use a token to access API resources, you must include the token as a Bearer token in the HTTP Authorization header. As an example:
+
+curl -H "Authorization: Bearer e40e15bbe9f0ef2514c830c744ba76c7-1798a5e569420de88803588fca861288" https://api-fxtrade.oanda.com/v3/accounts

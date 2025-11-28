@@ -1,0 +1,97 @@
+/* Added 10/29/2019 CSS for swaps proficiency requirements (SPR) call-out styles */
+h3.spr {
+    color:#fff;
+    margin: 0 0 .9rem 0;
+    font-weight: bold;
+}
+
+ .spr-hero {
+	 background:#e9edef;
+}
+ .spr-hero.theme01 {
+	 background:#fff;
+}
+ .spr-hero .col-md-7 {
+	 padding:0;
+}
+ @media only screen and (min-width: 768px){
+	 .spr-hero {
+		 margin:0 0 0 0;
+	}
+	 .spr-hero.theme01 {
+		 margin:0 0 6rem 0;
+	}
+	 .spr-hero .col-md-7 {
+		 padding-left:15px;
+		 padding-right:15px;
+	}
+}
+ @media only screen and (min-width: 1200px){
+	 .spr-hero .col-md-7 {
+		 padding-left:0px;
+		 padding-right:15px;
+	}
+}
+ .spr-hero .col-md-5 {
+	 background:#e9edef;
+}
+ .spr-hero-text {
+	 color:#101d49;
+	 text-align:center;
+	 padding:2rem 1rem;
+	 line-height:1.17;
+	 height:100%;
+}
+ .spr-hero-text p:last-child {
+	 margin:0;
+}
+ @media only screen and (max-width: 767px){
+	 .home-body .spr-hero-text {
+		 padding-bottom:0;
+	}
+	 .section.spr-hero {
+		 padding-top:20px;
+	}
+}
+ @media only screen and (min-width: 768px){
+	 .spr-hero .row {
+		 overflow: hidden;
+	}
+	 .spr-hero .row [class*="col-"]{
+		 margin-bottom: -99999px;
+		 padding-bottom: 99999px;
+	}
+	 .spr-hero-text {
+		 padding:1.5rem 1rem;
+	}
+}
+ @media only screen and (min-width: 992px){
+	 .spr-hero-text {
+		 padding:2rem 1rem;
+	}
+}
+ @media only screen and (min-width: 1200px){
+	 .spr-hero-text {
+		 padding:2rem 2.5rem;
+	}
+}
+
+.spr-content {
+    text-align:center;
+    color:#fff;
+}
+
+.spr-content a {
+    color:#fff;
+}
+
+.spr-top {
+	background:#1f2b43;
+	padding:1rem 0;
+}
+
+@media only screen and (min-width: 768px){
+		.spr-top {
+		padding:2rem 0;
+	}
+}

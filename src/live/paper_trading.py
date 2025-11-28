@@ -6,6 +6,7 @@ This is essential for validating strategies before going live.
 
 import asyncio
 from collections.abc import AsyncIterator
+import time
 
 import msgspec
 import structlog
@@ -162,7 +163,7 @@ class PaperTradingEngine:
             side=order.side,
             quantity=order.quantity,
             price=fill_price,
-            timestamp=asyncio.get_event_loop().time_ns(),
+            timestamp=time.time_ns(),
             fee=fee,
         )
 

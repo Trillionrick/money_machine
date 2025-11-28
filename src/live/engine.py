@@ -8,6 +8,7 @@ import asyncio
 import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+import time
 
 import structlog
 
@@ -194,14 +195,14 @@ class LiveEngine:
                 positions=positions,
                 cash=self._last_portfolio.cash,
                 equity=self._last_portfolio.equity,
-                timestamp=asyncio.get_event_loop().time_ns(),
+                timestamp=time.time_ns(),
             )
         else:
             self._last_portfolio = PortfolioState(
                 positions=positions,
                 cash=100_000.0,  # Default starting cash
                 equity=100_000.0,
-                timestamp=asyncio.get_event_loop().time_ns(),
+                timestamp=time.time_ns(),
             )
 
         return self._last_portfolio

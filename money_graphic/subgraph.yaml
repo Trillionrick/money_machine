@@ -18,6 +18,14 @@ dataSources:
       entities:
         - Approval
         - Transfer
+        - Token
+        - HolderBalance
+        - DailySnapshot
+        - Vault
+        - StakeAction
+        - WithdrawAction
+        - RewardPaidAction
+        - RewardNotification
       abis:
         - name: GrowDollar
           file: ./abis/GrowDollar.json
@@ -27,3 +35,33 @@ dataSources:
         - event: Transfer(indexed address,indexed address,uint256)
           handler: handleTransfer
       file: ./src/grow-dollar.ts
+  - kind: ethereum
+    name: StakingVault
+    network: mainnet
+    source:
+      address: "0x963d6ddd63c293184703bf6bec75461df80acf21"
+      abi: StakingVault
+      startBlock: 23861194
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.9
+      language: wasm/assemblyscript
+      entities:
+        - Vault
+        - StakeAction
+        - WithdrawAction
+        - RewardPaidAction
+        - RewardNotification
+      abis:
+        - name: StakingVault
+          file: ./abis/StakingVault.json
+      eventHandlers:
+        - event: Staked(indexed address,uint256)
+          handler: handleStaked
+        - event: Withdrawn(indexed address,uint256)
+          handler: handleWithdrawn
+        - event: RewardPaid(indexed address,uint256)
+          handler: handleRewardPaid
+        - event: RewardNotified(uint256,uint256)
+          handler: handleRewardNotified
+      file: ./src/staking-vault.ts
