@@ -52,6 +52,7 @@ class FlashArbitrageRunner(ArbitrageRunner):
 
     def __post_init__(self) -> None:
         """Initialize flash loan executor if enabled."""
+        super().__post_init__()
         if self.config.enable_flash_loans and self.flash_executor is None:
             try:
                 self.flash_executor = FlashLoanExecutor()
@@ -69,6 +70,12 @@ class FlashArbitrageRunner(ArbitrageRunner):
         base, quote = symbol.split("/", 1)
         token_in = self.token_addresses.get(quote)
         token_out = self.token_addresses.get(base)
+        polygon_token_in = (
+            self.polygon_token_addresses.get(quote) if self.polygon_token_addresses else token_in
+        )
+        polygon_token_out = (
+            self.polygon_token_addresses.get(base) if self.polygon_token_addresses else token_out
+        )
 
         if not token_in or not token_out:
             self.trades_skipped += 1
@@ -82,32 +89,42 @@ class FlashArbitrageRunner(ArbitrageRunner):
 
         # Get DEX quote for small amount first
         test_amount = Decimal("1.0")  # 1 unit for price discovery
-        try:
-            quote_data = await self.dex.get_quote(
-                token_in=token_in,
-                token_out=token_out,
-                amount_in=test_amount,
-            )
-        except Exception:
-            log.exception("flash_arb.quote_failed", symbol=symbol)
-            self.failures += 1
+        candidates = await self._collect_quotes(
+            symbol=symbol,
+            base_symbol=base,
+            quote_symbol=quote,
+            token_in=token_in,
+            token_out=token_out,
+            polygon_token_in=polygon_token_in,
+            polygon_token_out=polygon_token_out,
+            amount_in=test_amount,
+            cex_price=cex_price,
+            cross_chain=True,
+        )
+        best = self._pick_best_candidate(candidates)
+        if not best:
+            self.trades_skipped += 1
             return
 
-        dex_price = float(quote_data["expected_output"] / test_amount)
-        edge_bps = (cex_price - dex_price) / dex_price * 10_000
+        dex_price = best.price
+        edge_bps = best.net_edge_bps
 
         log.debug(
             "flash_arb.price_check",
             symbol=symbol,
+            chain=best.chain,
+            source=best.source,
             cex_price=cex_price,
             dex_price=dex_price,
             edge_bps=edge_bps,
+            raw_edge_bps=best.raw_edge_bps,
         )
 
         # Decide execution method based on spread
         if (
             self.config.enable_flash_loans
             and self.flash_executor
+            and best.chain != "polygon"  # Flash loan infra assumed on mainnet for now
             and edge_bps >= self.config.flash_loan_threshold_bps
         ):
             await self._emit_opportunity(
@@ -134,7 +151,7 @@ class FlashArbitrageRunner(ArbitrageRunner):
                 }
             )
             # Small spread - use regular CEX/DEX arb
-            await self._execute_regular_arb(symbol, token_in, token_out, cex_price, dex_price)
+            await self._execute_regular_arb(symbol, token_in, token_out, cex_price)
         else:
             # No opportunity
             self.trades_skipped += 1
@@ -260,33 +277,54 @@ class FlashArbitrageRunner(ArbitrageRunner):
         token_in: str,
         token_out: str,
         cex_price: float,
-        dex_price: float,
     ) -> None:
         """Execute regular CEX/DEX arbitrage (small size, from parent class)."""
         # Use parent class logic for regular arbitrage
         notional_quote = min(self.config.max_notional, cex_price * self.config.max_position)
         amount_in = Decimal(str(notional_quote))
 
-        try:
-            quote_data = await self.dex.get_quote(
-                token_in=token_in,
-                token_out=token_out,
-                amount_in=amount_in,
-            )
-        except Exception:
-            log.exception("flash_arb.regular_quote_failed", symbol=symbol)
-            self.failures += 1
+        base_symbol, quote_symbol = symbol.split("/", 1)
+        polygon_token_in = (
+            self.polygon_token_addresses.get(quote_symbol)
+            if self.polygon_token_addresses
+            else token_in
+        )
+        polygon_token_out = (
+            self.polygon_token_addresses.get(base_symbol)
+            if self.polygon_token_addresses
+            else token_out
+        )
+
+        candidates = await self._collect_quotes(
+            symbol=symbol,
+            base_symbol=base_symbol,
+            quote_symbol=quote_symbol,
+            token_in=token_in,
+            token_out=token_out,
+            polygon_token_in=polygon_token_in,
+            polygon_token_out=polygon_token_out,
+            amount_in=amount_in,
+            cex_price=cex_price,
+            cross_chain=True,
+        )
+        best = self._pick_best_candidate(candidates)
+        if not best:
+            self.trades_skipped += 1
             return
 
-        base_qty = float(quote_data["expected_output"])
-        if base_qty > self.config.max_position:
+        base_qty = float(best.expected_output)
+        if base_qty > self.config.max_position and base_qty > 0:
+            scale = self.config.max_position / base_qty
             base_qty = self.config.max_position
+            amount_in *= Decimal(str(scale))
 
-        edge_bps = (cex_price - dex_price) / dex_price * 10_000
+        edge_bps = best.net_edge_bps
 
         log.info(
             "flash_arb.regular_opportunity",
             symbol=symbol,
+            chain=best.chain,
+            source=best.source,
             edge_bps=edge_bps,
             base_qty=base_qty,
         )
@@ -296,6 +334,7 @@ class FlashArbitrageRunner(ArbitrageRunner):
                 {
                     "symbol": symbol,
                     "mode": "regular",
+                    "chain": best.chain,
                     "base_qty": base_qty,
                     "edge_bps": edge_bps,
                     "executed": False,
@@ -305,12 +344,26 @@ class FlashArbitrageRunner(ArbitrageRunner):
             )
             return
 
+        dex_executor = self._resolve_executor(best.chain)
+        if dex_executor is None:
+            log.warning("flash_arb.no_executor_for_chain", chain=best.chain)
+            self.trades_skipped += 1
+            return
+
         # Execute via parent class method
-        tx_hash = await self._execute(symbol, token_in, token_out, base_qty, amount_in)
+        tx_hash = await self._execute(
+            symbol,
+            token_in,
+            token_out,
+            base_qty,
+            amount_in,
+            dex_executor,
+        )
         await self._emit_trade(
             {
                 "symbol": symbol,
                 "mode": "regular",
+                "chain": best.chain,
                 "base_qty": base_qty,
                 "edge_bps": edge_bps,
                 "executed": True,

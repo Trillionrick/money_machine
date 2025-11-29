@@ -14,6 +14,7 @@ import asyncio
 from decimal import Decimal
 from typing import Dict, Optional
 
+import httpx
 import structlog
 
 from src.core.types import Price, Symbol
@@ -28,19 +29,24 @@ class CEXPriceFetcher:
         self,
         binance_enabled: bool = True,
         alpaca_enabled: bool = False,
+        kraken_enabled: bool = True,
     ):
         """Initialize price fetcher.
 
         Args:
             binance_enabled: Enable Binance price fetching
             alpaca_enabled: Enable Alpaca price fetching
+            kraken_enabled: Enable Kraken price fetching (geo-friendly fallback)
         """
         self.binance_enabled = binance_enabled
         self.alpaca_enabled = alpaca_enabled
+        self.kraken_enabled = kraken_enabled
 
         # Initialize clients
         self.binance_client: Optional[any] = None
         self.alpaca_client: Optional[any] = None
+        self.kraken_client: Optional[httpx.AsyncClient] = None
+        self.kraken_base_url = "https://api.kraken.com"
 
         # Price cache (symbol -> price)
         self._price_cache: Dict[Symbol, Price] = {}
@@ -53,10 +59,14 @@ class CEXPriceFetcher:
         if alpaca_enabled:
             self._init_alpaca()
 
+        if kraken_enabled:
+            self._init_kraken()
+
         log.info(
             "price_fetcher.initialized",
             binance=binance_enabled,
             alpaca=alpaca_enabled,
+            kraken=kraken_enabled,
         )
 
     def _init_binance(self):
@@ -94,6 +104,18 @@ class CEXPriceFetcher:
             )
             self.alpaca_enabled = False
 
+    def _init_kraken(self):
+        """Initialize Kraken HTTP client."""
+        try:
+            self.kraken_client = httpx.AsyncClient(timeout=10.0)
+            log.info("price_fetcher.kraken_ready")
+        except Exception as e:
+            log.warning(
+                "price_fetcher.kraken_unavailable",
+                msg=f"Kraken client unavailable: {str(e)[:100]}"
+            )
+            self.kraken_enabled = False
+
     async def get_price(self, symbol: Symbol) -> Optional[Price]:
         """Get current price for a symbol from appropriate exchange.
 
@@ -126,9 +148,18 @@ class CEXPriceFetcher:
         normalized = symbol.replace("_", "/").upper()
 
         # Determine which exchange to use
-        if self._is_crypto_pair(normalized) and self.binance_enabled:
-            return await self._fetch_binance_price(normalized)
-        elif self.alpaca_enabled:
+        if self._is_crypto_pair(normalized):
+            if self.binance_enabled:
+                price = await self._fetch_binance_price(normalized)
+                if price is not None:
+                    return price
+
+            if self.kraken_enabled:
+                price = await self._fetch_kraken_price(normalized)
+                if price is not None:
+                    return price
+
+        if self.alpaca_enabled:
             return await self._fetch_alpaca_price(symbol)
 
         log.warning("price_fetcher.no_source", symbol=symbol)
@@ -217,6 +248,76 @@ class CEXPriceFetcher:
             )
 
         return None
+
+    async def _fetch_kraken_price(self, symbol: str) -> Optional[Price]:
+        """Fetch price from Kraken public API.
+
+        Args:
+            symbol: Normalized symbol (e.g., "BTC/USDT")
+        """
+        if not self.kraken_client:
+            return None
+
+        try:
+            kraken_pair = self._to_kraken_pair(symbol)
+
+            response = await self.kraken_client.get(
+                f"{self.kraken_base_url}/0/public/Ticker",
+                params={"pair": kraken_pair},
+            )
+            response.raise_for_status()
+            data = response.json()
+
+            if data.get("error"):
+                log.warning(
+                    "price_fetcher.kraken_failed",
+                    symbol=symbol,
+                    error="; ".join(data["error"]),
+                )
+                return None
+
+            result = data.get("result") or {}
+            if not result:
+                log.warning("price_fetcher.kraken_failed", symbol=symbol, error="empty_result")
+                return None
+
+            ticker = next(iter(result.values()))
+            price = float(ticker["c"][0])  # Last trade close price
+
+            log.debug(
+                "price_fetcher.kraken_price",
+                symbol=symbol,
+                price=price,
+            )
+
+            return price
+
+        except Exception as e:
+            log.warning(
+                "price_fetcher.kraken_failed",
+                symbol=symbol,
+                error=str(e),
+            )
+            return None
+
+    def _to_kraken_pair(self, symbol: str) -> str:
+        """Convert symbol to Kraken pair format (best-effort)."""
+        base, quote = symbol.split("/")
+
+        # Kraken uses XBT instead of BTC, and ETH for WETH
+        base = {
+            "BTC": "XBT",
+            "WETH": "ETH",
+        }.get(base, base)
+
+        # Keep stablecoin naming but normalize USD-like quotes
+        quote = {
+            "USDT": "USDT",
+            "USDC": "USDC",
+            "USD": "USD",
+        }.get(quote, quote)
+
+        return f"{base}{quote}"
 
     async def get_multiple_prices(
         self,
