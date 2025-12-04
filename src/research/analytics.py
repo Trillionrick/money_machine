@@ -8,6 +8,7 @@ Comprehensive metrics for evaluating trading strategies:
 """
 
 from dataclasses import dataclass
+from typing import Any
 
 import polars as pl
 
@@ -44,6 +45,26 @@ class PerformanceMetrics:
     pct_positive_months: float
     best_day_pct: float
     worst_day_pct: float
+
+
+def _safe_float(value: Any, default: float = 0.0) -> float:
+    """Safely convert Polars aggregate result to float.
+
+    Args:
+        value: Value from Polars aggregate operation (mean, std, max, min, etc.)
+        default: Default value if conversion fails or value is None
+
+    Returns:
+        Float value or default
+    """
+    if value is None:
+        return default
+    if isinstance(value, (int, float)):
+        return float(value)
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return default
 
 
 class PerformanceAnalyzer:
@@ -99,8 +120,8 @@ class PerformanceAnalyzer:
             else 0.0
         )
 
-        daily_mean = float(returns.mean()) * 100
-        daily_std = float(returns.std()) * 100
+        daily_mean = _safe_float(returns.mean()) * 100
+        daily_std = _safe_float(returns.std()) * 100
 
         # Risk-adjusted metrics
         sharpe = self._calculate_sharpe(returns)
@@ -133,8 +154,8 @@ class PerformanceAnalyzer:
         # In production, would properly group by month
         pct_positive_months = pct_positive_days  # Simplified
 
-        best_day = float(returns.max()) * 100 if len(returns) > 0 else 0.0
-        worst_day = float(returns.min()) * 100 if len(returns) > 0 else 0.0
+        best_day = _safe_float(returns.max()) * 100 if len(returns) > 0 else 0.0
+        worst_day = _safe_float(returns.min()) * 100 if len(returns) > 0 else 0.0
 
         return PerformanceMetrics(
             total_return_pct=total_return,
@@ -163,8 +184,8 @@ class PerformanceAnalyzer:
         if len(returns) < 2:
             return 0.0
 
-        mean_return = float(returns.mean())
-        std_return = float(returns.std())
+        mean_return = _safe_float(returns.mean())
+        std_return = _safe_float(returns.std())
 
         if std_return == 0:
             return 0.0
@@ -181,14 +202,14 @@ class PerformanceAnalyzer:
         if len(returns) < 2:
             return 0.0
 
-        mean_return = float(returns.mean())
+        mean_return = _safe_float(returns.mean())
 
         # Downside deviation (only negative returns)
         downside_returns = returns.filter(returns < 0)
         if len(downside_returns) == 0:
             return float("inf")  # No downside = infinite Sortino
 
-        downside_std = float(downside_returns.std())
+        downside_std = _safe_float(downside_returns.std())
         if downside_std == 0:
             return 0.0
 

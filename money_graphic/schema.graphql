@@ -8,6 +8,17 @@ type Approval @entity(immutable: true) {
   transactionHash: Bytes!
 }
 
+# schema.graphql
+type HolderBalance @entity {
+  id: ID!
+  token: Token! # Foreign key to the Token entity
+  holder: Bytes! # Address of the holder
+  balance: BigInt!
+  firstSeenBlock: BigInt!
+  lastUpdatedBlock: BigInt!
+  lastUpdatedTimestamp: BigInt!
+}
+
 type Transfer @entity(immutable: true) {
   id: Bytes!
   from: Bytes! # address

@@ -6,6 +6,7 @@ All concurrent tasks are properly structured with automatic cleanup on errors.
 
 import asyncio
 import logging
+import os
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 import time
@@ -44,6 +45,7 @@ class LiveEngine:
         policy: Policy,
         *,
         tick_rate_hz: float = 1.0,
+        initial_cash: float | None = None,
     ) -> None:
         """Initialize live engine.
 
@@ -52,13 +54,21 @@ class LiveEngine:
             data_feed: Async iterator of market snapshots
             policy: Trading policy
             tick_rate_hz: Policy evaluation rate (trades per second)
+            initial_cash: Starting cash if broker does not report (defaults to INITIAL_CASH env or 0)
         """
         self.exec_engine = exec_engine
         self.data_feed = data_feed
         self.policy = policy
         self.tick_interval = 1.0 / tick_rate_hz
+        env_initial_cash = os.getenv("INITIAL_CASH")
+        self.initial_cash = (
+            initial_cash
+            if initial_cash is not None
+            else float(env_initial_cash) if env_initial_cash is not None else 0.0
+        )
         self._shutdown = asyncio.Event()
         self._last_portfolio: PortfolioState | None = None
+        self._last_snapshot: MarketSnapshot | None = None
 
     @asynccontextmanager
     async def lifecycle(self) -> AsyncIterator["LiveEngine"]:
@@ -99,9 +109,10 @@ class LiveEngine:
             async for snapshot in self.data_feed:
                 if self._shutdown.is_set():
                     break
+                self._last_snapshot = snapshot
 
                 # Fetch current portfolio state
-                portfolio = await self._fetch_portfolio()
+                portfolio = await self._fetch_portfolio(snapshot)
 
                 # Call policy to decide orders
                 try:
@@ -135,7 +146,8 @@ class LiveEngine:
     async def _fill_handler_loop(self) -> None:
         """Process execution fills asynchronously."""
         try:
-            async for fill in self.exec_engine.stream_fills():
+            fill_stream = await self.exec_engine.stream_fills()
+            async for fill in fill_stream:
                 if self._shutdown.is_set():
                     break
 
@@ -181,29 +193,45 @@ class LiveEngine:
             log.info("health_monitor.cancelled")
             raise
 
-    async def _fetch_portfolio(self) -> PortfolioState:
-        """Fetch current portfolio state from execution engine.
-
-        TODO: Implement actual cash/equity calculation from broker.
-        """
+    async def _fetch_portfolio(self, snapshot: MarketSnapshot | None = None) -> PortfolioState:
+        """Fetch current portfolio state from execution engine."""
         positions = await self.exec_engine.get_positions()
+        snapshot = snapshot or self._last_snapshot
 
-        # Calculate total equity (simplified - real impl would query broker)
-        # For now, return last known state or create new one
-        if self._last_portfolio is not None:
-            self._last_portfolio = PortfolioState(
-                positions=positions,
-                cash=self._last_portfolio.cash,
-                equity=self._last_portfolio.equity,
-                timestamp=time.time_ns(),
+        # Try to get actual account info from broker
+        try:
+            account_info = await self.exec_engine.get_account()
+            cash = account_info.get("cash", self.initial_cash)
+            equity = account_info.get("equity", cash)
+
+            log.debug(
+                "portfolio.broker_sync",
+                cash=cash,
+                equity=equity,
+                positions=len(positions),
             )
-        else:
-            self._last_portfolio = PortfolioState(
-                positions=positions,
-                cash=100_000.0,  # Default starting cash
-                equity=100_000.0,
-                timestamp=time.time_ns(),
-            )
+        except (NotImplementedError, AttributeError):
+            # Fallback: estimate from positions and previous cash
+            log.debug("portfolio.estimating", reason="broker_account_unavailable")
+
+            positions_value = 0.0
+            if snapshot:
+                for symbol, qty in positions.items():
+                    price = snapshot.prices.get(symbol)
+                    if price is None:
+                        continue
+                    positions_value += qty * price
+
+            # Use previous cash balance if known; otherwise start at configured initial cash.
+            cash = self._last_portfolio.cash if self._last_portfolio else self.initial_cash
+            equity = cash + positions_value
+
+        self._last_portfolio = PortfolioState(
+            positions=positions,
+            cash=cash,
+            equity=equity,
+            timestamp=time.time_ns(),
+        )
 
         return self._last_portfolio
 
@@ -221,16 +249,16 @@ def configure_logging(*, json_output: bool = True, level: str = "INFO") -> None:
         json_output: If True, output JSON logs (for production)
         level: Log level (DEBUG, INFO, WARNING, ERROR)
     """
-    processors = [
-        structlog.contextvars.merge_contextvars,
-        structlog.processors.add_log_level,
-        structlog.processors.TimeStamper(fmt="iso"),
+    processors = [ # type: ignore[attr-defined]
+        structlog.contextvars.merge_contextvars,  # type: ignore[attr-defined]
+        structlog.processors.add_log_level,  # type: ignore[attr-defined]
+        structlog.processors.TimeStamper(fmt="iso"), # type: ignore[attr-defined]
     ]
 
     if json_output:
-        processors.append(structlog.processors.JSONRenderer())
+        processors.append(structlog.processors.JSONRenderer())  # type: ignore[attr-defined]
     else:
-        processors.append(structlog.dev.ConsoleRenderer())
+        processors.append(structlog.dev.ConsoleRenderer())  # type: ignore[attr-defined]
 
     structlog.configure(
         processors=processors,

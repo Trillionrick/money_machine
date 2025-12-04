@@ -1,0 +1,431 @@
+<!-- AI System Dashboard Widget -->
+<!-- Add this to your web_dashboard.html -->
+
+<style>
+.ai-dashboard {
+    margin: 20px 0;
+    padding: 20px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 12px;
+    color: white;
+}
+
+.ai-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.ai-title {
+    font-size: 24px;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.ai-status-badge {
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: bold;
+    text-transform: uppercase;
+}
+
+.ai-status-enabled {
+    background: #10b981;
+}
+
+.ai-status-disabled {
+    background: #ef4444;
+}
+
+.ai-mode-selector {
+    display: flex;
+    gap: 10px;
+    background: rgba(255, 255, 255, 0.1);
+    padding: 4px;
+    border-radius: 8px;
+}
+
+.ai-mode-btn {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: white;
+    cursor: pointer;
+    font-weight: 600;
+    transition: background 0.3s;
+}
+
+.ai-mode-btn.active {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+.ai-mode-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.ai-metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.ai-metric-card {
+    background: rgba(255, 255, 255, 0.15);
+    padding: 15px;
+    border-radius: 8px;
+    backdrop-filter: blur(10px);
+}
+
+.ai-metric-label {
+    font-size: 12px;
+    opacity: 0.9;
+    margin-bottom: 5px;
+}
+
+.ai-metric-value {
+    font-size: 28px;
+    font-weight: bold;
+}
+
+.ai-metric-subtext {
+    font-size: 11px;
+    opacity: 0.7;
+    margin-top: 5px;
+}
+
+.ai-chart-container {
+    background: rgba(255, 255, 255, 0.1);
+    padding: 20px;
+    border-radius: 8px;
+    margin-top: 20px;
+    height: 250px;
+}
+
+.ai-health-indicator {
+    display: flex;
+    gap: 10px;
+    margin-top: 15px;
+}
+
+.ai-health-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    animation: pulse 2s infinite;
+}
+
+.ai-health-healthy {
+    background: #10b981;
+}
+
+.ai-health-warning {
+    background: #f59e0b;
+}
+
+.ai-health-critical {
+    background: #ef4444;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+.ai-controls {
+    display: flex;
+    gap: 10px;
+    margin-top: 15px;
+}
+
+.ai-control-btn {
+    padding: 10px 20px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-radius: 8px;
+    background: transparent;
+    color: white;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.3s;
+}
+
+.ai-control-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+    transform: translateY(-2px);
+}
+
+.ai-model-status {
+    background: rgba(255, 255, 255, 0.1);
+    padding: 15px;
+    border-radius: 8px;
+    margin-top: 15px;
+}
+
+.ai-model-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.ai-model-item:last-child {
+    border-bottom: none;
+}
+</style>
+
+<!-- AI Dashboard Widget HTML -->
+<div class="ai-dashboard" id="aiDashboard">
+    <div class="ai-header">
+        <div class="ai-title">
+            <span>🧠</span>
+            <span>AI Trading Brain</span>
+            <span class="ai-status-badge ai-status-enabled" id="aiStatusBadge">ENABLED</span>
+        </div>
+        <div class="ai-mode-selector">
+            <button class="ai-mode-btn" data-mode="conservative" onclick="setAIMode('conservative')">Conservative</button>
+            <button class="ai-mode-btn active" data-mode="balanced" onclick="setAIMode('balanced')">Balanced</button>
+            <button class="ai-mode-btn" data-mode="aggressive" onclick="setAIMode('aggressive')">Aggressive</button>
+        </div>
+    </div>
+
+    <div class="ai-metrics-grid">
+        <div class="ai-metric-card">
+            <div class="ai-metric-label">Win Rate</div>
+            <div class="ai-metric-value" id="aiWinRate">0%</div>
+            <div class="ai-metric-subtext" id="aiWinRateSubtext">0 / 0 trades</div>
+        </div>
+
+        <div class="ai-metric-card">
+            <div class="ai-metric-label">Net Profit</div>
+            <div class="ai-metric-value" id="aiNetProfit">$0.00</div>
+            <div class="ai-metric-subtext" id="aiNetProfitSubtext">Today: $0.00</div>
+        </div>
+
+        <div class="ai-metric-card">
+            <div class="ai-metric-label">AI Confidence</div>
+            <div class="ai-metric-value" id="aiConfidence">0.00</div>
+            <div class="ai-metric-subtext">Avg decision confidence</div>
+        </div>
+
+        <div class="ai-metric-card">
+            <div class="ai-metric-label">Success Rate</div>
+            <div class="ai-metric-value" id="aiSuccessRate">0%</div>
+            <div class="ai-metric-subtext" id="aiSuccessSubtext">0 / 0 executed</div>
+        </div>
+
+        <div class="ai-metric-card">
+            <div class="ai-metric-label">Sharpe Ratio</div>
+            <div class="ai-metric-value" id="aiSharpe">0.00</div>
+            <div class="ai-metric-subtext">Risk-adjusted return</div>
+        </div>
+
+        <div class="ai-metric-card">
+            <div class="ai-metric-label">Avg Edge</div>
+            <div class="ai-metric-value" id="aiAvgEdge">0</div>
+            <div class="ai-metric-subtext">bps per trade</div>
+        </div>
+    </div>
+
+    <div class="ai-health-indicator">
+        <div class="ai-health-dot ai-health-healthy" id="aiHealthDot"></div>
+        <span id="aiHealthText">System Healthy</span>
+    </div>
+
+    <div class="ai-model-status">
+        <div style="font-weight: bold; margin-bottom: 10px;">ML Models</div>
+        <div class="ai-model-item">
+            <span>Route Success Predictor</span>
+            <span id="modelRouteStatus">⏳ Untrained</span>
+        </div>
+        <div class="ai-model-item">
+            <span>RL Policy</span>
+            <span id="modelRLStatus">⏳ Untrained</span>
+        </div>
+        <div class="ai-model-item">
+            <span>Training Data Available</span>
+            <span id="modelTrainingData">0 samples</span>
+        </div>
+    </div>
+
+    <div class="ai-controls">
+        <button class="ai-control-btn" onclick="toggleAI()">
+            <span id="aiToggleText">Disable AI</span>
+        </button>
+        <button class="ai-control-btn" onclick="refreshAIMetrics()">
+            🔄 Refresh
+        </button>
+        <button class="ai-control-btn" onclick="downloadAIReport()">
+            📊 Export Report
+        </button>
+    </div>
+</div>
+
+<script>
+// AI Dashboard JavaScript
+let aiEnabled = true;
+let currentMode = 'balanced';
+
+// Fetch and update AI metrics
+async function refreshAIMetrics() {
+    try {
+        // Get AI metrics
+        const metricsRes = await fetch('/api/ai/metrics');
+        const metricsData = await metricsRes.json();
+
+        // Get AI status
+        const statusRes = await fetch('/api/ai/status');
+        const statusData = await statusRes.json();
+
+        // Get AI health
+        const healthRes = await fetch('/api/ai/health');
+        const healthData = await healthRes.json();
+
+        // Get model status
+        const modelsRes = await fetch('/api/ai/models');
+        const modelsData = await modelsRes.json();
+
+        updateAIDashboard(metricsData, statusData, healthData, modelsData);
+    } catch (error) {
+        console.error('Failed to fetch AI metrics:', error);
+    }
+}
+
+function updateAIDashboard(metrics, status, health, models) {
+    const summary = metrics.summary;
+    const recent = metrics.recent_hour;
+
+    // Update status badge
+    aiEnabled = status.enabled;
+    const statusBadge = document.getElementById('aiStatusBadge');
+    statusBadge.textContent = aiEnabled ? 'ENABLED' : 'DISABLED';
+    statusBadge.className = `ai-status-badge ${aiEnabled ? 'ai-status-enabled' : 'ai-status-disabled'}`;
+
+    // Update toggle button
+    document.getElementById('aiToggleText').textContent = aiEnabled ? 'Disable AI' : 'Enable AI';
+
+    // Update mode buttons
+    currentMode = status.mode;
+    document.querySelectorAll('.ai-mode-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.mode === currentMode);
+    });
+
+    // Update metrics
+    const decisions = summary.decisions;
+    const execution = summary.execution;
+
+    // Win rate
+    const winRate = (decisions.win_rate * 100).toFixed(1);
+    document.getElementById('aiWinRate').textContent = winRate + '%';
+    document.getElementById('aiWinRateSubtext').textContent =
+        `${Math.round(decisions.win_rate * execution.total)} / ${execution.total} trades`;
+
+    // Net profit
+    const netProfit = execution.net_profit_usd;
+    document.getElementById('aiNetProfit').textContent = '$' + netProfit.toFixed(2);
+    document.getElementById('aiNetProfitSubtext').textContent =
+        `Today: $${recent.total_profit.toFixed(2)}`;
+
+    // Confidence
+    document.getElementById('aiConfidence').textContent = decisions.avg_confidence.toFixed(3);
+
+    // Success rate
+    const successRate = (execution.success_rate * 100).toFixed(1);
+    document.getElementById('aiSuccessRate').textContent = successRate + '%';
+    document.getElementById('aiSuccessSubtext').textContent =
+        `${execution.successful} / ${execution.total} executed`;
+
+    // Sharpe ratio
+    document.getElementById('aiSharpe').textContent = decisions.sharpe_ratio.toFixed(2);
+
+    // Average edge
+    document.getElementById('aiAvgEdge').textContent = decisions.avg_edge_bps.toFixed(1);
+
+    // Health indicator
+    const healthDot = document.getElementById('aiHealthDot');
+    const healthText = document.getElementById('aiHealthText');
+    healthDot.className = `ai-health-dot ai-health-${health.status}`;
+
+    const healthMessages = {
+        'healthy': 'System Healthy',
+        'warning': `Warning: ${health.alerts.length} issue(s)`,
+        'critical': `Critical: ${health.alerts.length} issue(s)`
+    };
+    healthText.textContent = healthMessages[health.status] || 'Unknown';
+
+    // Model status
+    const modelData = models.models || {};
+    document.getElementById('modelRouteStatus').textContent =
+        modelData.route_success_model?.trained ? '✅ Trained' : '⏳ Untrained';
+    document.getElementById('modelRLStatus').textContent =
+        modelData.rl_policy_model?.trained ? '✅ Trained' : '⏳ Untrained';
+    document.getElementById('modelTrainingData').textContent =
+        `${execution.total} samples ${models.training_data_available ? '✅' : ''}`;
+}
+
+async function setAIMode(mode) {
+    try {
+        const response = await fetch(`/api/ai/mode/${mode}`, { method: 'POST' });
+        const data = await response.json();
+
+        if (data.status === 'success') {
+            currentMode = mode;
+            document.querySelectorAll('.ai-mode-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.mode === mode);
+            });
+            console.log(`AI mode set to ${mode}`);
+            await refreshAIMetrics();
+        }
+    } catch (error) {
+        console.error('Failed to set AI mode:', error);
+    }
+}
+
+async function toggleAI() {
+    try {
+        const endpoint = aiEnabled ? '/api/ai/disable' : '/api/ai/enable';
+        const response = await fetch(endpoint, { method: 'POST' });
+        const data = await response.json();
+
+        if (data.status === 'success') {
+            aiEnabled = !aiEnabled;
+            await refreshAIMetrics();
+        }
+    } catch (error) {
+        console.error('Failed to toggle AI:', error);
+    }
+}
+
+async function downloadAIReport() {
+    try {
+        const metricsRes = await fetch('/api/ai/metrics');
+        const metricsData = await metricsRes.json();
+
+        const report = {
+            timestamp: new Date().toISOString(),
+            summary: metricsData.summary,
+            recent_performance: metricsData.recent_hour
+        };
+
+        const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `ai_report_${Date.now()}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+    } catch (error) {
+        console.error('Failed to download report:', error);
+    }
+}
+
+// Auto-refresh every 10 seconds
+setInterval(refreshAIMetrics, 10000);
+
+// Initial load
+refreshAIMetrics();
+</script>

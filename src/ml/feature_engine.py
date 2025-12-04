@@ -83,12 +83,13 @@ class FeatureEngine:
             ).alias("upside_downside_ratio"),
 
             # Skewness of recent returns (positive skew = convex)
+            # Skewness = E[(X - μ)³] / σ³ (computed using rolling windows)
             (
-                pl.col("close")
-                .pct_change()
-                .rolling_apply(
-                    lambda s: float(s.skew()) if len(s) > 3 else 0.0,
-                    window_size=20,
+                (
+                    (pl.col("close").pct_change() - pl.col("close").pct_change().rolling_mean(window_size=20))
+                    .pow(3)
+                    .rolling_mean(window_size=20)
+                    / (pl.col("close").pct_change().rolling_std(window_size=20).pow(3) + 1e-8)
                 )
                 .alias("return_skewness")
             ),

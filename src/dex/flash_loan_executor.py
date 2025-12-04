@@ -12,7 +12,7 @@ from typing import Any, Dict, Optional
 
 import structlog
 from eth_typing import ChecksumAddress, HexStr
-from pydantic import Field
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from web3 import Web3
 from web3.contract import Contract
@@ -32,7 +32,7 @@ class FlashLoanSettings(BaseSettings):
     )
 
     # Contract addresses
-    arb_contract_address: str = Field(alias="ARB_CONTRACT_ADDRESS")
+    arb_contract_address: Optional[str] = Field(default=None, alias="ARB_CONTRACT_ADDRESS")
     aave_pool_address: str = Field(
         default="0x87870Bca3f5FD6335c3f4d4C530Eed06fb5de523",  # Mainnet Aave V3
         alias="AAVE_POOL_ADDRESS",
@@ -51,8 +51,8 @@ class FlashLoanSettings(BaseSettings):
     )
 
     # Web3 connection
-    eth_rpc_url: str = Field(alias="ETH_RPC_URL")
-    private_key: str = Field(alias="PRIVATE_KEY")
+    eth_rpc_url: Optional[str] = Field(default=None, alias="ETH_RPC_URL")
+    private_key: Optional[str] = Field(default=None, alias="PRIVATE_KEY")
 
     # Gas settings
     max_gas_price_gwei: int = Field(default=100, alias="MAX_GAS_PRICE_GWEI")
@@ -61,6 +61,25 @@ class FlashLoanSettings(BaseSettings):
     # Arbitrage parameters
     min_profit_threshold_eth: float = Field(default=0.5, alias="MIN_PROFIT_THRESHOLD_ETH")
     slippage_tolerance_bps: int = Field(default=50, alias="SLIPPAGE_TOLERANCE_BPS")  # 0.5%
+
+    @field_validator("eth_rpc_url", "private_key", mode="before")
+    @classmethod
+    def strip_whitespace(cls, v: str) -> str:
+        """Strip whitespace and control characters from sensitive strings."""
+        if isinstance(v, str):
+            return v.strip()
+        return v
+
+    @model_validator(mode="after")
+    def _validate_required_fields(self) -> "FlashLoanSettings":
+        """Ensure that required environment variables are set."""
+        if not self.arb_contract_address:
+            raise ValueError("ARB_CONTRACT_ADDRESS must be set in environment or .env file")
+        if not self.eth_rpc_url:
+            raise ValueError("ETH_RPC_URL must be set in environment or .env file")
+        if not self.private_key:
+            raise ValueError("PRIVATE_KEY must be set in environment or .env file")
+        return self
 
 
 @dataclass
@@ -191,6 +210,12 @@ class FlashLoanExecutor:
         """Initialize the flash loan executor."""
         self.settings = settings or FlashLoanSettings()
 
+        # The model validator ensures these are set, but this satisfies the linter
+        if not self.settings.eth_rpc_url or not self.settings.private_key or not self.settings.arb_contract_address:
+            raise ValueError(
+                "Required settings (ETH_RPC_URL, PRIVATE_KEY, ARB_CONTRACT_ADDRESS) are missing."
+            )
+
         if w3 is None:
             self.w3 = Web3(Web3.HTTPProvider(self.settings.eth_rpc_url))
         else:
@@ -234,21 +259,28 @@ class FlashLoanExecutor:
         Returns:
             Encoded path bytes
         """
+        def _addr_bytes(addr: str) -> bytes:
+            return Web3.to_bytes(hexstr=Web3.to_checksum_address(addr))
+
+        fee_bytes = fee_tier.to_bytes(3, "big")
+        token_in_bytes = _addr_bytes(token_in)
+        token_out_bytes = _addr_bytes(token_out)
+
         if intermediate_token:
             # Multi-hop: token_in -> intermediate -> token_out
             path = (
-                Web3.to_checksum_address(token_in)
-                + fee_tier.to_bytes(3, "big")
-                + Web3.to_checksum_address(intermediate_token).to_bytes(20, "big")
-                + fee_tier.to_bytes(3, "big")
-                + Web3.to_checksum_address(token_out).to_bytes(20, "big")
+                token_in_bytes
+                + fee_bytes
+                + _addr_bytes(intermediate_token)
+                + fee_bytes
+                + token_out_bytes
             )
         else:
             # Direct swap: token_in -> token_out
             path = (
-                Web3.to_checksum_address(token_in).to_bytes(20, "big")
-                + fee_tier.to_bytes(3, "big")
-                + Web3.to_checksum_address(token_out).to_bytes(20, "big")
+                token_in_bytes
+                + fee_bytes
+                + token_out_bytes
             )
 
         return path
@@ -271,17 +303,25 @@ class FlashLoanExecutor:
         Returns:
             Encoded function call data
         """
-        deadline = self.w3.eth.get_block("latest")["timestamp"] + deadline_seconds
+        latest_block = self.w3.eth.get_block("latest")
+        timestamp = latest_block.get("timestamp")
+        if timestamp is None:
+            raise ValueError("Could not get timestamp from the latest block")
+        deadline = timestamp + deadline_seconds
 
-        swap_params = {
-            "path": path,
-            "recipient": Web3.to_checksum_address(self.settings.arb_contract_address),
-            "deadline": deadline,
-            "amountIn": amount_in,
-            "amountOutMinimum": min_amount_out,
-        }
+        # eth-abi requires tuple/list for struct params; dicts trigger a
+        # TupleEncoder error, so pass an ordered tuple matching ExactInputParams.
+        assert self.settings.arb_contract_address is not None
+        swap_params = (
+            path,
+            Web3.to_checksum_address(self.settings.arb_contract_address),
+            deadline,
+            int(amount_in),
+            int(min_amount_out),
+        )
 
-        return self.uni_router.encodeABI(fn_name="exactInput", args=[swap_params])
+        # Encode the exactInput function call using web3.py v6+ API
+        return self.uni_router.functions.exactInput(swap_params)._encode_transaction_data()
 
     def encode_arb_plan(self, plan: ArbPlan) -> bytes:
         """Encode ArbPlan struct for contract call.

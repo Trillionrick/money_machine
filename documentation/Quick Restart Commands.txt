@@ -1,0 +1,65 @@
+ Quick Restart Commands
+
+  Method 1: Clean Restart (Recommended)
+
+  # Kill old processes and restart
+  lsof -ti:8080 | xargs kill -9 2>/dev/null; sleep 2 && ./start_dashboard.sh
+
+  Method 2: Step-by-Step
+
+  # Step 1: Kill the dashboard
+  lsof -ti:8080 | xargs kill -9
+
+  # Step 2: Wait a moment
+  sleep 2
+
+  # Step 3: Start fresh
+  ./start_dashboard.sh
+
+  Method 3: Nuclear Option (if port still stuck)
+
+  # Kill everything related to the dashboard
+  pkill -9 -f "uvicorn|web_server"
+  lsof -ti:8080 | xargs kill -9
+  sleep 3
+  ./start_dashboard.sh
+
+  ---
+  Bonus: Create a Restart Script
+
+  Save this as restart_dashboard.sh:
+
+  #!/bin/bash
+
+  echo "🛑 Stopping dashboard..."
+  lsof -ti:8080 | xargs kill -9 2>/dev/null
+  pkill -9 -f "uvicorn|web_server" 2>/dev/null
+  sleep 2
+
+  echo "🚀 Starting dashboard..."
+  ./start_dashboard.sh
+
+  Then make it executable:
+  chmod +x restart_dashboard.sh
+
+  Usage:
+  ./restart_dashboard.sh
+
+  ---
+  Check if Dashboard is Running
+
+  # Check port 8080
+  lsof -i:8080
+
+  # Or check the process
+  ps aux | grep uvicorn | grep -v grep
+
+  ---
+  View Live Logs (while running)
+
+  # Follow the logs in real-time
+  tail -f /tmp/arbitrage_*.log  # if you set up logging
+
+  # Or check the terminal output where it's running
+
+  Save these commands for easy access! 📋

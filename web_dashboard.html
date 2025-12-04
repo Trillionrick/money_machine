@@ -131,6 +131,18 @@
             margin-bottom: 20px;
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
         }
+        .controls input, .controls select {
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid #e5e7eb;
+            min-width: 120px;
+        }
+        .advanced-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 12px;
+            margin-top: 15px;
+        }
 
         .button-group {
             display: flex;
@@ -292,6 +304,28 @@
             height: 18px;
         }
 
+        .toggle.danger {
+            background: #fee2e2;
+            color: #991b1b;
+            border: 1px solid #fecaca;
+        }
+
+        .settings-flex {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 16px;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #e5e7eb;
+        }
+
+        .settings-card {
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 14px;
+        }
+
         .wallet-row {
             display: flex;
             justify-content: space-between;
@@ -352,6 +386,33 @@
         .trade-item.dry-run {
             border-left-color: #f59e0b;
         }
+        .table-compact {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85em;
+            margin-top: 8px;
+        }
+        .table-compact th, .table-compact td {
+            border-bottom: 1px solid #eef2ff;
+            padding: 6px 4px;
+            text-align: left;
+        }
+        .table-compact th {
+            color: #6b7280;
+            font-weight: 700;
+        }
+        .collapsible {
+            cursor: pointer;
+            font-size: 0.9em;
+            color: #4f46e5;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            margin-top: 6px;
+        }
+        .hidden {
+            display: none;
+        }
 
         .connection-status {
             position: fixed;
@@ -383,6 +444,10 @@
                     <div class="status-dot" id="statusDot"></div>
                     <span id="statusText">Connecting...</span>
                 </div>
+                <div class="status-indicator" id="dryRunStatus" style="background: #10b981; color: white; font-weight: bold;">
+                    <span class="emoji">🛡️</span>
+                    <span id="dryRunText">DRY RUN MODE</span>
+                </div>
                 <div class="status-indicator">
                     <span class="emoji">⛽</span>
                     <span id="gasPrice">-- Gwei</span>
@@ -411,6 +476,10 @@
                     <input type="checkbox" id="dryRunToggle" checked>
                     Dry run (no live trades)
                 </label>
+                <label class="toggle danger">
+                    <input type="checkbox" id="environmentToggle">
+                    Live exchanges (disable sandbox)
+                </label>
                 <label class="toggle">
                     <input type="checkbox" id="autoExecuteToggle">
                     Auto-execute profitable trades
@@ -420,7 +489,407 @@
                     Enable flash loans
                 </label>
             </div>
+            <div class="advanced-grid">
+                <div>
+                    <div class="stat-label">Min edge (bps, base)</div>
+                    <input type="number" id="edgeBase" step="1" value="25">
+                </div>
+                <div>
+                    <div class="stat-label">Min edge Polygon (bps)</div>
+                    <input type="number" id="edgePolygon" step="1" value="25">
+                </div>
+                <div>
+                    <div class="stat-label">Min edge Cross-chain (bps)</div>
+                    <input type="number" id="edgeCross" step="1" value="30">
+                </div>
+                <div>
+                    <div class="stat-label">Slippage tolerance</div>
+                    <input type="number" id="slippageInput" step="0.001" value="0.003">
+                </div>
+                <div>
+                    <div class="stat-label">Profit floor (quote/USD)</div>
+                    <input type="number" id="profitFloorInput" step="0.1" value="0">
+                </div>
+                <div>
+                    <div class="stat-label">Min margin (bps)</div>
+                    <input type="number" id="minMarginInput" step="0.5" value="5">
+                </div>
+                <div>
+                    <div class="stat-label">Gas cap ETH (gwei)</div>
+                    <input type="number" id="gasCapEth" step="1" value="0">
+                </div>
+                <div>
+                    <div class="stat-label">Gas cap Polygon (gwei)</div>
+                    <input type="number" id="gasCapPolygon" step="1" value="0">
+                </div>
+                <div>
+                    <div class="stat-label">Starting cash (quote)</div>
+                    <input type="number" id="initialCashInput" step="100" value="0">
+                </div>
+                <div>
+                    <div class="stat-label">Polygon protocols (1inch)</div>
+                    <input type="text" id="protocolsInput" value="UNISWAP_V3,QUICKSWAP_V3,QUICKSWAP">
+                </div>
+                <div class="toggle" style="background:#eef2ff;">
+                    <input type="checkbox" id="polygonExecToggle">
+                    <span>Enable Polygon execution</span>
+                </div>
+            </div>
+
+            <div class="settings-flex">
+                <div class="settings-card">
+                    <h3 style="margin:0 0 12px 0;font-size:14px;color:#6366f1;">
+                        <span class="emoji">⚡</span> Flash Loan Settings
+                    </h3>
+                    <div class="config-grid">
+                        <div>
+                            <div class="stat-label">Min flash profit (ETH)</div>
+                            <input type="number" id="minFlashProfitInput" step="0.01" value="0.05">
+                        </div>
+                        <div>
+                            <div class="stat-label">Max flash borrow (ETH)</div>
+                            <input type="number" id="maxFlashBorrowInput" step="1" value="10.0">
+                        </div>
+                        <div>
+                            <div class="stat-label">Flash threshold (bps)</div>
+                            <input type="number" id="flashThresholdInput" step="1" value="50">
+                        </div>
+                        <div>
+                            <div class="stat-label">Slippage tolerance (bps)</div>
+                            <input type="number" id="slippageToleranceBpsInput" step="1" value="50">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="settings-card">
+                    <h3 style="margin:0 0 12px 0;font-size:14px;color:#10b981;">
+                        <span class="emoji">🤖</span> AI Settings (off-chain)
+                    </h3>
+                    <div class="config-grid">
+                        <div>
+                            <div class="stat-label">AI min profit (ETH)</div>
+                            <input type="number" id="aiMinProfitEthInput" step="0.01" value="0.05">
+                        </div>
+                        <div>
+                            <div class="stat-label">AI confidence threshold</div>
+                            <input type="number" id="aiConfidenceInput" step="0.05" value="0.6" min="0" max="1">
+                        </div>
+                        <div>
+                            <div class="stat-label">AI max gas (gwei)</div>
+                            <input type="number" id="aiMaxGasInput" step="1" value="120">
+                        </div>
+                        <div>
+                            <div class="stat-label">AI hop penalty (quote units)</div>
+                            <input type="number" id="aiHopPenaltyInput" step="0.01" value="0">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+                <div style="margin-top:12px;">
+                    <button class="btn-start" style="padding:10px 18px;" onclick="updateConfig()">
+                        <span class="emoji">💾</span> Apply Config
+                    </button>
+            </div>
         </div>
+
+<div class="settings-card" style="border: 2px solid #f59e0b;">
+    <h3 style="margin:0 0 12px 0;font-size:14px;color:#f59e0b;display:flex;align-items:center;justify-content:space-between;">
+        <span><span class="emoji">⚡🤖</span> AI/ML On-Chain (Flash Loans)</span>
+        <span class="pill" id="aiOnChainStatus" style="background:#fef3c7;color:#92400e;font-size:0.75em;">OFF</span>
+    </h3>
+
+    <!-- Quick Preset Buttons -->
+    <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;">
+        <button onclick="applyAIPreset('conservative')" style="flex:1;padding:6px 10px;font-size:0.8em;background:#10b981;color:white;border:none;border-radius:6px;cursor:pointer;">
+            🛡️ Conservative
+        </button>
+        <button onclick="applyAIPreset('balanced')" style="flex:1;padding:6px 10px;font-size:0.8em;background:#3b82f6;color:white;border:none;border-radius:6px;cursor:pointer;">
+            ⚖️ Balanced
+        </button>
+        <button onclick="applyAIPreset('aggressive')" style="flex:1;padding:6px 10px;font-size:0.8em;background:#ef4444;color:white;border:none;border-radius:6px;cursor:pointer;">
+            🚀 Aggressive
+        </button>
+    </div>
+
+    <div class="config-grid" style="display:grid;grid-template-columns:1fr;gap:10px;">
+        <!-- AI Mode Selection -->
+        <div>
+            <div class="stat-label">AI Mode</div>
+            <select id="aiModeSelect" style="width:100%;padding:8px;border-radius:6px;border:1px solid #e5e7eb;">
+                <option value="conservative">Conservative (70% confidence, 2x leverage)</option>
+                <option value="balanced" selected>Balanced (65% confidence, 3x leverage)</option>
+                <option value="aggressive">Aggressive (60% confidence, 5x leverage)</option>
+            </select>
+        </div>
+
+        <!-- Capital and Target -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+            <div>
+                <div class="stat-label">Current Capital (ETH)</div>
+                <input type="number" id="currentCapitalEth" step="1" value="100" min="1" style="width:100%;padding:6px;border-radius:6px;border:1px solid #e5e7eb;">
+            </div>
+            <div>
+                <div class="stat-label">Target Capital (ETH)</div>
+                <input type="number" id="targetCapitalEth" step="10" value="1000" min="10" style="width:100%;padding:6px;border-radius:6px;border:1px solid #e5e7eb;">
+            </div>
+        </div>
+
+        <!-- Growth Multiplier Display -->
+        <div style="background:#f0fdf4;padding:8px;border-radius:6px;text-align:center;">
+            <div style="font-size:0.75em;color:#166534;margin-bottom:2px;">Target Growth</div>
+            <div style="font-size:1.3em;font-weight:bold;color:#15803d;" id="growthMultiplier">10.0x</div>
+        </div>
+
+        <!-- AI Confidence Threshold -->
+        <div>
+            <div class="stat-label">
+                AI Confidence Threshold
+                <span style="float:right;color:#6366f1;font-weight:bold;" id="aiConfidenceValue">0.70</span>
+            </div>
+            <input type="range" id="aiOnChainConfidence" min="0.50" max="0.90" step="0.05" value="0.70"
+                   style="width:100%;" oninput="updateAIConfidenceDisplay(this.value)">
+            <div style="display:flex;justify-content:space-between;font-size:0.7em;color:#9ca3af;margin-top:2px;">
+                <span>0.50 (Risky)</span>
+                <span>0.90 (Safe)</span>
+            </div>
+        </div>
+
+        <!-- Flash Loan Min Profit -->
+        <div>
+            <div class="stat-label">
+                Min Flash Profit (ETH)
+                <span style="float:right;color:#10b981;font-weight:bold;" id="flashProfitValue">0.15</span>
+            </div>
+            <input type="range" id="flashLoanMinProfit" min="0.05" max="0.50" step="0.05" value="0.15"
+                   style="width:100%;" oninput="updateFlashProfitDisplay(this.value)">
+            <div style="display:flex;justify-content:space-between;font-size:0.7em;color:#9ca3af;margin-top:2px;">
+                <span>0.05 (More opps)</span>
+                <span>0.50 (Safer)</span>
+            </div>
+        </div>
+
+        <!-- Position Sizing Settings -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+            <div>
+                <div class="stat-label">Kelly Fraction</div>
+                <input type="number" id="kellyFraction" step="0.05" value="0.25" min="0.1" max="0.5" style="width:100%;padding:6px;border-radius:6px;border:1px solid #e5e7eb;">
+            </div>
+            <div>
+                <div class="stat-label">Max Leverage</div>
+                <input type="number" id="maxLeverage" step="0.5" value="3.0" min="1.0" max="10.0" style="width:100%;padding:6px;border-radius:6px;border:1px solid #e5e7eb;">
+            </div>
+        </div>
+
+        <!-- Risk Management -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+            <div>
+                <div class="stat-label">Max Daily Losses ($)</div>
+                <input type="number" id="maxDailyLosses" step="50" value="500" min="100" style="width:100%;padding:6px;border-radius:6px;border:1px solid #e5e7eb;">
+            </div>
+            <div>
+                <div class="stat-label">Max Concurrent</div>
+                <input type="number" id="maxConcurrent" step="1" value="3" min="1" max="10" style="width:100%;padding:6px;border-radius:6px;border:1px solid #e5e7eb;">
+            </div>
+        </div>
+
+        <!-- Toggles -->
+        <div style="display:flex;flex-direction:column;gap:6px;">
+            <label class="toggle" style="background:#f0fdf4;cursor:pointer;">
+                <input type="checkbox" id="enableAIOrchestration" checked>
+                <span style="font-size:0.85em;">🎯 Enable AI Orchestration</span>
+            </label>
+            <label class="toggle" style="background:#fef3c7;cursor:pointer;">
+                <input type="checkbox" id="enableProfitMaximization" checked>
+                <span style="font-size:0.85em;">💰 Profit Maximization (Aggressive)</span>
+            </label>
+            <label class="toggle" style="background:#f0fdf4;cursor:pointer;">
+                <input type="checkbox" id="enableMLScoring" checked>
+                <span style="font-size:0.85em;">🧠 ML Model Scoring</span>
+            </label>
+            <label class="toggle" style="background:#fee2e2;cursor:pointer;">
+                <input type="checkbox" id="enableFlashLoans" checked>
+                <span style="font-size:0.85em;">⚡ Flash Loans Enabled</span>
+            </label>
+        </div>
+
+        <!-- Apply Button -->
+        <button onclick="applyAIOnChainConfig()" style="width:100%;padding:12px;background:linear-gradient(135deg, #f59e0b 0%, #d97706 100%);color:white;border:none;border-radius:8px;font-weight:bold;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;margin-top:4px;">
+            <span class="emoji">💾</span> Apply AI On-Chain Config
+        </button>
+    </div>
+
+    <!-- Stats Display -->
+    <div style="margin-top:12px;padding:10px;background:#f9fafb;border-radius:6px;font-size:0.8em;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
+            <div>
+                <div style="color:#6b7280;">AI Decisions</div>
+                <div style="font-weight:bold;color:#1f2937;" id="aiDecisionsCount">0</div>
+            </div>
+            <div>
+                <div style="color:#6b7280;">Executions</div>
+                <div style="font-weight:bold;color:#1f2937;" id="aiExecutionsCount">0</div>
+            </div>
+            <div>
+                <div style="color:#6b7280;">Win Rate</div>
+                <div style="font-weight:bold;color:#10b981;" id="aiWinRate">--%</div>
+            </div>
+            <div>
+                <div style="color:#6b7280;">Progress</div>
+                <div style="font-weight:bold;color:#f59e0b;" id="aiProgress">0.0%</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="settings-card" style="border: 2px solid #f59e0b;">
+    <h3 style="margin:0 0 12px 0;font-size:14px;color:#f59e0b;display:flex;align-items:center;justify-content:space-between;">
+        <span><span class="emoji">⚡🤖</span> AI/ML On-Chain (Flash Loans)</span>
+        <span class="pill" id="aiOnChainStatus" style="background:#fef3c7;color:#92400e;font-size:0.75em;">OFF</span>
+    </h3>
+
+    <!-- Quick Preset Buttons -->
+    <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;">
+        <button onclick="applyAIPreset('conservative')" style="flex:1;padding:6px 10px;font-size:0.8em;background:#10b981;color:white;border:none;border-radius:6px;cursor:pointer;">
+            🛡️ Conservative
+        </button>
+        <button onclick="applyAIPreset('balanced')" style="flex:1;padding:6px 10px;font-size:0.8em;background:#3b82f6;color:white;border:none;border-radius:6px;cursor:pointer;">
+            ⚖️ Balanced
+        </button>
+        <button onclick="applyAIPreset('aggressive')" style="flex:1;padding:6px 10px;font-size:0.8em;background:#ef4444;color:white;border:none;border-radius:6px;cursor:pointer;">
+            🚀 Aggressive
+        </button>
+    </div>
+
+    <div class="config-grid" style="display:grid;grid-template-columns:1fr;gap:10px;">
+        <!-- AI Mode Selection -->
+        <div>
+            <div class="stat-label">AI Mode</div>
+            <select id="aiModeSelect" style="width:100%;padding:8px;border-radius:6px;border:1px solid #e5e7eb;">
+                <option value="conservative">Conservative (70% confidence, 2x leverage)</option>
+                <option value="balanced" selected>Balanced (65% confidence, 3x leverage)</option>
+                <option value="aggressive">Aggressive (60% confidence, 5x leverage)</option>
+            </select>
+        </div>
+
+        <!-- Capital and Target -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+            <div>
+                <div class="stat-label">Current Capital (ETH)</div>
+                <input type="number" id="currentCapitalEth" step="1" value="100" min="1" style="width:100%;padding:6px;border-radius:6px;border:1px solid #e5e7eb;">
+            </div>
+            <div>
+                <div class="stat-label">Target Capital (ETH)</div>
+                <input type="number" id="targetCapitalEth" step="10" value="1000" min="10" style="width:100%;padding:6px;border-radius:6px;border:1px solid #e5e7eb;">
+            </div>
+        </div>
+
+        <!-- Growth Multiplier Display -->
+        <div style="background:#f0fdf4;padding:8px;border-radius:6px;text-align:center;">
+            <div style="font-size:0.75em;color:#166534;margin-bottom:2px;">Target Growth</div>
+            <div style="font-size:1.3em;font-weight:bold;color:#15803d;" id="growthMultiplier">10.0x</div>
+        </div>
+
+        <!-- AI Confidence Threshold -->
+        <div>
+            <div class="stat-label">
+                AI Confidence Threshold
+                <span style="float:right;color:#6366f1;font-weight:bold;" id="aiConfidenceValue">0.70</span>
+            </div>
+            <input type="range" id="aiOnChainConfidence" min="0.50" max="0.90" step="0.05" value="0.70"
+                   style="width:100%;" oninput="updateAIConfidenceDisplay(this.value)">
+            <div style="display:flex;justify-content:space-between;font-size:0.7em;color:#9ca3af;margin-top:2px;">
+                <span>0.50 (Risky)</span>
+                <span>0.90 (Safe)</span>
+            </div>
+        </div>
+
+        <!-- Flash Loan Min Profit -->
+        <div>
+            <div class="stat-label">
+                Min Flash Profit (ETH)
+                <span style="float:right;color:#10b981;font-weight:bold;" id="flashProfitValue">0.15</span>
+            </div>
+            <input type="range" id="flashLoanMinProfit" min="0.05" max="0.50" step="0.05" value="0.15"
+                   style="width:100%;" oninput="updateFlashProfitDisplay(this.value)">
+            <div style="display:flex;justify-content:space-between;font-size:0.7em;color:#9ca3af;margin-top:2px;">
+                <span>0.05 (More opps)</span>
+                <span>0.50 (Safer)</span>
+            </div>
+        </div>
+
+        <!-- Position Sizing Settings -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+            <div>
+                <div class="stat-label">Kelly Fraction</div>
+                <input type="number" id="kellyFraction" step="0.05" value="0.25" min="0.1" max="0.5" style="width:100%;padding:6px;border-radius:6px;border:1px solid #e5e7eb;">
+            </div>
+            <div>
+                <div class="stat-label">Max Leverage</div>
+                <input type="number" id="maxLeverage" step="0.5" value="3.0" min="1.0" max="10.0" style="width:100%;padding:6px;border-radius:6px;border:1px solid #e5e7eb;">
+            </div>
+        </div>
+
+        <!-- Risk Management -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+            <div>
+                <div class="stat-label">Max Daily Losses ($)</div>
+                <input type="number" id="maxDailyLosses" step="50" value="500" min="100" style="width:100%;padding:6px;border-radius:6px;border:1px solid #e5e7eb;">
+            </div>
+            <div>
+                <div class="stat-label">Max Concurrent</div>
+                <input type="number" id="maxConcurrent" step="1" value="3" min="1" max="10" style="width:100%;padding:6px;border-radius:6px;border:1px solid #e5e7eb;">
+            </div>
+        </div>
+
+        <!-- Toggles -->
+        <div style="display:flex;flex-direction:column;gap:6px;">
+            <label class="toggle" style="background:#f0fdf4;cursor:pointer;">
+                <input type="checkbox" id="enableAIOrchestration" checked>
+                <span style="font-size:0.85em;">🎯 Enable AI Orchestration</span>
+            </label>
+            <label class="toggle" style="background:#fef3c7;cursor:pointer;">
+                <input type="checkbox" id="enableProfitMaximization" checked>
+                <span style="font-size:0.85em;">💰 Profit Maximization (Aggressive)</span>
+            </label>
+            <label class="toggle" style="background:#f0fdf4;cursor:pointer;">
+                <input type="checkbox" id="enableMLScoring" checked>
+                <span style="font-size:0.85em;">🧠 ML Model Scoring</span>
+            </label>
+            <label class="toggle" style="background:#fee2e2;cursor:pointer;">
+                <input type="checkbox" id="enableFlashLoans" checked>
+                <span style="font-size:0.85em;">⚡ Flash Loans Enabled</span>
+            </label>
+        </div>
+
+        <!-- Apply Button -->
+        <button onclick="applyAIOnChainConfig()" style="width:100%;padding:12px;background:linear-gradient(135deg, #f59e0b 0%, #d97706 100%);color:white;border:none;border-radius:8px;font-weight:bold;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;margin-top:4px;">
+            <span class="emoji">💾</span> Apply AI On-Chain Config
+        </button>
+    </div>
+
+    <!-- Stats Display -->
+    <div style="margin-top:12px;padding:10px;background:#f9fafb;border-radius:6px;font-size:0.8em;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
+            <div>
+                <div style="color:#6b7280;">AI Decisions</div>
+                <div style="font-weight:bold;color:#1f2937;" id="aiDecisionsCount">0</div>
+            </div>
+            <div>
+                <div style="color:#6b7280;">Executions</div>
+                <div style="font-weight:bold;color:#1f2937;" id="aiExecutionsCount">0</div>
+            </div>
+            <div>
+                <div style="color:#6b7280;">Win Rate</div>
+                <div style="font-weight:bold;color:#10b981;" id="aiWinRate">--%</div>
+            </div>
+            <div>
+                <div style="color:#6b7280;">Progress</div>
+                <div style="font-weight:bold;color:#f59e0b;" id="aiProgress">0.0%</div>
+            </div>
+        </div>
+    </div>
+</div>
 
         <div class="grid">
             <div class="card">
@@ -464,6 +933,36 @@
                     <span class="pill gray" id="rainbowBalance">--</span>
                 </div>
             </div>
+            <div class="card">
+                <h2><span class="emoji">🛰️</span> Connectors</h2>
+                <div id="connectorsList" class="stat-label">None</div>
+            </div>
+            <div class="card">
+                <h2><span class="emoji">🤖</span> AI Decision</h2>
+                <div class="stat-value" id="aiDecisionNet">--</div>
+                <div class="stat-label" id="aiDecisionConfidence">Confidence: --</div>
+                <div class="stat-label" id="aiDecisionReason">Reason: --</div>
+                <div class="stat-label" id="aiDecisionMeta">No decision yet</div>
+            </div>
+            <div class="card">
+                <h2><span class="emoji">🛡️</span> Route Health</h2>
+                <div class="stat-value" id="routeHealthSummary">--</div>
+                <div class="stat-label" id="routeHealthMeta">Blacklisted: 0 · Top pair: —</div>
+                <div class="collapsible" onclick="toggleRouteDetails()">
+                    <span id="routeToggleIcon">▶</span> Details
+                </div>
+                <div id="routeDetails" class="hidden">
+                    <div class="collapsible" onclick="toggleRouteLimit()" style="margin-left:2px;">
+                        <span id="routeLimitIcon">▶</span> Show all
+                    </div>
+                    <table class="table-compact" id="routeTable">
+                        <thead>
+                            <tr><th>Route</th><th>Fails</th><th>Status</th></tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
         </div>
 
         <div class="opportunities-list">
@@ -491,6 +990,19 @@
                 </div>
             </div>
         </div>
+
+        <div class="trades-list">
+            <div class="section-header">
+                <h2><span class="emoji">🌊</span> Aqua Events</h2>
+                <span class="pill gray" id="aquaStatus">Listening</span>
+            </div>
+            <div id="aquaList">
+                <div class="alert">
+                    <strong>ℹ️ Awaiting Aqua events...</strong>
+                    <p>Pushed/Pulled/Shipped/Docked events will appear here when Aqua watcher is enabled.</p>
+                </div>
+            </div>
+        </div>
     </div>
 
     <div class="connection-status" id="connectionStatus">
@@ -503,7 +1015,12 @@
         let isRunning = false;
         let wallets = {};
         let dryRunMode = true;
+        let environmentMode = 'sandbox';
         let autoExecuteMode = false;
+        let currentConfig = {};
+        let aiState = { last_decision: null, last_trace: [] };
+        let routeHealth = { failures: {}, blacklisted_routes: [], pair_results: {} };
+        let routeLimitAll = false;
 
         // Connect to WebSocket
         function connectWebSocket() {
@@ -513,6 +1030,7 @@
             ws.onopen = () => {
                 updateConnectionStatus(true);
                 loadStatus();
+                loadConfig();
             };
 
             ws.onmessage = (event) => {
@@ -536,6 +1054,10 @@
                 case 'init':
                     updateStats(message.data.stats);
                     updateWallets(message.data.wallets);
+                    updateConnectors(message.data.connectors || []);
+                    updateEnvironmentMode(message.data.environment || 'sandbox');
+                    updateAiDecision(message.data.ai_state);
+                    updateRouteHealth(message.data.route_health);
                     updateRunningState(message.data.running);
                     break;
                 case 'stats_update':
@@ -545,12 +1067,25 @@
                 case 'status':
                     updateRunningState(message.running);
                     showAlert(message.message, message.running ? 'success' : 'warning');
+                    updateConnectors(message.connectors || []);
+                    if (message.environment) {
+                        updateEnvironmentMode(message.environment);
+                    }
                     break;
                 case 'opportunity':
                     addOpportunity(message.data);
                     break;
                 case 'trade':
                     addTrade(message.data);
+                    break;
+                case 'aqua_event':
+                    addAquaEvent(message.data);
+                    break;
+                case 'ai_decision':
+                    updateAiDecision({ last_decision: message.data, last_trace: message.trace });
+                    break;
+                case 'route_health':
+                    updateRouteHealth(message.data);
                     break;
             }
         }
@@ -571,11 +1106,22 @@
                 updateStats(data.stats);
                 updateWallets(data.wallets);
                 updateRunningState(data.running);
+                updateConnectors(data.connectors || []);
+                if (data.environment) {
+                    updateEnvironmentMode(data.environment);
+                }
+                updateAiDecision(data.ai_state);
+                updateRouteHealth(data.route_health);
                 if (data.opportunities) {
                     data.opportunities.forEach(addOpportunity);
                 }
                 if (data.trades) {
                     data.trades.forEach(addTrade);
+                }
+                const aquaRes = await fetch('/api/aqua/events');
+                const aquaJson = await aquaRes.json();
+                if (aquaJson.events) {
+                    aquaJson.events.forEach(addAquaEvent);
                 }
             } catch (error) {
                 console.error('Failed to load status:', error);
@@ -589,6 +1135,15 @@
             document.getElementById('totalProfit').textContent = `${(stats.total_profit_eth || 0).toFixed(4)} ETH`;
             document.getElementById('gasPrice').textContent = `${(stats.gas_price_gwei || 0).toFixed(2)} Gwei`;
             document.getElementById('walletBalance').textContent = `${(stats.wallet_balance_eth || 0).toFixed(4)} ETH`;
+            setExecutionMode();
+        }
+
+        function updateEnvironmentMode(mode) {
+            environmentMode = mode === 'live' ? 'live' : 'sandbox';
+            const toggle = document.getElementById('environmentToggle');
+            if (toggle) {
+                toggle.checked = environmentMode === 'live';
+            }
             setExecutionMode();
         }
 
@@ -618,6 +1173,9 @@
                 dryRunMode = document.getElementById('dryRunToggle').checked;
                 autoExecuteMode = document.getElementById('autoExecuteToggle').checked && !dryRunMode;
                 const enableFlash = document.getElementById('flashToggle').checked;
+                environmentMode = document.getElementById('environmentToggle').checked ? 'live' : 'sandbox';
+
+                await updateConfig(true);
 
                 const response = await fetch('/api/start', {
                     method: 'POST',
@@ -626,6 +1184,7 @@
                         dry_run: dryRunMode,
                         enable_flash: enableFlash,
                         auto_execute: autoExecuteMode,
+                        environment: environmentMode,
                     })
                 });
                 const data = await response.json();
@@ -687,20 +1246,245 @@
             }
         }
 
+        function updateConnectors(connectors) {
+            const el = document.getElementById('connectorsList');
+            if (!connectors || connectors.length === 0) {
+                el.textContent = 'None';
+                return;
+            }
+            el.textContent = connectors.join(', ');
+        }
+
+        function updateRouteHealth(health) {
+            routeHealth = health || { failures: {}, blacklisted_routes: [], pair_results: {} };
+            const blk = routeHealth.blacklisted_routes || [];
+            const pairs = routeHealth.pair_results || {};
+            const card = document.getElementById('routeHealthMeta');
+            const blkCount = blk.length;
+            const topPair = Object.entries(pairs).sort((a,b) => (b[1].wins || 0) - (a[1].wins || 0))[0];
+            const topText = topPair ? `${topPair[0]} (${(topPair[1].wins||0)}/${(topPair[1].trades||0)})` : '—';
+            card.textContent = `Blacklisted: ${blkCount} · Top pair: ${topText}`;
+            const summary = document.getElementById('routeHealthSummary');
+            summary.textContent = `${Object.keys(routeHealth.failures || {}).length} routes`;
+
+            const tbody = document.querySelector('#routeTable tbody');
+            tbody.innerHTML = '';
+            const entries = Object.entries(routeHealth.failures || {}).sort((a,b) => b[1] - a[1]);
+            const limited = routeLimitAll ? entries : entries.slice(0, 10);
+            const rows = limited;
+            rows.forEach(([route, fails]) => {
+                const tr = document.createElement('tr');
+                const status = blk.includes(route) ? 'blacklisted' : 'active';
+                tr.innerHTML = `<td>${route}</td><td>${fails}</td><td>${status}</td>`;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function toggleRouteDetails() {
+            const details = document.getElementById('routeDetails');
+            const icon = document.getElementById('routeToggleIcon');
+            const isHidden = details.classList.contains('hidden');
+            if (isHidden) {
+                details.classList.remove('hidden');
+                icon.textContent = '▼';
+            } else {
+                details.classList.add('hidden');
+                icon.textContent = '▶';
+            }
+        }
+
+        function toggleRouteLimit() {
+            routeLimitAll = !routeLimitAll;
+            document.getElementById('routeLimitIcon').textContent = routeLimitAll ? '▼' : '▶';
+            updateRouteHealth(routeHealth);
+        }
+
+        function updateAiDecision(state) {
+            aiState = state || { last_decision: null, last_trace: [] };
+            const decision = aiState.last_decision;
+            const netEl = document.getElementById('aiDecisionNet');
+            const confEl = document.getElementById('aiDecisionConfidence');
+            const reasonEl = document.getElementById('aiDecisionReason');
+            const metaEl = document.getElementById('aiDecisionMeta');
+
+            if (!decision) {
+                netEl.textContent = '--';
+                confEl.textContent = 'Confidence: --';
+                reasonEl.textContent = 'Reason: --';
+                metaEl.textContent = 'No decision yet';
+                return;
+            }
+
+            const netQuote = Number(decision.net_quote ?? 0);
+            const confidence = Number(decision.confidence ?? 0);
+            netEl.textContent = `${netQuote.toFixed(4)} quote`;
+            confEl.textContent = `Confidence: ${confidence.toFixed(2)}`;
+            reasonEl.textContent = `Reason: ${decision.reason || 'ok'}`;
+
+            const parts = [];
+            if (decision.symbol) parts.push(decision.symbol);
+            parts.push(`hops ${decision.hop_count || 1}`);
+            parts.push(`edge ${(Number(decision.edge_bps ?? 0)).toFixed(2)} bps`);
+            if (decision.timestamp) {
+                parts.push(new Date(decision.timestamp).toLocaleTimeString());
+            }
+            metaEl.textContent = parts.join(' · ');
+        }
+
+        function addAquaEvent(evt) {
+            if (!evt) return;
+            const list = document.getElementById('aquaList');
+            const pill = document.getElementById('aquaStatus');
+            pill.className = 'pill green';
+            pill.textContent = 'Active';
+
+            const div = document.createElement('div');
+            div.className = 'trade-item';
+            div.innerHTML = `
+                <div style="display:flex;justify-content:space-between;align-items:center;">
+                    <strong>${evt.name}</strong>
+                    <span class="timestamp">${evt.chain_id || ''} · ${evt.block_number || ''}</span>
+                </div>
+                <div class="opportunity-details" style="margin-top:8px;">
+                    <span><strong>Maker:</strong> ${evt.maker}</span>
+                    <span><strong>App:</strong> ${evt.app}</span>
+                    <span><strong>Strategy:</strong> ${evt.strategy_hash}</span>
+                    ${evt.token ? `<span><strong>Token:</strong> ${evt.token}</span>` : ''}
+                    ${evt.amount ? `<span><strong>Amount:</strong> ${evt.amount}</span>` : ''}
+                    ${evt.tx_hash ? `<span><strong>Tx:</strong> ${evt.tx_hash}</span>` : ''}
+                </div>
+            `;
+            if (list.firstChild && list.firstChild.classList.contains('alert')) {
+                list.removeChild(list.firstChild);
+            }
+            list.prepend(div);
+            while (list.childElementCount > 20) {
+                list.removeChild(list.lastChild);
+            }
+        }
+
+        async function loadConfig() {
+            try {
+                const res = await fetch('/api/config');
+                const data = await res.json();
+                if (!data.config) return;
+                currentConfig = data.config;
+                document.getElementById('edgeBase').value = data.config.min_edge_bps ?? 25;
+                document.getElementById('edgePolygon').value = data.config.min_edge_bps_polygon ?? data.config.min_edge_bps ?? 25;
+                document.getElementById('edgeCross').value = data.config.min_edge_bps_cross_chain ?? 30;
+                document.getElementById('slippageInput').value = data.config.slippage_tolerance ?? 0.003;
+                document.getElementById('profitFloorInput').value = data.config.profit_floor_quote ?? 0;
+                document.getElementById('minMarginInput').value = data.config.min_margin_bps ?? 5;
+                document.getElementById('protocolsInput').value = data.config.polygon_quote_protocols ?? 'UNISWAP_V3,QUICKSWAP_V3,QUICKSWAP';
+                document.getElementById('polygonExecToggle').checked = data.config.enable_polygon_execution ?? false;
+                const caps = data.config.gas_price_cap_gwei || {};
+                document.getElementById('gasCapEth').value = caps.ethereum ?? '';
+                document.getElementById('gasCapPolygon').value = caps.polygon ?? '';
+                document.getElementById('initialCashInput').value = data.config.initial_cash ?? 0;
+
+                // Update DRY_RUN status indicator
+                updateDryRunIndicator(data.config.dry_run ?? true, data.config.trading_mode ?? 'paper');
+            } catch (err) {
+                console.error('Failed to load config', err);
+            }
+        }
+
+        function updateDryRunIndicator(isDryRun, tradingMode) {
+            const statusEl = document.getElementById('dryRunStatus');
+            const textEl = document.getElementById('dryRunText');
+
+            if (isDryRun) {
+                // Safe mode - green
+                statusEl.style.background = '#10b981';
+                statusEl.style.color = 'white';
+                textEl.textContent = 'DRY RUN MODE';
+            } else {
+                // Live trading - red warning
+                statusEl.style.background = '#ef4444';
+                statusEl.style.color = 'white';
+                textEl.textContent = `⚠️ LIVE TRADING (${tradingMode.toUpperCase()})`;
+                // Flash the indicator
+                statusEl.style.animation = 'pulse 2s infinite';
+            }
+        }
+
+        async function updateConfig(silent=false) {
+            const payload = {
+                min_edge_bps: parseFloat(document.getElementById('edgeBase').value || '0'),
+                min_edge_bps_polygon: parseFloat(document.getElementById('edgePolygon').value || '0'),
+                min_edge_bps_cross_chain: parseFloat(document.getElementById('edgeCross').value || '0'),
+                slippage_tolerance: parseFloat(document.getElementById('slippageInput').value || '0'),
+                profit_floor_quote: parseFloat(document.getElementById('profitFloorInput').value || '0'),
+                min_margin_bps: parseFloat(document.getElementById('minMarginInput').value || '0'),
+                gas_price_cap_eth: parseFloat(document.getElementById('gasCapEth').value || '0') || null,
+                gas_price_cap_polygon: parseFloat(document.getElementById('gasCapPolygon').value || '0') || null,
+                polygon_quote_protocols: document.getElementById('protocolsInput').value || undefined,
+                initial_cash: parseFloat(document.getElementById('initialCashInput').value || '0'),
+                enable_polygon_execution: document.getElementById('polygonExecToggle').checked,
+                enable_execution: !document.getElementById('dryRunToggle').checked && document.getElementById('autoExecuteToggle').checked,
+                // Flash loan settings
+                min_flash_profit_eth: parseFloat(document.getElementById('minFlashProfitInput').value || '0.05'),
+                max_flash_borrow_eth: parseFloat(document.getElementById('maxFlashBorrowInput').value || '10.0'),
+                flash_loan_threshold_bps: parseFloat(document.getElementById('flashThresholdInput').value || '50'),
+                slippage_tolerance_bps: parseFloat(document.getElementById('slippageToleranceBpsInput').value || '50'),
+                // AI settings (off-chain hints)
+                ai_min_profit_eth: parseFloat(document.getElementById('aiMinProfitEthInput').value || '0.05'),
+                ai_confidence_threshold: parseFloat(document.getElementById('aiConfidenceInput').value || '0.6'),
+                ai_max_gas_gwei: parseFloat(document.getElementById('aiMaxGasInput').value || '120'),
+                ai_hop_penalty_quote: parseFloat(document.getElementById('aiHopPenaltyInput').value || '0'),
+            };
+            try {
+                await fetch('/api/config/update', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                });
+                if (!silent) {
+                    showAlert('Config applied', 'success');
+                }
+            } catch (err) {
+                if (!silent) {
+                    showAlert('Failed to apply config: ' + err.message, 'error');
+                }
+            }
+        }
+
         function setExecutionMode() {
             const executionPill = document.getElementById('executionMode');
             const tradeStatus = document.getElementById('tradeStatus');
+            const tradesList = document.getElementById('tradesList');
+            const envLabel = environmentMode === 'live' ? 'Live env' : 'Sandbox';
 
             if (autoExecuteMode) {
-                executionPill.textContent = 'Live auto-execution';
+                executionPill.textContent = `Auto-execution · ${envLabel}`;
                 executionPill.className = 'pill green';
                 tradeStatus.textContent = 'Auto-execution enabled';
                 tradeStatus.className = 'pill green';
+
+                // Update the alert message to reflect active auto-execution
+                if (tradesList.firstElementChild && tradesList.firstElementChild.classList.contains('alert')) {
+                    tradesList.innerHTML = `
+                        <div class="alert alert-success">
+                            <strong>✅ Auto-execution is active!</strong>
+                            <p>The engine will automatically execute trades when profitable opportunities are detected that meet your configured thresholds.</p>
+                        </div>
+                    `;
+                }
             } else {
-                executionPill.textContent = dryRunMode ? 'Dry run' : 'Manual';
-                executionPill.className = 'pill gray';
+                executionPill.textContent = dryRunMode ? `Dry run · ${envLabel}` : `Manual · ${envLabel}`;
+                executionPill.className = environmentMode === 'live' ? 'pill green' : 'pill gray';
                 tradeStatus.textContent = 'Auto-execution disabled';
                 tradeStatus.className = 'pill gray';
+
+                // Update the alert message to show how to enable auto-execution
+                if (tradesList.firstElementChild && tradesList.firstElementChild.classList.contains('alert')) {
+                    tradesList.innerHTML = `
+                        <div class="alert">
+                            <strong>ℹ️ No trades yet.</strong>
+                            <p>Enable auto-execute to allow the engine to place trades when spreads meet your thresholds.</p>
+                        </div>
+                    `;
+                }
             }
         }
 
@@ -746,15 +1530,26 @@
             const item = document.createElement('div');
             item.className = `trade-item ${trade.executed ? '' : 'dry-run'}`;
             const timestamp = trade.timestamp ? new Date(trade.timestamp).toLocaleTimeString() : '--';
+            const chain = trade.chain || 'ethereum';
+            const sizeText = trade.base_qty
+                ? `${trade.base_qty.toFixed(4)} base`
+                : trade.borrow_amount_eth
+                    ? `${trade.borrow_amount_eth.toFixed(2)} ETH borrow`
+                    : '--';
+            const notional = trade.notional_quote ? `${trade.notional_quote.toFixed(2)} quote` : '';
+            const execLabel = trade.executed ? 'Executed' : 'Dry run';
+            const modeLabel = trade.mode ? trade.mode : 'regular';
 
             item.innerHTML = `
                 <div class="opportunity-header">
                     <span class="opportunity-symbol">${trade.symbol || ''}</span>
-                    <span class="opportunity-profit">${trade.executed ? 'Executed' : 'Dry run'}</span>
+                    <span class="opportunity-profit">${execLabel}</span>
                 </div>
                 <div class="opportunity-details">
-                    <span>Mode: ${trade.mode || 'regular'}</span>
-                    <span>Size: ${trade.base_qty ? trade.base_qty.toFixed(4) : (trade.borrow_amount_eth ? trade.borrow_amount_eth.toFixed(2) + ' ETH borrow' : '--')}</span>
+                    <span>Mode: ${modeLabel}</span>
+                    <span>Chain: ${chain}</span>
+                    <span>Size: ${sizeText}</span>
+                    ${notional ? `<span>Notional: ${notional}</span>` : ''}
                     <span>Edge: ${trade.edge_bps ? trade.edge_bps.toFixed(2) + ' bps' : '--'}</span>
                     <span>Tx: ${trade.tx_hash ? trade.tx_hash.slice(0, 10) + '...' : 'N/A'}</span>
                     <span>Time: ${timestamp}</span>
@@ -794,11 +1589,36 @@
 
         // Initialize
         connectWebSocket();
+
+        // Set initial execution mode display
+        setExecutionMode();
+
         setInterval(() => {
             if (isRunning) {
                 loadStatus();
             }
         }, 5000);
+
+        // Add event listeners to checkboxes to update UI immediately
+        document.getElementById('dryRunToggle').addEventListener('change', function() {
+            dryRunMode = this.checked;
+            if (dryRunMode) {
+                autoExecuteMode = false;
+                document.getElementById('autoExecuteToggle').checked = false;
+            }
+            setExecutionMode();
+        });
+
+        document.getElementById('autoExecuteToggle').addEventListener('change', function() {
+            if (this.checked && dryRunMode) {
+                // Can't enable auto-execute in dry run mode
+                this.checked = false;
+                showAlert('Cannot enable auto-execute while in dry-run mode. Uncheck "Dry run" first.', 'error');
+                return;
+            }
+            autoExecuteMode = this.checked && !dryRunMode;
+            setExecutionMode();
+        });
     </script>
 </body>
 </html>

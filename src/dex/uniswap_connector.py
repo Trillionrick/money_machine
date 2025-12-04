@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from decimal import Decimal
 from typing import Any, Dict
 
@@ -38,10 +39,22 @@ class UniswapConnector:
             raise ValueError(msg)
 
         private_key = config.private_key.get_secret_value() if config.private_key else None
+        relay_urls = os.getenv("PRIVATE_RELAY_URLS", "")
+        private_relays = [u.strip() for u in relay_urls.split(",") if u.strip()]
+        single_relay = os.getenv("PRIVATE_RELAY_URL")
+        if single_relay:
+            private_relays.append(single_relay.strip())
+        private_relay_timeout = int(os.getenv("PRIVATE_RELAY_TIMEOUT", "20"))
+        private_relay_cancel = os.getenv("PRIVATE_RELAY_CANCEL", "false").lower() == "true"
+        private_relay_tip_bump_pct = float(os.getenv("PRIVATE_RELAY_TIP_BUMP_PCT", "15"))
         self.web3 = UniswapWeb3Connector(
             rpc_url=rpc_url,
             router_address=router_address,
             private_key=private_key,
+            private_relays=private_relays,
+            private_relay_timeout=private_relay_timeout,
+            enable_private_cancel=private_relay_cancel,
+            private_relay_tip_bump_pct=private_relay_tip_bump_pct,
         )
 
     async def get_quote(

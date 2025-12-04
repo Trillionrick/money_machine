@@ -1,0 +1,315 @@
+ Deploy Using Remix IDE
+
+  Step 1: Open Remix
+
+  Go to: https://remix.ethereum.org
+
+  Step 2: Copy Your Contract
+
+  In your terminal:
+  cat contracts/EnhancedHighSpeedArbRunner.sol
+
+  Copy the entire output.
+
+  Step 3: Create File in Remix
+
+  1. In Remix, click "File Explorer" (folder icon, left sidebar)
+  2. Click "Create New File" button
+  3. Name it: EnhancedHighSpeedArbRunner.sol
+  4. Paste the contract code you copied
+
+  Step 4: Compile
+
+  1. Click "Solidity Compiler" tab (left sidebar, looks like "S" icon)
+  2. Select compiler version: 0.8.25
+  3. Click "Compile EnhancedHighSpeedArbRunner.sol" button
+  4. Wait for green checkmark ✅
+
+  Step 5: Connect MetaMask
+
+  1. Click "Deploy & Run Transactions" tab (left sidebar, Ethereum icon)
+  2. Environment: Select "Injected Provider - MetaMask"
+  3. MetaMask popup will appear → Click "Connect"
+  4. Verify you see your wallet address under "Account"
+
+  Step 6: Enter Constructor Parameters
+
+  In the "Deploy" section, you'll see a form with 3 parameters. Enter these EXACT addresses:
+
+  _aavePool:      0x87870Bca3f5FD6335c3f4d4C530Eed06fb5de523
+  _uniV3Router:   0xE592427A0AEce92De3Edee1F18E0157C05861564
+  _weth:          0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2
+
+  Screenshot of what it looks like:
+  ┌──────────────────────────────────────┐
+  │ Deploy                               │
+  ├──────────────────────────────────────┤
+  │ CONTRACT: EnhancedHighSpeedArbRunner │
+  │                                      │
+  │ _aavePool                            │
+  │ [0x87870Bca3f5FD6335c3...] ←───────┐│
+  │                                     ││
+  │ _uniV3Router                        ││
+  │ [0xE592427A0AEce92De3E...] ←───────┤│ Paste here
+  │                                     ││
+  │ _weth                               ││
+  │ [0xC02aaA39b223FE8D0A0...] ←───────┘│
+  │                                      │
+  │ [  Deploy  ]                         │
+  └──────────────────────────────────────┘
+
+  Step 7: Deploy!
+
+  1. Click the orange "Deploy" button
+  2. MetaMask will pop up showing gas estimate
+  3. Check the gas fee (should be ~$30-100 depending on network)
+  4. Click "Confirm" in MetaMask
+  5. Wait 15-60 seconds for confirmation
+
+  Step 8: Save Contract Address
+
+  After deployment, you'll see:
+  ┌────────────────────────────────────────┐
+  │ Deployed Contracts                     │
+  ├────────────────────────────────────────┤
+  │ ✅ ENHANCEDHIGHSPEEDARBRUNNER          │
+  │    at 0x1234abcd... (memory)          │
+  │    ▼                                   │
+  └────────────────────────────────────────┘
+
+  1. Click the copy icon next to the contract address
+  2. Open your .env file:
+  nano .env  # or: code .env
+  3. Add this line:
+  ARB_CONTRACT_ADDRESS=0xYourContractAddressHere
+  4. Save the file
+
+  ---
+  ✅ Verify It Worked
+
+  In Remix:
+
+  You should see your contract in the "Deployed Contracts" section with these functions:
+  - ✅ requestFlashLoan
+  - ✅ calculateProfitability
+  - ✅ simulateArbitrage
+  - ✅ owner (should show YOUR address)
+
+  Test It:
+
+  Click on owner function → Should display your wallet address
+
+  ---
+  🎯 What These Addresses Are
+
+  | Parameter    | What It Is             | Why Needed                  |
+  |--------------|------------------------|-----------------------------|
+  | _aavePool    | Aave V3 Pool (Mainnet) | Where flash loans come from |
+  | _uniV3Router | Uniswap V3 Router      | Where to execute swaps      |
+  | _weth        | Wrapped ETH Token      | The asset we'll arbitrage   |
+
+  These are official Ethereum mainnet addresses - don't change them!
+
+  ---
+  ⚠️ Important Notes
+
+  1. Network Selection
+
+  Make sure MetaMask is on Ethereum Mainnet:
+  MetaMask Network: Ethereum Mainnet (Chain ID: 1)
+
+  NOT:
+  - ❌ Sepolia Testnet
+  - ❌ Polygon
+  - ❌ Arbitrum
+
+  2. Gas Costs
+
+  Deployment will cost approximately:
+  - Gas fee: $30-$100 (varies with network congestion)
+  - No ETH sent to contract (deployment only)
+
+  3. After Deployment
+
+  Your contract will be empty at first. You'll need to:
+  1. Add ARB_CONTRACT_ADDRESS to .env
+  2. Optionally: Send 0.1-0.5 ETH to the contract for gas reserves
+  3. Enable flash loans in your bot
+
+  ---
+  🧪 Test Before Mainnet (Optional)
+
+  If you want to test on Sepolia testnet first:
+
+  1. Switch MetaMask to Sepolia
+  2. Get free test ETH: https://sepoliafaucet.com
+  3. Use these constructor parameters instead:
+  _aavePool:      0x6Ae43d3271ff6888e7Fc43Fd7321a503ff738951
+  _uniV3Router:   0x3bFA4769FB09eefC5a80d6E87c3B9C650f7Ae48E
+  _weth:          0xfFf9976782d46CC05630D1f6eBAb18b2324d6B14
+  4. Deploy on Sepolia
+  5. Test with fake ETH
+  6. When satisfied, deploy on Mainnet
+
+  ---
+  🎬 Quick Checklist
+
+  Before you deploy:
+
+  - Remix is open at https://remix.ethereum.org
+  - Contract code is pasted in Remix
+  - Compiler version is 0.8.25
+  - MetaMask is connected
+  - MetaMask is on Ethereum Mainnet
+  - You have >$50 worth of ETH for gas
+  - Constructor parameters are ready to paste
+  - .env file is ready to add contract address
+
+  Ready to deploy? Follow steps 1-8 above! 🚀
+
+============================================
+============================================
+
+Where would I find the address?
+
+● Great question! Here's exactly where to find it in Remix after deployment:
+
+  ---
+  📍 Finding Your Contract Address in Remix
+
+  After You Click "Deploy"
+
+  1. Wait for MetaMask confirmation (~15-60 seconds)
+  2. Look at the bottom-left panel in Remix - the "Deployed Contracts" section will expand automatically
+  3. You'll see this:
+
+  ┌─────────────────────────────────────────────────────┐
+  │ 📁 Deployed Contracts                               │
+  ├─────────────────────────────────────────────────────┤
+  │                                                     │
+  │ ✅ ENHANCEDHIGHSPEEDARBRUNNER                       │
+  │    at 0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb  │ ← THIS!
+  │    (memory)                                         │
+  │    ▼ [Dropdown arrow to expand functions]          │
+  │                                                     │
+  │    📋 [Copy icon]  ← Click this to copy address    │
+  │                                                     │
+  └─────────────────────────────────────────────────────┘
+
+  Visual Location:
+
+  Remix IDE Layout:
+  ┌─────────────┬───────────────────────────────────┐
+  │  File       │  Editor (your .sol file)          │
+  │  Explorer   │                                   │
+  │             │                                   │
+  │  Compiler   │                                   │
+  │             │                                   │
+  │  Deploy &   │                                   │
+  │  Run Tx     │                                   │
+  │  (You're    ├───────────────────────────────────┤
+  │   here)     │  Terminal / Console               │
+  │             ├───────────────────────────────────┤
+  │             │  📁 Deployed Contracts            │
+  │             │  ✅ ENHANCEDHIGHSPEEDARBRUNNER    │
+  │             │     at 0x742d35Cc... ← HERE!     │
+  │             │                                   │
+  └─────────────┴───────────────────────────────────┘
+
+  ---
+  🎯 Step-by-Step to Copy the Address
+
+  Method 1: Use the Copy Button (Easiest)
+
+  1. Find your deployed contract in the "Deployed Contracts" section
+  2. Look for the address that starts with 0x
+  3. Click the copy icon (📋) next to the address
+  4. Address is now in your clipboard!
+
+  Method 2: Select and Copy
+
+  1. Click once on the contract address (the 0x... text)
+  2. It will highlight
+  3. Right-click → Copy
+  4. Or press Ctrl+C (Windows/Linux) or Cmd+C (Mac)
+
+  Method 3: From MetaMask
+
+  1. Open MetaMask
+  2. Click Activity tab
+  3. Find your deployment transaction (most recent)
+  4. Click on it to see details
+  5. Under "Contract Deployment", you'll see the address
+  6. Click to copy
+
+  ---
+  ✅ What the Address Looks Like
+
+  Your contract address will be exactly 42 characters:
+
+  0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb
+   ↑
+  Starts with "0x" followed by 40 hex characters (0-9, a-f)
+
+  Examples of valid addresses:
+  - ✅ 0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb
+  - ✅ 0x1234567890abcdef1234567890abcdef12345678
+  - ✅ 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48
+
+  NOT valid:
+  - ❌ 742d35Cc6634C0532925a3b844Bc9e7595f0bEb (missing 0x)
+  - ❌ 0x742d35Cc (too short)
+  - ❌ (memory) (that's just a label, not the address)
+
+  ---
+  🔍 Verify Your Contract on Etherscan
+
+  After copying the address, you can also view it on Etherscan:
+
+  1. Go to https://etherscan.io
+  2. Paste your contract address in the search bar
+  3. Press Enter
+
+  You should see:
+  Contract: 0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb
+  ┌─────────────────────────────────────┐
+  │ Contract                            │
+  │ Creator: 0xYourWalletAddress...     │
+  │ Txn Hash: 0xabcd1234...             │
+  │ Block: 12345678                     │
+  └─────────────────────────────────────┘
+
+  ---
+  📋 After You Copy It
+
+  Once you have the address copied:
+
+  # Open your .env file
+  nano .env
+
+  # Find line 130 and replace with your address:
+  ARB_CONTRACT_ADDRESS=0xYourCopiedAddressHere
+
+  # Save (Ctrl+O, Enter, Ctrl+X)
+
+  ---
+  🚨 Troubleshooting
+
+  "I don't see Deployed Contracts section!"
+
+  - Make sure deployment succeeded (check MetaMask for confirmation)
+  - The section auto-expands after successful deployment
+  - Look at the bottom of the left panel in the "Deploy & Run Transactions" tab
+
+  "It says 'memory' - is that the address?"
+
+  - No! The address is the 0x... part
+  - (memory) is just a label showing it's a local deployment
+  - Copy only the 42-character 0x address
+
+  "The address changed when I refreshed Remix!"
+
+  - That's normal for local deployments
+  - But if you deployed to Mainnet, the address is permanent
+  - Check MetaMask transaction history for the real address
+

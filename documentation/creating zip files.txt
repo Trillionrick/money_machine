@@ -1,0 +1,85 @@
+Here are the modern approaches for creating zip files in each environment:
+
+WSL (Ubuntu/Debian-based)
+
+# Install zip if not present
+
+sudo apt update && sudo apt install zip -y
+
+# Create zip of entire folder (recursive)
+
+zip -r archive.zip /path/to/folder
+
+# Create zip of current directory contents
+
+zip -r archive.zip .
+
+# Exclude hidden files
+
+zip -r archive.zip . -x '*/.*'
+
+# With compression level (1=fastest, 9=best compression)
+
+zip -9 -r archive.zip /path/to/folder
+```
+===========================================================
+===========================================================
+
+CMD (Command Prompt)
+
+Modern Windows 10+ includes native tar with zip support:
+
+```cmd
+REM Create zip of folder
+tar -a -c -f archive.zip -C C:\path\to\folder .
+
+REM Or specify source folder directly
+tar -a -c -f archive.zip C:\path\to\folder
+
+REM From current directory
+tar -a -c -f archive.zip *
+```
+
+Flags explained:
+- `-a`: Auto-detect archive format from extension
+- `-c`: Create archive
+- `-f`: Specify filename
+- `-C`: Change to directory before archiving
+
+PowerShell
+
+```powershell
+# Create zip of entire folder
+Compress-Archive -Path "C:\path\to\folder\*" -DestinationPath "C:\output\archive.zip"
+
+# Include the folder itself in the zip
+Compress-Archive -Path "C:\path\to\folder" -DestinationPath "C:\output\archive.zip"
+
+# Overwrite existing zip
+Compress-Archive -Path ".\folder\*" -DestinationPath ".\archive.zip" -Force
+
+# Maximum compression
+Compress-Archive -Path ".\folder\*" -DestinationPath ".\archive.zip" -CompressionLevel Optimal
+
+# Update existing archive (PowerShell 7.4+)
+Compress-Archive -Path ".\newfolder\*" -DestinationPath ".\archive.zip" -Update
+```
+
+**Compression levels:**
+- `Fastest`: Speed-optimized
+- `Optimal`: Balance (default)
+- `NoCompression`: Store only
+
+Quick Reference by Use Case
+
+**Recursive zip of current directory:**
+- WSL: `zip -r archive.zip .`
+- CMD: `tar -a -c -f archive.zip *`
+- PowerShell: `Compress-Archive -Path * -DestinationPath archive.zip`
+
+**Zip specific folder:**
+- WSL: `zip -r archive.zip /mnt/c/Users/folder`
+- CMD: `tar -a -c -f archive.zip C:\Users\folder`
+- PowerShell: `Compress-Archive -Path C:\Users\folder\* -DestinationPath archive.zip`
+
+All three approaches use native, current tooling without third-party dependencies. The PowerShell cmdlet offers the most Windows-native experience, while WSL provides the most Unix-like flexibility.

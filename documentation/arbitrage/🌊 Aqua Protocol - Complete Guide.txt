@@ -1,0 +1,126 @@
+🌊 Aqua Protocol - Complete Guide
+
+  What is Aqua?
+
+  Aqua is a cross-chain liquidity management protocol that allows users to deploy and manage DeFi trading strategies across multiple      
+  blockchains from a single smart contract. Your arbitrage system monitors Aqua to detect profitable liquidity movements.
+
+  ---
+  The 4 Event Types Explained:
+
+  1. Pushed 📥
+
+  What: User deposits tokens into a strategy
+  - Tracks: maker address, app address, token, amount
+  - Why it matters: Shows capital flowing into strategies
+  - Example: Whale deposits 100 ETH into a yield farming strategy
+
+  2. Pulled 📤
+
+  What: User withdraws tokens from a strategy
+  - Tracks: maker address, app address, token, amount
+  - Why it matters: Shows capital exiting strategies (could indicate profit-taking or risk-off)
+  - Example: User pulls 50 USDC profit from an arbitrage strategy
+
+  3. Shipped 🚢
+
+  What: A new strategy is deployed/activated
+  - Tracks: maker address, app address, strategy hash (unique ID)
+  - Why it matters: New profitable strategies being launched
+  - Example: Smart trader deploys a cross-DEX arbitrage strategy
+
+  4. Docked ⚓
+
+  What: A strategy is terminated/closed
+  - Tracks: maker address, app address, strategy hash
+  - Why it matters: Strategies being shut down (could be unprofitable or completed)
+  - Example: Arbitrage strategy completed and positions unwound
+
+  ---
+  Why Monitor Aqua for Arbitrage?
+
+  1. Copy Trading Opportunities
+    - See what profitable traders are doing in real-time
+    - Identify successful strategies before they become saturated
+  2. Liquidity Flow Intelligence
+    - Track where capital is moving across chains
+    - Detect market sentiment shifts
+  3. Strategy Discovery
+    - Learn from strategy hashes of successful traders
+    - Reverse-engineer profitable approaches
+  4. Flash Loan Signals
+    - Large Pushed/Pulled events = liquidity opportunities
+    - Shipped events = potential arbitrage setups
+
+  ---
+  Multi-Chain Coverage:
+
+  Aqua uses ONE contract address across ALL chains:
+  0x499943e74fb0ce105688beee8ef2abec5d936d31
+
+  Supported Networks (10+):
+  - Ethereum (1)
+  - Polygon (137)
+  - BNB Chain (56)
+  - Arbitrum (42161)
+  - Avalanche (43114)
+  - Base (8453)
+  - Optimism (10)
+  - zkSync (324)
+  - Linea (59144)
+  - Unichain (1301)
+  - Sonic (146)
+
+  ---
+  How It Works in Your Dashboard:
+
+  Current Config:
+  AQUA_ENABLE=true
+  AQUA_CHAINS=ethereum,polygon
+
+  Event Flow:
+  1. Your dashboard connects to Ethereum & Polygon RPCs
+  2. Watches the Aqua contract for events
+  3. Parses events (Pushed/Pulled/Shipped/Docked)
+  4. Displays them in real-time in the UI
+  5. Stores last 50 events for analysis
+
+  API Endpoint: GET /api/aqua/events
+
+  ---
+  Real-World Example:
+
+  Scenario: Whale Arbitrage Detection
+  Event: Pushed
+  Maker: 0xWhaleAddress...
+  Token: USDC
+  Amount: 500,000 USDC
+  Chain: Ethereum
+
+  Event: Shipped
+  Strategy Hash: 0xabc123...
+  Chain: Polygon
+
+  Event: Pulled
+  Amount: 525,000 USDC (+5% profit)
+  Chain: Polygon
+
+  Your System Detects:
+  - Large capital deployment (500k USDC)
+  - Cross-chain strategy (Ethereum → Polygon)
+  - 5% profit in short timeframe
+  - Action: Analyze strategy hash, replicate if profitable
+
+  ---
+  Dashboard Display:
+
+  When active, you'll see:
+  🌊 Aqua Events
+  Listening ✓
+
+  [Latest Events]
+  📥 Pushed | 0x1234...abcd | 10 ETH | Ethereum
+  🚢 Shipped | Strategy: 0xdef4... | Polygon
+  📤 Pulled | 0x5678...ef01 | 11 ETH | Polygon (+10% profit!)
+
+  Your Aqua watcher is now LIVE and monitoring Ethereum + Polygon for these events!

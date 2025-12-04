@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from gql import Client, gql
 from gql.transport.aiohttp import AIOHTTPTransport
-from pydantic import Field
+from pydantic import Field, ValidationError
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -20,7 +20,10 @@ class MoneyGraphicSettings(BaseSettings):
         extra="ignore",
     )
 
-    subgraph_url: str = Field(alias="MONEY_GRAPHIC_SUBGRAPH_URL")
+    subgraph_url: str | None = Field(
+        default=None,
+        alias="MONEY_GRAPHIC_SUBGRAPH_URL"
+    )
 
 
 class MoneyGraphicClient:
@@ -28,16 +31,29 @@ class MoneyGraphicClient:
 
     def __init__(
         self,
-        endpoint: Optional[str] = None,
-        settings: Optional[MoneyGraphicSettings] = None,
+        endpoint: str | None = None,
+        settings: MoneyGraphicSettings | None = None,
     ):
-        resolved_settings = settings or MoneyGraphicSettings()
+        try:
+            resolved_settings = settings or MoneyGraphicSettings()
+        except ValidationError as e:
+            raise ValueError(
+                "Failed to load MoneyGraphicSettings. Ensure MONEY_GRAPHIC_SUBGRAPH_URL "
+                "is set in your .env file or pass an endpoint directly."
+            ) from e
+
         self.endpoint = endpoint or resolved_settings.subgraph_url
+
+        if not self.endpoint:
+            raise ValueError(
+                "No subgraph endpoint provided. Either set MONEY_GRAPHIC_SUBGRAPH_URL "
+                "in your .env file or pass endpoint parameter to MoneyGraphicClient."
+            )
 
         transport = AIOHTTPTransport(url=self.endpoint)
         self.client = Client(transport=transport, fetch_schema_from_transport=False)
 
-    async def get_token_meta(self, token_address: str) -> Dict[str, Any]:
+    async def get_token_meta(self, token_address: str) -> dict[str, Any]:
         """Fetch token-level metadata and supply/holder counts."""
         query = gql(
             """
@@ -62,7 +78,7 @@ class MoneyGraphicClient:
 
     async def get_daily_snapshots(
         self, token_address: str, limit: int = 30
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Return recent daily snapshots for a token, newest first."""
         query = gql(
             """
@@ -96,7 +112,7 @@ class MoneyGraphicClient:
         token_address: str,
         limit: int = 20,
         min_balance: int = 0,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Return top holders by balance for a token."""
         query = gql(
             """
@@ -127,7 +143,7 @@ class MoneyGraphicClient:
         )
         return result["holderBalances"]
 
-    async def get_vault(self, vault_address: str) -> Dict[str, Any]:
+    async def get_vault(self, vault_address: str) -> dict[str, Any]:
         """Fetch staking vault metadata and totals."""
         query = gql(
             """
@@ -154,7 +170,7 @@ class MoneyGraphicClient:
 
     async def get_recent_stakes(
         self, vault_address: str, limit: int = 50
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Return recent stake actions for a vault."""
         query = gql(
             """
@@ -182,7 +198,7 @@ class MoneyGraphicClient:
 
     async def get_recent_rewards(
         self, vault_address: str, limit: int = 50
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Return recent reward payouts for a vault."""
         query = gql(
             """

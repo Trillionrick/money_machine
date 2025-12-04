@@ -1,0 +1,54 @@
+ Where to Find Things in 1inch Portal:
+
+  1. Where is my API Key?
+
+  1. Log in to: https://portal.1inch.dev/
+  2. Click on "Applications" (left sidebar)
+  3. Click on your application name
+  4. Look for "API Key" section
+  5. Click the copy icon 📋
+
+  2. Where to Create New Application?
+
+  Dashboard → Applications → "Create Application" button (top right)
+
+  3. Where to Check Usage?
+
+  Dashboard → Your Application → "Analytics" or "Usage" tab
+  Shows: Requests used, Rate limits, etc.
+
+  4. Where to Find Documentation?
+
+  Top navigation → "Docs"
+  Or direct: https://portal.1inch.dev/documentation
+
+  ---
+  Common 1inch Portal Sections:
+
+  🏠 Dashboard
+     └── Overview of your apps
+
+  📱 Applications
+     └── Create/manage API keys
+     └── View usage statistics
+
+  📊 Analytics
+     └── Request counts
+     └── Rate limit status
+
+  📖 Documentation
+     └── API reference
+     └── Code examples
+
+  ⚙️ Settings
+     └── Account settings
+     └── Billing (for paid plans)
+
+  ---
+  What were you looking for in the 1inch portal?
+
+  For example:
+  - "Where is my API key?"
+  - "How to check my usage?"
+  - "Where to upgrade my plan?"
+  - Something else?

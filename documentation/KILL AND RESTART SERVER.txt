@@ -1,0 +1,26 @@
+ Tool use rejected with user message: Just give me the command to kill and restart, please, like I asked.
+
+● Here are the commands:
+
+  # Kill existing dashboard processes
+  pkill -f "start_dashboard.sh"
+  pkill -f "uvicorn web_server"
+
+  # Or force kill anything on port 8080
+  lsof -ti:8080 | xargs kill -9
+
+  # Restart dashboard
+  ./start_dashboard.sh
+
+> Can I combine the kill and restart into on command line?
+
+● Yes, here's a one-liner:
+
+  pkill -f "start_dashboard.sh|uvicorn web_server" ; ./start_dashboard.sh
+
+  Or if you want to force kill by port and restart:
+
+  lsof -ti:8080 | xargs -r kill -9 ; ./start_dashboard.sh
+
+  The ; runs the restart regardless of whether anything was killed. Use && instead if you only want to restart if
+  the kill succeeds.

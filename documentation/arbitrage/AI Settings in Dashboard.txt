@@ -1,0 +1,72 @@
+AI Settings in Dashboard (at http://localhost:8080)
+
+  Your dashboard has a dedicated "🤖 AI Settings (off-chain)" section with 4 key parameters:
+
+  1. AI min profit (ETH)
+
+  - Default: 0.05 ETH
+  - Purpose: Minimum profit threshold for AI to approve a trade
+  - Config field: aiMinProfitEthInput
+  - What it does: AI decider rejects opportunities below this profit level
+
+  2. AI confidence threshold
+
+  - Default: 0.6 (60%)
+  - Range: 0.0 to 1.0
+  - Purpose: Minimum confidence score for AI to approve
+  - Config field: aiConfidenceInput
+  - What it does: Combines edge signal + caller confidence; rejects low-confidence trades
+
+  3. AI max gas (gwei)
+
+  - Default: 120 gwei
+  - Purpose: Maximum gas price AI will accept
+  - Config field: aiMaxGasInput
+  - What it does: Protects against executing trades during gas spikes
+
+  4. AI hop penalty (quote units)
+
+  - Default: 0 (disabled)
+  - Recommended: 5.0 for multi-hop routes
+  - Purpose: Penalty per hop for complex arbitrage paths
+  - Config field: aiHopPenaltyInput
+  - What it does: Reduces net profit for multi-hop trades (e.g., 2-hop trade loses 5 quote units)
+
+  ---
+  How to Apply Settings:
+
+  1. Start the dashboard:
+  ./start_dashboard.sh
+  2. Open browser: http://localhost:8080
+  3. Locate AI Settings section (purple card with 🤖 icon)
+  4. Adjust values in the input fields
+  5. Click "💾 Apply Config" button
+  6. Settings are sent to /api/config/update and applied immediately
+
+  ---
+  Environment Variables (Optional Defaults)
+
+  Set these in your .env file to change startup defaults:
+
+  # AI Decider Settings
+  AI_MIN_PROFIT_ETH=0.05          # Minimum profit in ETH
+  AI_CONFIDENCE_THRESHOLD=0.6      # Confidence threshold (0-1)
+  AI_MAX_GAS_GWEI=120             # Max gas price in gwei
+  AI_HOP_PENALTY_QUOTE=5          # Penalty per hop in quote units
+
+  # Flash Loan Settings (synced with AI)
+  MIN_FLASH_PROFIT_ETH=0.5        # Flash loan minimum profit
+  MAX_GAS_PRICE_GWEI=120          # Max gas for flash loans
+
+  The dashboard reads these on startup (web_server.py:54-60) and populates the UI fields.
+
+  ---
+  AI Decision Display
+
+  The dashboard also shows real-time AI decisions in the "🤖 AI Decision" card:
+  - Net profit estimate
+  - Confidence score
+  - Approval/rejection reason
+
+  Configuration flow: Dashboard UI → Apply Config → Backend updates AIConfig → AI Decider uses new thresholds for scoring
+  opportunities

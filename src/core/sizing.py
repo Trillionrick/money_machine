@@ -57,7 +57,18 @@ class LogUtility:
     def value(self, wealth_path: pl.Series) -> float:
         """Compute expected log wealth."""
         # Add small epsilon to avoid log(0)
-        return float((wealth_path + 1e-10).log().mean())
+        log_wealth = (wealth_path + 1e-10).log()
+        mean_val = log_wealth.mean()
+
+        if mean_val is None:
+            return float('-inf')
+
+        # Handle potential non-numeric types by converting to float
+        if isinstance(mean_val, (int, float)):
+            return float(mean_val)
+
+        # For any other type, convert to physical representation
+        return float(pl.Series([mean_val]).to_physical().item())
 
 
 class TargetUtility:
@@ -87,7 +98,16 @@ class TargetUtility:
 
     def value(self, wealth_path: pl.Series) -> float:
         """Compute probability of hitting target."""
-        prob_above = float((wealth_path >= self.target).mean())
+        above_target = wealth_path >= self.target
+        mean_val = above_target.mean()
+
+        if mean_val is None:
+            prob_above = 0.0
+        elif isinstance(mean_val, (int, float)):
+            prob_above = float(mean_val)
+        else:
+            # For any other type, convert to physical representation
+            prob_above = float(pl.Series([mean_val]).to_physical().item())
 
         # Return probability if above threshold, else large penalty
         if prob_above >= self.threshold_prob:
@@ -228,8 +248,24 @@ def compute_sharpe(returns: pl.Series) -> float:
     Returns:
         Sharpe ratio (mean / std)
     """
-    mean_ret = float(returns.mean())
-    std_ret = float(returns.std())
+    mean_val = returns.mean()
+    std_val = returns.std()
+
+    # Handle mean value
+    if mean_val is None:
+        mean_ret = 0.0
+    elif isinstance(mean_val, (int, float)):
+        mean_ret = float(mean_val)
+    else:
+        mean_ret = float(pl.Series([mean_val]).to_physical().item())
+
+    # Handle std value
+    if std_val is None:
+        std_ret = 0.0
+    elif isinstance(std_val, (int, float)):
+        std_ret = float(std_val)
+    else:
+        std_ret = float(pl.Series([std_val]).to_physical().item())
 
     if std_ret <= 0:
         return 0.0

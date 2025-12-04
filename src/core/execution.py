@@ -150,6 +150,15 @@ class ExecutionEngine(Protocol):
         """
         ...
 
+    async def get_account(self) -> dict[str, float]:
+        """Get account information (optional, not all engines support this).
+
+        Returns:
+            Dictionary with keys like 'cash', 'equity', 'buying_power'.
+            May raise NotImplementedError if engine doesn't support account queries.
+        """
+        ...
+
 
 class ExecutionError(Exception):
     """Base exception for execution errors."""

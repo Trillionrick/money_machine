@@ -266,6 +266,19 @@ class PaperTradingEngine:
         )
         return self.cash + positions_value
 
+    async def get_account(self) -> dict[str, float]:
+        """Get account information.
+
+        Returns:
+            Dictionary with cash, equity, buying_power
+        """
+        equity = self.get_equity()
+        return {
+            "cash": self.cash,
+            "equity": equity,
+            "buying_power": self.cash,  # Simple model: cash = buying power
+        }
+
     def reset(self) -> None:
         """Reset to initial state."""
         self.cash = self.initial_cash

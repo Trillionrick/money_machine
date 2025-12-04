@@ -1,0 +1,3 @@
+MEV, which initially stood for "miner extractable value" but now commonly means "maximal extractable value," refers to the additional profit that can be gained by strategically including, excluding, or reordering transactions within a blockchain block beyond standard block rewards and transaction fees. This phenomenon allows entities like miners, validators, and sequencers to exploit opportunities such as arbitrage by manipulating transaction order.
+
+{"success":false,"error":"Unauthorized"}

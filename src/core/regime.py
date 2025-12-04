@@ -9,6 +9,7 @@ Regimes influence optimal position sizing:
 
 from collections import deque
 from enum import StrEnum
+from typing import cast
 
 import polars as pl
 
@@ -69,16 +70,35 @@ class RegimeDetector:
 
     def _calculate_regime(self) -> MarketRegime:
         """Calculate current market regime."""
-        prices = pl.Series(list(self.prices))
+        prices = pl.Series(list(self.prices), dtype=pl.Float64)
 
         # Calculate trend (SMA slope)
-        sma = float(prices.mean())
-        first_half_mean = float(prices[: len(prices) // 2].mean())
-        trend = (sma - first_half_mean) / first_half_mean
+        sma = prices.mean()
+        first_half_mean = prices[: len(prices) // 2].mean()
+
+        # Handle None values with defaults
+        if sma is None or first_half_mean is None or first_half_mean == 0:
+            return MarketRegime.SIDEWAYS
+
+        # Type narrowing: assert values are not None after the check
+        assert sma is not None
+        assert first_half_mean is not None
+
+        # Convert to Python float for calculations
+        # Use cast to tell type checker these are numeric after validation
+        sma_val: float = float(cast(float, sma))
+        first_half_val: float = float(cast(float, first_half_mean))
+        trend = (sma_val - first_half_val) / first_half_val
 
         # Calculate volatility (rolling std of returns)
         returns = prices.pct_change().drop_nulls()
-        volatility = float(returns.std()) if len(returns) > 0 else 0.0
+
+        if len(returns) == 0:
+            volatility = 0.0
+        else:
+            returns_std = returns.std()
+            # Ensure we handle None and convert properly to float
+            volatility = 0.0 if returns_std is None else float(cast(float, returns_std))
 
         # Classify regime
         is_bull = trend > self.trend_threshold
@@ -207,9 +227,22 @@ class AdaptiveSizer:
             return 1.0
 
         # Calculate recent Sharpe-like metric
-        pnl_series = pl.Series(list(self.recent_pnl))
-        mean_pnl = float(pnl_series.mean())
-        std_pnl = float(pnl_series.std())
+        pnl_series = pl.Series(list(self.recent_pnl), dtype=pl.Float64)
+
+        mean_pnl_result = pnl_series.mean()
+        std_pnl_result = pnl_series.std()
+
+        # Handle None values with defaults
+        if mean_pnl_result is None or std_pnl_result is None:
+            return 1.0
+
+        # Type narrowing: assert values are not None after the check
+        assert mean_pnl_result is not None
+        assert std_pnl_result is not None
+
+        # Use cast to tell type checker these are numeric after validation
+        mean_pnl: float = float(cast(float, mean_pnl_result))
+        std_pnl: float = float(cast(float, std_pnl_result))
 
         if std_pnl == 0:
             return 1.0

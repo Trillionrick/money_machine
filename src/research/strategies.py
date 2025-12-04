@@ -8,6 +8,7 @@ with structurally positive drift."
 from collections import deque
 from dataclasses import dataclass
 
+import msgspec
 import polars as pl
 
 from src.core.execution import Fill, Order, OrderSeq, OrderType, Side
@@ -161,8 +162,10 @@ class MarketMakingStrategy(Policy):
             )
         ]
 
-    def on_fill(self, fill: Fill) -> None:
+    def on_fill(self, fill: msgspec.Struct) -> None:
         """Update inventory on fill."""
+        if not isinstance(fill, Fill):
+            return
         value = fill.quantity * fill.price
         if fill.side == Side.BUY:
             self.inventory[fill.symbol] = self.inventory.get(fill.symbol, 0.0) + value
@@ -267,8 +270,21 @@ class MomentumStrategy(Policy):
             return None
 
         # Z-score of recent returns
-        mean_return = float(returns.mean())
-        std_return = float(returns.std())
+        mean_return_raw = returns.mean()
+        std_return_raw = returns.std()
+
+        # Handle None or non-numeric return values with safe conversion
+        if mean_return_raw is None or std_return_raw is None:
+            return None
+
+        # Type guard: ensure numeric types before conversion
+        if not isinstance(mean_return_raw, (int, float)):
+            return None
+        if not isinstance(std_return_raw, (int, float)):
+            return None
+
+        mean_return = float(mean_return_raw)
+        std_return = float(std_return_raw)
 
         if std_return == 0:
             return None
@@ -347,7 +363,7 @@ class MomentumStrategy(Policy):
             order_type=OrderType.LIMIT,
         )
 
-    def on_fill(self, fill: Fill) -> None:
+    def on_fill(self, fill: msgspec.Struct) -> None:
         """Handle fill notification."""
         # Could update internal state here
 
@@ -452,8 +468,21 @@ class PairsTradingStrategy(Policy):
         spread = prices1 / prices2
 
         # Z-score of spread
-        mean_spread = float(spread.mean())
-        std_spread = float(spread.std())
+        mean_spread_raw = spread.mean()
+        std_spread_raw = spread.std()
+
+        # Handle None or non-numeric return values with safe conversion
+        if mean_spread_raw is None or std_spread_raw is None:
+            return None
+
+        # Type guard: ensure numeric types before conversion
+        if not isinstance(mean_spread_raw, (int, float)):
+            return None
+        if not isinstance(std_spread_raw, (int, float)):
+            return None
+
+        mean_spread = float(mean_spread_raw)
+        std_spread = float(std_spread_raw)
 
         if std_spread == 0:
             return None
@@ -576,5 +605,5 @@ class PairsTradingStrategy(Policy):
 
         return orders
 
-    def on_fill(self, fill: Fill) -> None:
+    def on_fill(self, fill: msgspec.Struct) -> None:
         """Handle fill notification."""

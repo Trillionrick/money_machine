@@ -9,6 +9,8 @@ This simulator models:
 """
 
 from dataclasses import dataclass
+from datetime import timedelta
+from typing import Any
 
 import polars as pl
 
@@ -76,20 +78,26 @@ class Simulator:
         """Initialize simulator.
 
         Args:
-            initial_capital: Starting cash
-            config: Simulator configuration
+            initial_capital: Starting cash amount (must be positive).
+            config: Simulator configuration (uses defaults if not provided).
+
+        Raises:
+            ValueError: If initial_capital is not positive.
         """
-        self.initial_capital = initial_capital
-        self.config = config or SimulatorConfig()
+        if initial_capital <= 0:
+            raise ValueError(f"Initial capital must be positive, got {initial_capital}")
 
-        # State
+        self.initial_capital: float = initial_capital
+        self.config: SimulatorConfig = config or SimulatorConfig()
+
+        # Trading state
         self.positions: dict[Symbol, Quantity] = {}
-        self.cash = initial_capital
-        self.timestamp = 0
+        self.cash: float = initial_capital
+        self.timestamp: int = 0
 
-        # History
-        self.trades: list[dict] = []
-        self.equity_history: list[dict] = []
+        # History tracking
+        self.trades: list[dict[str, Any]] = []
+        self.equity_history: list[dict[str, Any]] = []
         self.order_history: list[Order] = []
 
     def run_backtest(
@@ -152,33 +160,55 @@ class Simulator:
     def _get_common_timestamps(
         self, market_data: dict[Symbol, pl.DataFrame]
     ) -> list[Timestamp]:
-        """Get timestamps common to all symbols."""
+        """Get all unique timestamps from market data.
+
+        Args:
+            market_data: Dictionary mapping symbols to their OHLCV dataframes.
+
+        Returns:
+            Sorted list of all unique timestamps across all symbols.
+        """
         if not market_data:
             return []
 
-        # Get all unique timestamps
-        all_ts = set()
+        # Collect all unique timestamps
+        all_timestamps: set[Timestamp] = set()
         for df in market_data.values():
-            all_ts.update(df["timestamp"].to_list())
+            timestamps_list = df["timestamp"].to_list()
+            all_timestamps.update(timestamps_list)
 
-        return sorted(all_ts)
+        return sorted(all_timestamps)
 
     def _create_snapshot(
         self,
         timestamp: Timestamp,
         market_data: dict[Symbol, pl.DataFrame],
     ) -> MarketSnapshot:
-        """Create market snapshot at given timestamp."""
-        prices = {}
-        volumes = {}
+        """Create market snapshot at given timestamp.
+
+        Args:
+            timestamp: The timestamp to create snapshot for.
+            market_data: Dictionary mapping symbols to their OHLCV dataframes.
+
+        Returns:
+            MarketSnapshot containing prices and volumes at the given timestamp.
+        """
+        prices: dict[Symbol, float] = {}
+        volumes: dict[Symbol, float] = {}
 
         for symbol, df in market_data.items():
             # Find row for this timestamp
             row = df.filter(pl.col("timestamp") == timestamp)
 
             if len(row) > 0:
-                prices[symbol] = float(row["close"][0])
-                volumes[symbol] = float(row["volume"][0])
+                close_value = row["close"][0]
+                volume_value = row["volume"][0]
+
+                # Type-safe conversion to float
+                if isinstance(close_value, (int, float)):
+                    prices[symbol] = float(close_value)
+                if isinstance(volume_value, (int, float)):
+                    volumes[symbol] = float(volume_value)
 
         return MarketSnapshot(
             timestamp=timestamp,
@@ -187,12 +217,19 @@ class Simulator:
         )
 
     def _get_portfolio_state(self, snapshot: MarketSnapshot) -> PortfolioState:
-        """Calculate current portfolio state."""
-        # Calculate position values
-        positions_value = 0.0
-        for symbol, qty in self.positions.items():
+        """Calculate current portfolio state.
+
+        Args:
+            snapshot: Current market snapshot with prices and volumes.
+
+        Returns:
+            Current portfolio state including positions, cash, and equity.
+        """
+        # Calculate total value of all positions
+        positions_value: float = 0.0
+        for symbol, quantity in self.positions.items():
             price = snapshot.prices.get(symbol, 0.0)
-            positions_value += qty * price
+            positions_value += quantity * price
 
         equity = self.cash + positions_value
 
@@ -204,7 +241,16 @@ class Simulator:
         )
 
     def _execute_order(self, order: Order, snapshot: MarketSnapshot) -> None:
-        """Execute an order with realistic microstructure effects."""
+        """Execute an order with realistic microstructure effects.
+
+        Args:
+            order: The order to execute.
+            snapshot: Current market snapshot.
+
+        Note:
+            This method updates internal state (positions, cash, trades) if order fills.
+            Orders may be rejected or partially filled based on simulator configuration.
+        """
         price = snapshot.prices.get(order.symbol)
         volume = snapshot.volumes.get(order.symbol, 1_000_000.0)
 
@@ -214,14 +260,16 @@ class Simulator:
         # Calculate execution price with slippage
         fill_price = self._calculate_fill_price(order, price, volume)
 
-        # Calculate fees
+        # Calculate fees and fill probability
         if order.order_type == OrderType.MARKET:
             fee_bps = self.config.taker_fee_bps
             will_fill = True
         else:
             fee_bps = self.config.maker_fee_bps
             # Limit orders have probability of not filling
-            will_fill = pl.Series([0.0]).sample(1, with_replacement=True).item() < self.config.limit_fill_probability
+            # Generate random value between 0 and 1
+            random_value = float(pl.Series([0.0, 1.0]).sample(1, with_replacement=True).item())
+            will_fill = random_value < self.config.limit_fill_probability
 
         if not will_fill:
             return  # Order didn't fill
@@ -363,20 +411,46 @@ class Simulator:
         equity_df: pl.DataFrame,
         trades_df: pl.DataFrame,
     ) -> dict[str, float]:
-        """Calculate performance metrics."""
+        """Calculate performance metrics.
+
+        Returns:
+            Dictionary of performance metrics with proper type safety.
+        """
         if len(equity_df) == 0:
             return {}
 
         equity = equity_df["equity"]
 
-        # Returns
+        # Calculate returns
         returns = equity.pct_change().drop_nulls()
 
-        # Basic metrics
-        total_return = (float(equity[-1]) / self.initial_capital - 1.0) * 100
+        # Basic metrics with type-safe conversions
+        final_equity_value = equity[-1]
+        total_return = (
+            (float(final_equity_value) / self.initial_capital - 1.0) * 100.0
+            if isinstance(final_equity_value, (int, float))
+            else 0.0
+        )
 
+        # Calculate Sharpe ratio with proper type guards
         if len(returns) > 1:
-            sharpe = float(returns.mean() / returns.std()) if float(returns.std()) > 0 else 0.0
+            mean_return = returns.mean()
+            std_return = returns.std()
+
+            # Type guard: ensure we have valid numeric values
+            if (
+                mean_return is not None
+                and std_return is not None
+                and not isinstance(mean_return, timedelta)
+                and not isinstance(std_return, timedelta)
+                and isinstance(mean_return, (int, float))
+                and isinstance(std_return, (int, float))
+                and std_return > 0
+            ):
+                sharpe = float(mean_return) / float(std_return)
+            else:
+                sharpe = 0.0
+
             max_drawdown = self._calculate_max_drawdown(equity)
         else:
             sharpe = 0.0
@@ -395,20 +469,37 @@ class Simulator:
         return {
             "total_return_pct": total_return,
             "sharpe_ratio": sharpe,
-            "max_drawdown_pct": max_drawdown * 100,
+            "max_drawdown_pct": max_drawdown * 100.0,
             "num_trades": float(num_trades),
             "win_rate": win_rate,
-            "final_equity": float(equity[-1]),
+            "final_equity": float(final_equity_value) if isinstance(final_equity_value, (int, float)) else 0.0,
         }
 
     def _calculate_max_drawdown(self, equity: pl.Series) -> float:
-        """Calculate maximum drawdown."""
-        peak = equity[0]
+        """Calculate maximum drawdown.
+
+        Args:
+            equity: Series of equity values over time.
+
+        Returns:
+            Maximum drawdown as a decimal (0.1 = 10% drawdown).
+        """
+        if len(equity) == 0:
+            return 0.0
+
+        peak: float = float(equity[0]) if isinstance(equity[0], (int, float)) else 0.0
         max_dd = 0.0
 
         for value in equity:
-            peak = max(peak, value)
-            dd = (peak - value) / peak
-            max_dd = max(max_dd, dd)
+            # Type guard for numeric values
+            if not isinstance(value, (int, float)):
+                continue
+
+            current_value = float(value)
+            peak = max(peak, current_value)
+
+            if peak > 0:
+                dd = (peak - current_value) / peak
+                max_dd = max(max_dd, dd)
 
         return max_dd

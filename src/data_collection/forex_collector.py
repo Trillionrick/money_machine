@@ -10,23 +10,32 @@ This script:
 """
 
 import asyncio
+import logging
 import signal
 import sys
 from datetime import datetime, timezone, timedelta
 from decimal import Decimal
-from typing import Any
+from typing import Any, TYPE_CHECKING
 
 import asyncpg
 import structlog
 
-# Configure structured logging
+if TYPE_CHECKING:
+    from src.brokers.oanda_adapter import OandaAdapter
+    from src.brokers.oanda_streaming import OandaStreamingClient
+
+# Configure structured logging with modern 2025 standard processors
 structlog.configure(
     processors=[
+        structlog.contextvars.merge_contextvars,
         structlog.processors.TimeStamper(fmt="iso"),
         structlog.processors.add_log_level,
-        structlog.processors.StackInfoRenderer(),
         structlog.dev.ConsoleRenderer(),
     ],
+    wrapper_class=structlog.make_filtering_bound_logger(logging.INFO),
+    context_class=dict,
+    logger_factory=structlog.PrintLoggerFactory(),
+    cache_logger_on_first_use=True,
 )
 
 log = structlog.get_logger()
@@ -35,15 +44,15 @@ log = structlog.get_logger()
 class ForexDataCollector:
     """Collects and stores forex price data from OANDA."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the collector."""
-        self.running = False
+        self.running: bool = False
         self.db_pool: asyncpg.Pool | None = None
-        self.oanda_adapter = None
-        self.streaming_client = None
+        self.oanda_adapter: "OandaAdapter | None" = None
+        self.streaming_client: "OandaStreamingClient | None" = None
 
         # Major forex pairs to collect
-        self.instruments = [
+        self.instruments: list[str] = [
             "EUR_USD",
             "GBP_USD",
             "USD_JPY",
@@ -57,7 +66,7 @@ class ForexDataCollector:
         ]
 
         # Statistics
-        self.stats = {
+        self.stats: dict[str, Any] = {
             "prices_received": 0,
             "prices_stored": 0,
             "candles_stored": 0,
@@ -66,7 +75,7 @@ class ForexDataCollector:
             "start_time": datetime.now(timezone.utc),
         }
 
-    async def initialize(self):
+    async def initialize(self) -> None:
         """Initialize database connection and OANDA adapter."""
         log.info("initializing_collector")
 
@@ -133,7 +142,7 @@ class ForexDataCollector:
         bid_liquidity: int | None = None,
         ask_liquidity: int | None = None,
         tradeable: bool = True,
-    ):
+    ) -> None:
         """Store price tick in database.
 
         Args:
@@ -145,6 +154,10 @@ class ForexDataCollector:
             ask_liquidity: Ask liquidity (optional)
             tradeable: Whether instrument is tradeable
         """
+        if self.db_pool is None:
+            log.error("database_pool_not_initialized")
+            return
+
         try:
             # Parse timestamp (OANDA returns Unix timestamp as string)
             price_time = time
@@ -181,8 +194,12 @@ class ForexDataCollector:
             log.error("failed_to_store_price", instrument=instrument, error=str(e))
             self.stats["errors"] += 1
 
-    async def stream_prices(self):
+    async def stream_prices(self) -> None:
         """Stream real-time prices and store in database."""
+        if self.streaming_client is None:
+            log.error("streaming_client_not_initialized")
+            return
+
         log.info("starting_price_stream", instruments=self.instruments)
 
         try:
@@ -245,7 +262,7 @@ class ForexDataCollector:
         instrument: str,
         granularity: str = "H1",
         count: int = 100,
-    ):
+    ) -> None:
         """Fetch and store historical candles.
 
         Args:
@@ -253,6 +270,14 @@ class ForexDataCollector:
             granularity: Candle granularity
             count: Number of candles to fetch
         """
+        if self.oanda_adapter is None:
+            log.error("oanda_adapter_not_initialized")
+            return
+
+        if self.db_pool is None:
+            log.error("database_pool_not_initialized")
+            return
+
         from src.brokers.oanda_market_data import (
             OandaMarketData,
             CandleGranularity,
@@ -364,7 +389,7 @@ class ForexDataCollector:
             )
             self.stats["errors"] += 1
 
-    async def periodic_candle_fetch(self):
+    async def periodic_candle_fetch(self) -> None:
         """Periodically fetch candles for all instruments."""
         log.info("starting_periodic_candle_fetch", interval_minutes=15)
 
@@ -404,7 +429,7 @@ class ForexDataCollector:
                 log.error("periodic_fetch_error", error=str(e))
                 await asyncio.sleep(60)  # Wait 1 minute on error
 
-    async def print_statistics(self):
+    async def print_statistics(self) -> None:
         """Periodically print collection statistics."""
         while self.running:
             await asyncio.sleep(60)  # Every minute
@@ -429,7 +454,7 @@ class ForexDataCollector:
                 else "Never",
             )
 
-    async def run(self):
+    async def run(self) -> None:
         """Run the data collector."""
         self.running = True
 
@@ -457,7 +482,7 @@ class ForexDataCollector:
         finally:
             await self.cleanup()
 
-    async def cleanup(self):
+    async def cleanup(self) -> None:
         """Clean up resources."""
         log.info("cleaning_up")
 
@@ -471,13 +496,13 @@ class ForexDataCollector:
 
         log.info("cleanup_complete")
 
-    def handle_signal(self, signum, frame):
+    def handle_signal(self, signum: int, frame: Any) -> None:
         """Handle shutdown signals."""
         log.info("shutdown_signal_received", signal=signum)
         self.running = False
 
 
-async def main():
+async def main() -> None:
     """Main entry point."""
     collector = ForexDataCollector()
 
@@ -490,7 +515,7 @@ async def main():
     except KeyboardInterrupt:
         log.info("interrupted_by_user")
     except Exception as e:
-        log.error("collector_failed", error=str(e))
+        log.error("collector_failed", error=str(e), exc_info=True)
         sys.exit(1)
 
 

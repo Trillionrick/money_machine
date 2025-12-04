@@ -1,0 +1,127 @@
+Step-by-Step Guide to Enable Auto-Execution
+
+  ⚠️ IMPORTANT SAFETY WARNING ⚠️
+
+  Auto-execution will place REAL TRADES using your wallet funds. Only enable this if:
+  - Your wallets have sufficient balances (ETH for gas, stablecoins for trading)
+  - You've tested thoroughly in dry-run mode
+  - You understand the risks of automated trading
+  - Your gas caps and profit thresholds are properly configured
+
+  ---
+  📋 Steps to Enable:
+
+  1. Open the Dashboard
+  ./start_dashboard.sh
+  1. Navigate to http://localhost:8080
+  2. Configure Your Safety Settings FIRST
+
+  2. In the Advanced Configuration section, set:
+    - Min edge (bps): Minimum profit spread (e.g., 25 = 0.25%)
+    - Slippage tolerance: Max acceptable slippage (e.g., 0.01 = 1%)
+    - Profit floor (quote/USD): Minimum profit in dollars (e.g., 5.0)
+    - Gas cap ETH (gwei): Maximum gas you'll pay (e.g., 50)
+    - Gas cap Polygon (gwei): Maximum for Polygon trades (e.g., 100)
+
+  Click 💾 Apply Config after setting these.
+  3. Enable Auto-Execution Toggles
+
+  3. In the Controls section:
+    - ✅ UNCHECK "Dry run (no live trades)"
+    - ✅ CHECK "Auto-execute profitable trades"
+    - ✅ CHECK/UNCHECK "Enable flash loans" (based on your preference)
+  4. Start the Scanner
+
+  4. Click ▶️ Start Scanner
+  5. Verify Status
+
+  5. You should see:
+    - Status indicator turns green and shows "Running"
+    - Execution mode pill shows "Live auto-execution" (green)
+    - Trade status shows "Auto-execution enabled" (green)
+
+  ---
+  🎯 What Happens When Enabled
+
+  When auto-execution is active:
+
+  1. Opportunity Detection: The scanner continuously monitors CEX vs DEX prices
+  2. Threshold Check: When an opportunity meets your configured thresholds (min edge, profit floor, gas cap)
+  3. Automatic Execution:
+    - DEX side: Swaps tokens on Uniswap/Polygon
+    - CEX side: Places sell order on configured exchange (Binance/Alpaca if connected)
+    - Flash loans: If edge is large enough and flash loans are enabled, uses flash loan for capital
+  4. Trade Logging: All executions appear in "📦 Recent Trades" with:
+    - Transaction hashes
+    - Profit margins
+    - Execution mode (regular/flash loan)
+
+  ---
+  🔍 Monitoring Active Trades
+
+  Watch these sections:
+  - 🎯 Recent Opportunities: Shows detected spreads (even if not executed)
+  - 📦 Recent Trades: Shows actual executions with tx hashes
+  - ✅ Trades Counter: Total executed trades
+  - 💎 Total Profit: Cumulative profit in ETH
+
+  ---
+  🛡️ Safety Features
+
+  Even with auto-execute enabled, trades are blocked if:
+  - Edge is below your min_edge_bps threshold
+  - Gas price exceeds your configured cap
+  - Profit is below your profit_floor_quote
+  - Wallet balance is insufficient
+  - Network issues prevent price fetching
+
+  ---
+  🚨 Quick Disable
+
+  To stop auto-execution immediately:
+  1. Click ⏹️ Stop Scanner button
+  2. OR re-check "Dry run" and restart
+  3. OR close the dashboard server (Ctrl+C in terminal)
+
+  ---
+  📊 Recommended First-Time Settings
+
+  For safe initial testing with real execution:
+
+  Min edge (bps):          50    (0.5% minimum spread)
+  Slippage tolerance:      0.01  (1%)
+  Profit floor (USD):      10.0  (minimum $10 profit)
+  Gas cap ETH:             30    (30 gwei max)
+  Gas cap Polygon:         80    (80 gwei max)
+  Max notional:            100.0 (in config - $100 per trade)
+
+  These conservative settings reduce risk while you monitor actual performance.
+
+  ---
+  🧪 Test Progression
+
+  Recommended approach:
+  1. ✅ Week 1: Dry run mode - observe opportunities
+  2. ✅ Week 2: Enable execution with very conservative thresholds (high min edge, low notional)
+  3. ✅ Week 3+: Gradually relax thresholds based on observed profitability
+
+  This way you can validate the system behavior before committing significant capital!
+
+===========================================
+===========================================
+
+ The page won't change automatically - you need to physically click the checkboxes with your mouse!
+
+  Here's what to do RIGHT NOW:
+
+  1. Look at your browser showing http://localhost:8080
+  2. Find the Controls section - it looks like this:
+  🎮 Controls
+  ┌─────────────────┐  ┌─────────────┐
+  │ ▶️ Start Scanner│  │ ⏹️ Stop     │
+  └─────────────────┘  └─────────────┘
+  3. Below those buttons, you'll see checkboxes. Use your mouse to:
+    - Click the checkbox next to "Dry run (no live trades)" to UNCHECK it
+    - Click the checkbox next to "Auto-execute profitable trades" to CHECK it
+  4. Watch the bottom of the page - the "Recent Trades" section should change from:
+  Auto-execution disabled  →  Auto-execution enabled (GREEN)

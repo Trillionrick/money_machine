@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any, Dict, List, Optional
 
 import structlog
@@ -14,7 +15,11 @@ logger = structlog.get_logger()
 
 
 class UniswapSubgraphClient:
-    """Async GraphQL client for Uniswap subgraph queries."""
+    """Async GraphQL client for Uniswap subgraph queries.
+
+    This client uses a lock to ensure thread-safe concurrent access to the
+    shared GraphQL client, preventing TransportAlreadyConnected errors.
+    """
 
     def __init__(self, api_key: str, chain_slug: str = "mainnet", version: str = "v3"):
         endpoint_key = f"{version}_{chain_slug}"
@@ -26,6 +31,7 @@ class UniswapSubgraphClient:
 
         transport = AIOHTTPTransport(url=endpoint_url)
         self.client = Client(transport=transport, fetch_schema_from_transport=False)
+        self._lock = asyncio.Lock()
 
     async def get_pool_data(self, pool_address: str) -> Dict[str, Any]:
         """Return pool-level stats including liquidity and prices."""
@@ -51,9 +57,10 @@ class UniswapSubgraphClient:
         """
         )
 
-        result = await self.client.execute_async(
-            query, variable_values={"poolAddress": pool_address.lower()}
-        )
+        async with self._lock:
+            result = await self.client.execute_async(
+                query, variable_values={"poolAddress": pool_address.lower()}
+            )
         return result["pool"]
 
     async def get_pool_by_tokens(
@@ -88,10 +95,11 @@ class UniswapSubgraphClient:
         )
 
         tokens = [token_a.lower(), token_b.lower()]
-        result = await self.client.execute_async(
-            query,
-            variable_values={"tokens": tokens, "feeTier": fee_tier},
-        )
+        async with self._lock:
+            result = await self.client.execute_async(
+                query,
+                variable_values={"tokens": tokens, "feeTier": fee_tier},
+            )
         pools = result.get("pools") or []
         return pools[0] if pools else None
 
@@ -112,9 +120,10 @@ class UniswapSubgraphClient:
         """
         )
 
-        result = await self.client.execute_async(
-            query, variable_values={"tokenAddress": token_address.lower()}
-        )
+        async with self._lock:
+            result = await self.client.execute_async(
+                query, variable_values={"tokenAddress": token_address.lower()}
+            )
 
         token = result["token"]
         eth_price_usd = float(result["bundle"]["ethPriceUSD"])
@@ -145,9 +154,10 @@ class UniswapSubgraphClient:
         """
         )
 
-        result = await self.client.execute_async(
-            query, variable_values={"limit": limit}
-        )
+        async with self._lock:
+            result = await self.client.execute_async(
+                query, variable_values={"limit": limit}
+            )
         return result["pools"]
 
     async def get_token_swaps(
@@ -182,7 +192,8 @@ class UniswapSubgraphClient:
         """
         )
 
-        result = await self.client.execute_async(
-            query, variable_values={"token": token_address.lower(), "limit": limit}
-        )
+        async with self._lock:
+            result = await self.client.execute_async(
+                query, variable_values={"token": token_address.lower(), "limit": limit}
+            )
         return result["swaps"]

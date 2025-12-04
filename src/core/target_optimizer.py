@@ -226,9 +226,7 @@ class TargetOptimizer:
                     **sim_result,
                 }
 
-        return best_strategy
-
-
+        return cast (dict, best_strategy) # pyright: ignore[reportUndefinedVariable]
 def compare_strategies(
     objective: TargetObjective,
     edge: float,

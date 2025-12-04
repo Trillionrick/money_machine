@@ -1,0 +1,294 @@
+I dont's need to touch the "Gas cap ETH (gwei) and "Gas cap Polygon (gwei) inputs?
+
+● Great question! Gas caps are optional but HIGHLY recommended for flash loans. Let me explain:
+
+  ---
+  🎯 What Gas Caps Do
+
+  Gas cap ETH (gwei)
+
+  What it does: Sets maximum gas price for Ethereum mainnet trades
+  Default: 100 gwei (from your .env: MAX_GAS_PRICE_GWEI=100)
+  If 0 or empty: No cap (will execute at ANY gas price!)
+
+  Example:
+  ├─ You set: 50 gwei
+  ├─ Current gas: 80 gwei
+  └─ Result: Trade BLOCKED ❌ (too expensive)
+
+  Gas cap Polygon (gwei)
+
+  What it does: Sets maximum gas price for Polygon trades
+  Default: 120 gwei (from your code)
+  Why higher: Polygon gas is much cheaper ($0.01-0.50)
+
+  ---
+ ⚠️ Why Gas Caps Matter for Flash Loans
+
+  Flash Loans Use MORE Gas:
+
+  Transaction Type          Gas Used    Cost at Different Prices
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  Regular DEX swap          150,000     $30 @ 100 gwei
+                                        $15 @ 50 gwei
+                                        $9  @ 30 gwei
+
+  Flash loan arbitrage      350,000     $70 @ 100 gwei  ← 2.3x more!
+                                        $35 @ 50 gwei
+                                        $21 @ 30 gwei
+
+  Impact on Your Profits:
+
+  Example: Your 50 bps edge trade (0.5% = $450 on $90k)
+
+  Gas Price    Gas Cost    Net Profit    Profitable?
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  30 gwei      $21         $384          ✅ YES
+  50 gwei      $35         $370          ✅ YES
+  80 gwei      $56         $349          ✅ YES (barely)
+  100 gwei     $70         $335          ✅ YES (thin)
+  150 gwei     $105        $300          ⚠️ RISKY
+  200 gwei     $140        $265          ⚠️ VERY RISKY
+  300 gwei     $210        $195          ❌ NOT WORTH IT
+
+  Plus flash loan fee: -$45
+  Net after all costs shown above
+
+  Without a gas cap: Bot might execute at 200+ gwei and barely break even (or lose money!)
+
+  ---
+  🎯 Recommended Gas Cap Settings
+
+  For Flash Loans on Ethereum:
+
+  Conservative (safest):
+  Gas cap ETH: 30 gwei
+  ├─ Only executes in quiet periods
+  ├─ Higher profit margins
+  └─ Fewer opportunities
+
+  Balanced (recommended):
+  Gas cap ETH: 50 gwei
+  ├─ Good balance of opportunities vs profit
+  ├─ Still profitable after fees
+  └─ Executes ~40-60% of the time
+
+  Aggressive:
+  Gas cap ETH: 80 gwei
+  ├─ More opportunities
+  ├─ Lower profit margins
+  └─ Higher risk of unprofitable trades
+
+  No cap (NOT recommended):
+  Gas cap ETH: 0 or 100+
+  ├─ Executes even at expensive gas
+  └─ ⚠️ Risk of losses!
+
+  For Polygon (if you enable it):
+
+  Gas cap Polygon: 80 gwei
+  Why: Polygon gas is cheap (~$0.50 max)
+  Not critical: Even at high gwei, still cheap
+
+  ---
+  💡 My Recommendation for You
+
+  YES, you should set gas caps!
+
+  Here's what to do:
+
+  Option 1: Conservative Start (Recommended)
+
+  Dashboard settings:
+  ├─ Gas cap ETH: 40 gwei
+  └─ Gas cap Polygon: 80 gwei
+
+  Result:
+  ├─ Fewer trades (1-3 per day)
+  ├─ Higher profit per trade ($200-350)
+  └─ Very safe
+
+  Option 2: Balanced
+
+  Dashboard settings:
+  ├─ Gas cap ETH: 50 gwei
+  └─ Gas cap Polygon: 100 gwei
+
+  Result:
+  ├─ Moderate trades (3-6 per day)
+  ├─ Good profit per trade ($150-250)
+  └─ Balanced risk/reward
+
+  Option 3: Monitor First
+
+  Dashboard settings:
+  ├─ Gas cap ETH: 0 (no cap)
+  └─ Run in DRY RUN mode
+
+  Then:
+  1. Watch what gas prices trades would execute at
+  2. See if they'd be profitable
+  3. Set cap based on observations
+
+  ---
+  📊 How to Decide Your Gas Cap
+
+  Step 1: Calculate Your Break-Even Gas
+
+  Your typical flash loan trade:
+  Edge: 50 bps = $450 gross
+  Flash fee: -$45
+  Slippage: -$50
+  Minimum net profit target: $120 (0.05 ETH)
+
+  Available for gas: $450 - $45 - $50 - $120 = $235
+
+  Gas budget: $235
+  Flash loan gas: 350,000 units
+  Max gas price: $235 / 350,000 = 67 gwei
+
+  Recommended cap: 50 gwei (safety margin)
+
+  Step 2: Check Historical Gas Prices
+
+  Ethereum gas prices by time:
+  ├─ 2-6 AM UTC: 20-40 gwei ✅ (best time!)
+  ├─ 6-10 AM UTC: 40-60 gwei ✅ (good)
+  ├─ 10 AM-2 PM UTC: 60-80 gwei ⚠️ (okay)
+  ├─ 2-6 PM UTC: 80-120 gwei ⚠️ (expensive)
+  └─ 6 PM-2 AM UTC: 60-100 gwei ⚠️ (variable)
+
+  Your gas cap: 50 gwei
+  Your trade window: ~40-50% of the day ✅
+
+  ---
+  🎬 What to Do Right Now
+
+  Quick Setup (5 minutes):
+
+  1. Refresh your dashboard (Ctrl+Shift+R)
+  2. Scroll to Advanced Configuration
+  3. Set gas caps:
+  Gas cap ETH (gwei):     50
+  Gas cap Polygon (gwei): 80
+  4. Click "💾 Apply Config"
+  5. Done! ✅
+
+  ---
+  🔍 How to Monitor If Your Cap Is Good
+
+  After running for a day, check:
+
+  Too restrictive (cap too low):
+  Logs show:
+  "flash_loan.gas_too_high" (many times)
+  "opportunity_detected but blocked by gas cap"
+
+  Dashboard:
+  ├─ Opportunities detected: 10
+  ├─ Trades executed: 1
+  └─ Sign: Cap is TOO LOW
+
+  Fix: Raise gas cap by 10 gwei
+
+  Too loose (cap too high):
+  Logs show:
+  "flash_loan.execution_success"
+  But profits are small: $50-80 per trade
+
+  Dashboard:
+  ├─ Trades executed: 8
+  ├─ Average profit: $60
+  └─ Sign: Cap is TOO HIGH (eating into profits)
+
+  Fix: Lower gas cap by 10 gwei
+
+  Just right:
+  Logs show:
+  "flash_loan.execution_success"
+  Good profits: $150-250 per trade
+  Some opportunities blocked by gas
+
+  Dashboard:
+  ├─ Opportunities: 8
+  ├─ Trades executed: 4-5
+  ├─ Average profit: $180
+  └─ Sign: Perfect! ✅
+
+  ---
+  📋 Quick Reference
+
+  ┌─────────────────────────────────────────────────────┐
+  │ Gas Cap Settings for Flash Loans                   │
+  ├─────────────────────────────────────────────────────┤
+  │ Strategy      │ ETH Cap  │ Result                  │
+  ├───────────────┼──────────┼─────────────────────────┤
+  │ Ultra Safe    │ 30 gwei  │ High profit, few trades │
+  │ Conservative  │ 40 gwei  │ Good profit, some trades│
+  │ Balanced      │ 50 gwei  │ Moderate profit & trades│ ← Recommended
+  │ Aggressive    │ 70 gwei  │ More trades, less profit│
+  │ Risky         │ 100 gwei │ Many trades, thin profit│
+  │ No Cap        │ 0        │ ⚠️ Risk of losses!      │
+  └─────────────────────────────────────────────────────┘
+
+  ---
+  ✅ Bottom Line
+
+  Do you NEED to set gas caps?
+  - ❌ No - Bot will work without them
+  - ✅ YES, you SHOULD - For profitability!
+
+  My recommendation:
+  Set these now:
+  ├─ Gas cap ETH: 50 gwei
+  └─ Gas cap Polygon: 80 gwei
+
+  Then adjust based on results after 24 hours.
+
+  Why 50 gwei specifically?
+  - ✅ Ensures flash loans stay profitable
+  - ✅ Blocks execution during expensive periods
+  - ✅ Still allows trades ~40-50% of the day
+  - ✅ Protects your profits!
+
+  Set it now and forget it! 🎯
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+> 
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  ? for shortcuts                                                                 Context left until auto-compact: 10%
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
