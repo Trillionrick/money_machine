@@ -1,6 +1,8 @@
-# Trading Bot - Modern Algorithmic Trading System
+# Money Machine - Crypto Arbitrage & Flash Loan System
 
-A high-performance algorithmic trading system built with 2025 best practices, featuring Python 3.12+, modern tooling, and clean architecture.
+Multi-chain arbitrage detection and execution system with flash loan integration, targeting CEX-DEX price discrepancies across Ethereum and Polygon networks.
+
+**[📚 Complete Documentation Index](documentation/INDEX.md)**
 
 ## Architecture Overview
 
