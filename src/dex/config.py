@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from enum import IntEnum
-from typing import Dict
 
 from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -21,7 +20,7 @@ class Chain(IntEnum):
     AVALANCHE = 43114
 
 
-CHAIN_TO_SUBGRAPH_SLUG: Dict[Chain, str] = {
+CHAIN_TO_SUBGRAPH_SLUG: dict[Chain, str] = {
     Chain.ETHEREUM: "mainnet",
     Chain.POLYGON: "polygon",
     Chain.ARBITRUM: "arbitrum",
@@ -29,7 +28,7 @@ CHAIN_TO_SUBGRAPH_SLUG: Dict[Chain, str] = {
     Chain.BASE: "base",
 }
 
-DEFAULT_FACTORY_ADDRESSES: Dict[int, str] = {
+DEFAULT_FACTORY_ADDRESSES: dict[int, str] = {
     1: "0x1F98431c8aD98523631AE4a59f267346ea31F984",
     137: "0x1F98431c8aD98523631AE4a59f267346ea31F984",
     42161: "0x1F98431c8aD98523631AE4a59f267346ea31F984",
@@ -37,7 +36,7 @@ DEFAULT_FACTORY_ADDRESSES: Dict[int, str] = {
     8453: "0x33128a8fC17869897dcE68Ed026d694621f6FDfD",
 }
 
-DEFAULT_ROUTER_ADDRESSES: Dict[int, str] = {
+DEFAULT_ROUTER_ADDRESSES: dict[int, str] = {
     1: "0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45",
     137: "0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45",
     42161: "0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45",
@@ -45,7 +44,40 @@ DEFAULT_ROUTER_ADDRESSES: Dict[int, str] = {
     8453: "0x2626664c2603336E57B271c5C0b26F421741e481",
 }
 
-SUBGRAPH_ENDPOINTS: Dict[str, str] = {
+# Human-readable router map keyed by chain name for scripts/CLI tools.
+ROUTER_ADDRESSES: dict[str, dict[str, str]] = {
+    "ethereum": {"uniswap_v3": DEFAULT_ROUTER_ADDRESSES[1]},
+    "polygon": {"uniswap_v3": DEFAULT_ROUTER_ADDRESSES[137]},
+    "arbitrum": {"uniswap_v3": DEFAULT_ROUTER_ADDRESSES[42161]},
+    "optimism": {"uniswap_v3": DEFAULT_ROUTER_ADDRESSES[10]},
+    "base": {"uniswap_v3": DEFAULT_ROUTER_ADDRESSES[8453]},
+}
+
+# Minimal token map for scripts; extend as needed per chain.
+TOKEN_ADDRESSES: dict[str, dict[str, str]] = {
+    "ethereum": {
+        "WETH": "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
+        "USDC": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+    },
+    "polygon": {
+        "WETH": "0x7ceB23fD6bC0adD59E62ac25578270cFf1b9f619",
+        "USDC": "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174",
+    },
+    "arbitrum": {
+        "WETH": "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1",
+        "USDC": "0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8",
+    },
+    "optimism": {
+        "WETH": "0x4200000000000000000000000000000000000006",
+        "USDC": "0x7F5c764cBc14f9669B88837ca1490cCa17c31607",
+    },
+    "base": {
+        "WETH": "0x4200000000000000000000000000000000000006",
+        "USDC": "0x833589fCD6eDb6E08f4c7C32D4f71b54b2C6d5E6",
+    },
+}
+
+SUBGRAPH_ENDPOINTS: dict[str, str] = {
     "v3_mainnet": (
         "https://gateway.thegraph.com/api/{api_key}/subgraphs/id/"
         "5zvR82QoaXYFyDEKLZ9t6v9adgnptxYpKpSbxtgVENFV"
@@ -88,10 +120,10 @@ class UniswapConfig(BaseSettings):
     thegraph_api_key: SecretStr = Field(alias="THEGRAPH_API_KEY")
     private_key: SecretStr | None = Field(default=None, alias="WALLET_PRIVATE_KEY")
 
-    factory_addresses: Dict[int, str] = Field(
+    factory_addresses: dict[int, str] = Field(
         default_factory=lambda: DEFAULT_FACTORY_ADDRESSES.copy()
     )
-    router_addresses: Dict[int, str] = Field(
+    router_addresses: dict[int, str] = Field(
         default_factory=lambda: DEFAULT_ROUTER_ADDRESSES.copy()
     )
 

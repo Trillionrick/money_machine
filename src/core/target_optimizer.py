@@ -19,6 +19,9 @@ from typing import Protocol
 
 import numpy as np
 import polars as pl
+import structlog
+
+logger = structlog.get_logger(__name__)
 
 
 @dataclass
@@ -181,7 +184,7 @@ class TargetOptimizer:
         objective: TargetObjective,
         edge: float,
         variance: float,
-    ) -> dict:
+    ) -> dict[str, float]:
         """Find optimal size considering multiple attempts.
 
         Key insight: If you can try multiple times, you can be MORE aggressive
@@ -226,7 +229,11 @@ class TargetOptimizer:
                     **sim_result,
                 }
 
-        return cast (dict, best_strategy) # pyright: ignore[reportUndefinedVariable]
+        if best_strategy is None:
+            msg = "No valid strategy found"
+            raise ValueError(msg)
+
+        return best_strategy
 def compare_strategies(
     objective: TargetObjective,
     edge: float,
@@ -256,43 +263,56 @@ def compare_strategies(
         objective, target_size, edge, variance
     )
 
-    print("=" * 80)
-    print("STRATEGY COMPARISON: Kelly vs Target-Optimized")
-    print("=" * 80)
-    print()
-    print(f"Objective: ${objective.current_wealth:,.0f} → ${objective.target_wealth:,.0f}")
-    print(f"Time Horizon: {objective.time_horizon} periods")
-    print(f"Edge: {edge:.1%}, Volatility: {variance**0.5:.1%}")
-    print()
+    logger.info("=" * 80)
+    logger.info("STRATEGY COMPARISON: Kelly vs Target-Optimized")
+    logger.info("=" * 80)
+    logger.info("")
+    logger.info(
+        "Objective",
+        current_wealth=f"${objective.current_wealth:,.0f}",
+        target_wealth=f"${objective.target_wealth:,.0f}",
+        time_horizon=objective.time_horizon,
+        edge=f"{edge:.1%}",
+        volatility=f"{variance**0.5:.1%}",
+    )
+    logger.info("")
 
-    print("QUARTER KELLY (Conservative):")
-    print(f"  Position Size: {kelly_quarter:.2f}x")
-    print(f"  P(Hit Target): {kelly_result['prob_target']:.1%}")
-    print(f"  P(Ruin): {kelly_result['prob_ruin']:.1%}")
-    print(f"  Median Outcome: ${kelly_result['median_outcome']:,.0f}")
-    print()
+    logger.info(
+        "QUARTER KELLY (Conservative)",
+        position_size=f"{kelly_quarter:.2f}x",
+        prob_target=f"{kelly_result['prob_target']:.1%}",
+        prob_ruin=f"{kelly_result['prob_ruin']:.1%}",
+        median_outcome=f"${kelly_result['median_outcome']:,.0f}",
+    )
+    logger.info("")
 
-    print("TARGET-OPTIMIZED (Aggressive):")
-    print(f"  Position Size: {target_size:.2f}x")
-    print(f"  P(Hit Target): {target_result['prob_target']:.1%}")
-    print(f"  P(Ruin): {target_result['prob_ruin']:.1%}")
-    print(f"  Median Outcome: ${target_result['median_outcome']:,.0f}")
-    print()
+    logger.info(
+        "TARGET-OPTIMIZED (Aggressive)",
+        position_size=f"{target_size:.2f}x",
+        prob_target=f"{target_result['prob_target']:.1%}",
+        prob_ruin=f"{target_result['prob_ruin']:.1%}",
+        median_outcome=f"${target_result['median_outcome']:,.0f}",
+    )
+    logger.info("")
 
-    print("KEY INSIGHT:")
+    logger.info("KEY INSIGHT:")
     if target_result["prob_target"] > kelly_result["prob_target"] * 2:
-        print(f"  ✓ Target-optimized is {target_result['prob_target']/kelly_result['prob_target']:.1f}x")
-        print("    more likely to hit your goal!")
-    print(f"  ⚠ But ruin risk is {target_result['prob_ruin']/max(kelly_result['prob_ruin'], 0.01):.1f}x higher")
-    print()
+        target_multiplier = target_result["prob_target"] / kelly_result["prob_target"]
+        logger.info(f"✓ Target-optimized is {target_multiplier:.1f}x more likely to hit your goal!")
 
-    print("MULTIPLE ATTEMPTS:")
+    ruin_multiplier = target_result["prob_ruin"] / max(kelly_result["prob_ruin"], 0.01)
+    logger.info(f"⚠ But ruin risk is {ruin_multiplier:.1f}x higher")
+    logger.info("")
+
     multi_result = optimizer.optimal_with_attempts(objective, edge, variance)
-    print(f"  With {objective.max_attempts} attempts:")
-    print(f"  P(Hit Target in at least 1) = {multi_result['prob_at_least_once']:.1%}")
-    print(f"  Expected attempts needed = {multi_result['expected_attempts']:.1f}")
-    print()
-    print("=" * 80)
+    logger.info(
+        "MULTIPLE ATTEMPTS",
+        max_attempts=objective.max_attempts,
+        prob_at_least_once=f"{multi_result['prob_at_least_once']:.1%}",
+        expected_attempts=f"{multi_result['expected_attempts']:.1f}",
+    )
+    logger.info("")
+    logger.info("=" * 80)
 
 
 # Example usage

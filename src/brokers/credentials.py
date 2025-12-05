@@ -7,7 +7,6 @@ Features:
 - Automatic environment variable aliasing
 """
 
-from typing import Optional
 
 from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -53,11 +52,11 @@ class BrokerCredentials(BaseSettings):
     )
 
     # OAuth2 for Alpaca Broker API (white-label solutions)
-    alpaca_oauth_client_id: Optional[SecretStr] = Field(
+    alpaca_oauth_client_id: SecretStr | None = Field(
         default=None,
         alias="ALPACA_OAUTH_CLIENT_ID",
     )
-    alpaca_oauth_client_secret: Optional[SecretStr] = Field(
+    alpaca_oauth_client_secret: SecretStr | None = Field(
         default=None,
         alias="ALPACA_OAUTH_CLIENT_SECRET",
     )
@@ -66,11 +65,11 @@ class BrokerCredentials(BaseSettings):
     # Kraken (Crypto Exchange)
     # ========================================================================
 
-    kraken_api_key: Optional[SecretStr] = Field(
+    kraken_api_key: SecretStr | None = Field(
         default=None,
         alias="KRAKEN_API_KEY",
     )
-    kraken_api_secret: Optional[SecretStr] = Field(
+    kraken_api_secret: SecretStr | None = Field(
         default=None,
         alias="KRAKEN_API_SECRET",
     )
@@ -79,11 +78,11 @@ class BrokerCredentials(BaseSettings):
     # Bybit (Crypto Derivatives)
     # ========================================================================
 
-    bybit_api_key: Optional[SecretStr] = Field(
+    bybit_api_key: SecretStr | None = Field(
         default=None,
         alias="BYBIT_API_KEY",
     )
-    bybit_api_secret: Optional[SecretStr] = Field(
+    bybit_api_secret: SecretStr | None = Field(
         default=None,
         alias="BYBIT_API_SECRET",
     )
@@ -110,11 +109,11 @@ class BrokerCredentials(BaseSettings):
     )
 
     # IBKR Web API (OAuth2) - alternative to TWS
-    ibkr_oauth_client_id: Optional[SecretStr] = Field(
+    ibkr_oauth_client_id: SecretStr | None = Field(
         default=None,
         alias="IBKR_CLIENT_ID",
     )
-    ibkr_oauth_client_secret: Optional[SecretStr] = Field(
+    ibkr_oauth_client_secret: SecretStr | None = Field(
         default=None,
         alias="IBKR_CLIENT_SECRET",
     )
@@ -123,11 +122,11 @@ class BrokerCredentials(BaseSettings):
     # Binance (Crypto - existing)
     # ========================================================================
 
-    binance_api_key: Optional[SecretStr] = Field(
+    binance_api_key: SecretStr | None = Field(
         default=None,
         alias="BINANCE_API_KEY",
     )
-    binance_api_secret: Optional[SecretStr] = Field(
+    binance_api_secret: SecretStr | None = Field(
         default=None,
         alias="BINANCE_API_SECRET",
     )
@@ -140,11 +139,11 @@ class BrokerCredentials(BaseSettings):
     # OANDA (Forex)
     # ========================================================================
 
-    oanda_api_key: Optional[SecretStr] = Field(
+    oanda_api_key: SecretStr | None = Field(
         default=None,
         alias="OANDA_API_KEY",
     )
-    oanda_account_id: Optional[str] = Field(
+    oanda_account_id: str | None = Field(
         default=None,
         alias="OANDA_ACCOUNT_ID",
     )
@@ -153,7 +152,7 @@ class BrokerCredentials(BaseSettings):
     # Tradier (US Stocks - Alternative)
     # ========================================================================
 
-    tradier_access_token: Optional[SecretStr] = Field(
+    tradier_access_token: SecretStr | None = Field(
         default=None,
         alias="TRADIER_ACCESS_TOKEN",
     )

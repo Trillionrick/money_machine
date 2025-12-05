@@ -1,18 +1,39 @@
 {
   "name": "money_graphic",
-  "license": "UNLICENSED",
+  "version": "2.0.0",
+  "description": "The Graph Protocol subgraph for Money Machine token tracking",
+  "license": "MIT",
   "scripts": {
     "codegen": "graph codegen",
     "build": "graph build",
-    "deploy": "graph deploy --node https://api.studio.thegraph.com/deploy/ money_graphic",
+    "deploy": "graph deploy --studio money_graphic",
+    "deploy:studio": "graph deploy --studio money_graphic",
     "create-local": "graph create --node http://localhost:8020/ money_graphic",
     "remove-local": "graph remove --node http://localhost:8020/ money_graphic",
     "deploy-local": "graph deploy --node http://localhost:8020/ --ipfs http://localhost:5001 money_graphic",
-    "test": "graph test"
+    "test": "graph test",
+    "test:coverage": "graph test -- --coverage"
   },
   "dependencies": {
-    "@graphprotocol/graph-cli": "0.98.1",
-    "@graphprotocol/graph-ts": "0.37.0"
+    "@graphprotocol/graph-cli": "^0.98.1",
+    "@graphprotocol/graph-ts": "^0.38.2"
   },
-  "devDependencies": { "matchstick-as": "0.6.0" }
+  "devDependencies": {
+    "matchstick-as": "^0.6.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/money_machine"
+  },
+  "keywords": [
+    "the-graph",
+    "subgraph",
+    "graphql",
+    "blockchain",
+    "ethereum",
+    "defi"
+  ]
 }

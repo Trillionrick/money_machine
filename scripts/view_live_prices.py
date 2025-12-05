@@ -1,24 +1,37 @@
 #!/usr/bin/env python3
-"""
-Live Forex Price Monitor
-Shows real-time prices from the database in a clean format
-"""
+"""Live Forex Price Monitor - Shows real-time prices from database."""
+
+from __future__ import annotations
+
 import asyncio
-import asyncpg
 import os
+import sys
+from pathlib import Path
 from datetime import datetime, timezone
-from decimal import Decimal
+
+import asyncpg
+import structlog
+
+# Ensure project root on sys.path for src imports when running as script
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+from src.utils.db_config import DatabaseSettings
+
+log = structlog.get_logger()
 
 
-async def main():
-    # Connect to database
-    conn = await asyncpg.connect(
-        host='localhost',
-        port=5434,
-        user='trading_user',
-        password='trading_pass_change_in_production',
-        database='trading_db'
-    )
+async def main() -> None:
+    """Monitor live forex prices from database."""
+    db_config = DatabaseSettings().asyncpg_kwargs()
+
+    try:
+        conn = await asyncpg.connect(**db_config)
+        log.info("database.connected", **db_config)
+    except Exception as e:
+        log.error("database.connection_failed", error=str(e))
+        sys.exit(1)
 
     print("🔴 LIVE FOREX PRICES (Press Ctrl+C to exit)\n")
     print("=" * 80)
@@ -81,9 +94,20 @@ async def main():
 
     except KeyboardInterrupt:
         print("\n\n✅ Stopped monitoring")
+        log.info("monitor.stopped")
+    except Exception as e:
+        log.error("monitor.error", error=str(e))
+        raise
     finally:
         await conn.close()
+        log.info("database.disconnected")
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        sys.exit(0)
+    except Exception as e:
+        log.error("monitor.failed", error=str(e))
+        sys.exit(1)

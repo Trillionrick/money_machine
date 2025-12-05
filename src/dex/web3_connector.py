@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-from typing import Dict, Optional, Any, cast
+from typing import Any, cast
 
 import structlog
 from eth_account import Account
@@ -68,8 +68,8 @@ class UniswapWeb3Connector:
         self,
         rpc_url: str,
         router_address: str,
-        private_key: Optional[str] = None,
-        private_relays: Optional[list[str]] = None,
+        private_key: str | None = None,
+        private_relays: list[str] | None = None,
         private_relay_timeout: int = 20,
         enable_private_cancel: bool = False,
         private_relay_tip_bump_pct: float = 15.0,
@@ -149,7 +149,7 @@ class UniswapWeb3Connector:
         amount_in: int,
         amount_out_min: int,
         fee_tier: int = 3000,
-        recipient: Optional[str] = None,
+        recipient: str | None = None,
     ) -> str:
         """Execute exact input swap on Uniswap V3."""
         if self.account is None:
@@ -234,7 +234,7 @@ class UniswapWeb3Connector:
 
         return tx_hash_hex
 
-    async def wait_for_transaction(self, tx_hash: str, timeout: int = 120) -> Dict:
+    async def wait_for_transaction(self, tx_hash: str, timeout: int = 120) -> dict:
         """Wait for transaction confirmation and return receipt."""
         # FIX: Convert the hex string to HexBytes (or _Hash32) before passing it to the function.
         tx_hash_bytes = cast(_Hash32, HexBytes(tx_hash))
@@ -257,7 +257,7 @@ class UniswapWeb3Connector:
             logger.debug("dex.private_relay_failed", tx_hash=tx_hash, relay=relay_url)
             return False
 
-    async def _wait_for_receipt_with_timeout(self, tx_hash: str, timeout: int) -> Optional[Dict]:
+    async def _wait_for_receipt_with_timeout(self, tx_hash: str, timeout: int) -> dict | None:
         try:
             return await self.wait_for_transaction(tx_hash, timeout=timeout)
         except asyncio.TimeoutError:
@@ -265,7 +265,7 @@ class UniswapWeb3Connector:
         except Exception:
             return None
 
-    async def _send_cancel_transaction(self, nonce: int) -> Optional[str]:
+    async def _send_cancel_transaction(self, nonce: int) -> str | None:
         if self.account is None:
             return None
         try:

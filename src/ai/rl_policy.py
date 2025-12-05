@@ -14,7 +14,7 @@ import pickle
 from collections import deque
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Literal, Optional
+from typing import Literal
 
 import msgspec
 import numpy as np

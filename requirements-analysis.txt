@@ -1,0 +1,10 @@
+# Data Analysis & Visualization (Optional)
+# Install with: pip install -r requirements-analysis.txt
+# Use for: Jupyter notebooks, data exploration, backtesting
+
+pandas==2.2.3
+scipy==1.13.1
+duckdb==1.1.3
+matplotlib==3.9.2
+seaborn==0.13.2
+yfinance==0.2.43

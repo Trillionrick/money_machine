@@ -14,7 +14,7 @@ import asyncio
 import time
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Callable, Optional, TypeVar
+from typing import Any, Callable, TypeVar
 
 import httpx
 import structlog
@@ -188,7 +188,7 @@ class RPCFailoverManager:
         Raises:
             Exception: If all endpoints fail
         """
-        last_error: Optional[Exception] = None
+        last_error: Exception | None = None
         attempt = 0
 
         while attempt < self.max_retries:
@@ -300,7 +300,7 @@ class PolygonRPCManager:
     def __init__(
         self,
         rpc_urls: list[str] | str,
-        oneinch_api_key: Optional[str] = None,
+        oneinch_api_key: str | None = None,
         chain_id: int = 137,
     ):
         """Initialize Polygon RPC manager.
@@ -347,7 +347,7 @@ class PolygonRPCManager:
 
         self.oneinch_api_key = oneinch_api_key
         self.chain_id = chain_id
-        self._http_client: Optional[httpx.AsyncClient] = None
+        self._http_client: httpx.AsyncClient | None = None
 
         log.info(
             "polygon_rpc.initialized",

@@ -1587,8 +1587,148 @@
             return `${hours}h ${minutes}m ${secs}s`;
         }
 
+        // ============================
+        // AI On-Chain Controls (2025)
+        // ============================
+        const aiOnChainStatusPill = document.querySelectorAll('#aiOnChainStatus');
+
+        const AI_PRESETS = {
+            conservative: { ai_mode: 'conservative', ai_min_confidence: 0.75, flash_loan_min_profit_eth: 0.20, kelly_fraction: 0.25, max_leverage: 2.0, current_capital_eth: 100, target_capital_eth: 500, max_daily_losses_usd: 300, max_concurrent_executions: 2 },
+            balanced:     { ai_mode: 'balanced',     ai_min_confidence: 0.70, flash_loan_min_profit_eth: 0.15, kelly_fraction: 0.30, max_leverage: 3.0, current_capital_eth: 100, target_capital_eth: 1000, max_daily_losses_usd: 500, max_concurrent_executions: 3 },
+            aggressive:   { ai_mode: 'aggressive',   ai_min_confidence: 0.60, flash_loan_min_profit_eth: 0.10, kelly_fraction: 0.35, max_leverage: 5.0, current_capital_eth: 100, target_capital_eth: 2000, max_daily_losses_usd: 1000, max_concurrent_executions: 5 },
+        };
+
+        function setAIOnChainPill(enabled) {
+            aiOnChainStatusPill.forEach(pill => {
+                pill.textContent = enabled ? 'ON' : 'OFF';
+                pill.style.background = enabled ? '#d1fae5' : '#fef3c7';
+                pill.style.color = enabled ? '#065f46' : '#92400e';
+            });
+        }
+
+        function updateGrowthMultiplier() {
+            const current = parseFloat(document.getElementById('currentCapitalEth').value || '0');
+            const target = parseFloat(document.getElementById('targetCapitalEth').value || '0');
+            const mult = current > 0 ? (target / current).toFixed(1) : '0';
+            const el = document.getElementById('growthMultiplier');
+            if (el) el.textContent = `${mult}x`;
+        }
+
+        function updateAIConfidenceDisplay(val) {
+            const el = document.getElementById('aiConfidenceValue');
+            if (el) el.textContent = parseFloat(val).toFixed(2);
+        }
+
+        function updateFlashProfitDisplay(val) {
+            const el = document.getElementById('flashProfitValue');
+            if (el) el.textContent = parseFloat(val).toFixed(2);
+        }
+
+        async function loadAIOnChainConfig() {
+            try {
+                const res = await fetch('/api/ai/onchain/config');
+                if (!res.ok) throw new Error(`status ${res.status}`);
+                const cfg = await res.json();
+                document.getElementById('aiModeSelect').value = cfg.ai_mode;
+                document.getElementById('aiOnChainConfidence').value = cfg.ai_min_confidence;
+                document.getElementById('flashLoanMinProfit').value = cfg.flash_loan_min_profit_eth;
+                document.getElementById('kellyFraction').value = cfg.kelly_fraction;
+                document.getElementById('maxLeverage').value = cfg.max_leverage;
+                document.getElementById('currentCapitalEth').value = cfg.current_capital_eth;
+                document.getElementById('targetCapitalEth').value = cfg.target_capital_eth;
+                document.getElementById('maxDailyLosses').value = cfg.max_daily_losses_usd;
+                document.getElementById('maxConcurrent').value = cfg.max_concurrent_executions;
+                document.getElementById('enableAIOrchestration').checked = cfg.enable_ai_orchestration;
+                document.getElementById('enableProfitMaximization').checked = cfg.enable_profit_maximization;
+                document.getElementById('enableMLScoring').checked = cfg.enable_ml_scoring;
+                document.getElementById('enableFlashLoans').checked = cfg.enable_flash_loans;
+                updateAIConfidenceDisplay(cfg.ai_min_confidence);
+                updateFlashProfitDisplay(cfg.flash_loan_min_profit_eth);
+                updateGrowthMultiplier();
+                setAIOnChainPill(cfg.enable_ai_orchestration);
+            } catch (e) {
+                console.warn('ai_onchain.config_load_failed', e);
+            }
+        }
+
+        function applyAIPreset(preset) {
+            const cfg = AI_PRESETS[preset];
+            if (!cfg) return;
+            document.getElementById('aiModeSelect').value = cfg.ai_mode;
+            document.getElementById('aiOnChainConfidence').value = cfg.ai_min_confidence;
+            document.getElementById('flashLoanMinProfit').value = cfg.flash_loan_min_profit_eth;
+            document.getElementById('kellyFraction').value = cfg.kelly_fraction;
+            document.getElementById('maxLeverage').value = cfg.max_leverage;
+            document.getElementById('currentCapitalEth').value = cfg.current_capital_eth;
+            document.getElementById('targetCapitalEth').value = cfg.target_capital_eth;
+            document.getElementById('maxDailyLosses').value = cfg.max_daily_losses_usd;
+            document.getElementById('maxConcurrent').value = cfg.max_concurrent_executions;
+            document.getElementById('enableAIOrchestration').checked = true;
+            document.getElementById('enableProfitMaximization').checked = true;
+            document.getElementById('enableMLScoring').checked = true;
+            document.getElementById('enableFlashLoans').checked = true;
+            updateAIConfidenceDisplay(cfg.ai_min_confidence);
+            updateFlashProfitDisplay(cfg.flash_loan_min_profit_eth);
+            updateGrowthMultiplier();
+            setTimeout(applyAIOnChainConfig, 200);
+        }
+
+        async function applyAIOnChainConfig() {
+            const config = {
+                ai_mode: document.getElementById('aiModeSelect').value,
+                enable_ai_orchestration: document.getElementById('enableAIOrchestration').checked,
+                enable_profit_maximization: document.getElementById('enableProfitMaximization').checked,
+                enable_ml_scoring: document.getElementById('enableMLScoring').checked,
+                current_capital_eth: parseFloat(document.getElementById('currentCapitalEth').value),
+                target_capital_eth: parseFloat(document.getElementById('targetCapitalEth').value),
+                ai_min_confidence: parseFloat(document.getElementById('aiOnChainConfidence').value),
+                flash_loan_min_profit_eth: parseFloat(document.getElementById('flashLoanMinProfit').value),
+                kelly_fraction: parseFloat(document.getElementById('kellyFraction').value),
+                max_leverage: parseFloat(document.getElementById('maxLeverage').value),
+                max_daily_losses_usd: parseFloat(document.getElementById('maxDailyLosses').value),
+                max_concurrent_executions: parseInt(document.getElementById('maxConcurrent').value),
+                enable_flash_loans: document.getElementById('enableFlashLoans').checked,
+            };
+
+            try {
+                const res = await fetch('/api/ai/onchain/config', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(config),
+                });
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok) {
+                    showAlert(`❌ Failed to apply config: ${data.detail || res.status}`, 'error');
+                    return;
+                }
+                setAIOnChainPill(config.enable_ai_orchestration);
+                showAlert('✅ AI On-Chain configuration applied', 'success');
+                await loadAIOnChainStats();
+            } catch (e) {
+                console.error('applyAIOnChainConfig error', e);
+                showAlert('❌ Error applying AI config', 'error');
+            }
+        }
+
+        async function loadAIOnChainStats() {
+            try {
+                const res = await fetch('/api/ai/onchain/stats');
+                if (!res.ok) throw new Error(`status ${res.status}`);
+                const stats = await res.json();
+                document.getElementById('aiDecisionsCount').textContent = stats.ai_decisions_made ?? 0;
+                document.getElementById('aiExecutionsCount').textContent = stats.ai_decisions_executed ?? 0;
+                document.getElementById('aiWinRate').textContent = `${((stats.win_rate || 0) * 100).toFixed(1)}%`;
+                document.getElementById('aiProgress').textContent = `${(stats.progress_pct || 0).toFixed(1)}%`;
+                setAIOnChainPill((stats.ai_decisions_made ?? 0) > 0 || stats.message !== 'AI runner not initialized');
+            } catch (e) {
+                console.warn('ai_onchain.stats_load_failed', e);
+            }
+        }
+
         // Initialize
         connectWebSocket();
+        loadAIOnChainConfig();
+        loadAIOnChainStats();
 
         // Set initial execution mode display
         setExecutionMode();
@@ -1597,6 +1737,7 @@
             if (isRunning) {
                 loadStatus();
             }
+            loadAIOnChainStats();
         }, 5000);
 
         // Add event listeners to checkboxes to update UI immediately

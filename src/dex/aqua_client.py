@@ -3,14 +3,14 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Dict, Iterable, List, Optional
+from typing import Any, Iterable
 
 from eth_typing import ChecksumAddress, HexStr
 from web3 import Web3
 from web3.contract.contract import ContractEvent
 
 
-AQUA_CONTRACT_ADDRESSES: Dict[int, str] = {
+AQUA_CONTRACT_ADDRESSES: dict[int, str] = {
     1: "0x499943e74fb0ce105688beee8ef2abec5d936d31",  # Ethereum
     56: "0x499943e74fb0ce105688beee8ef2abec5d936d31",  # BNB
     137: "0x499943e74fb0ce105688beee8ef2abec5d936d31",  # Polygon
@@ -26,7 +26,7 @@ AQUA_CONTRACT_ADDRESSES: Dict[int, str] = {
 }
 
 
-ABI: List[Dict[str, Any]] = [
+ABI: list[dict[str, Any]] = [
     {
         "anonymous": False,
         "inputs": [
@@ -111,11 +111,11 @@ class AquaEvent:
     maker: str
     app: str
     strategy_hash: str
-    token: Optional[str] = None
-    amount: Optional[int] = None
-    tx_hash: Optional[str] = None
-    block_number: Optional[int] = None
-    chain_id: Optional[int] = None
+    token: str | None = None
+    amount: int | None = None
+    tx_hash: str | None = None
+    block_number: int | None = None
+    chain_id: int | None = None
 
 
 class AquaClient:
@@ -127,7 +127,7 @@ class AquaClient:
         self.address = Web3.to_checksum_address(AQUA_CONTRACT_ADDRESSES[chain_id])
         self.contract = self.w3.eth.contract(address=self.address, abi=ABI)
 
-    def build_ship(self, app: str, strategy: HexStr, amounts_and_tokens: List[Dict[str, Any]]) -> Dict[str, Any]:
+    def build_ship(self, app: str, strategy: HexStr, amounts_and_tokens: list[dict[str, Any]]) -> dict[str, Any]:
         """Build ship tx dict (to, data, value)."""
         fn = self.contract.functions.ship(app, strategy, amounts_and_tokens)
         return {
@@ -136,7 +136,7 @@ class AquaClient:
             "value": 0,
         }
 
-    def build_dock(self, app: str, strategy_hash: HexStr, tokens: Iterable[str]) -> Dict[str, Any]:
+    def build_dock(self, app: str, strategy_hash: HexStr, tokens: Iterable[str]) -> dict[str, Any]:
         """Build dock tx dict."""
         fn = self.contract.functions.dock(app, strategy_hash, list(tokens))
         return {
@@ -145,7 +145,7 @@ class AquaClient:
             "value": 0,
         }
 
-    def parse_event(self, log: Dict[str, Any]) -> Optional[AquaEvent]:
+    def parse_event(self, log: dict[str, Any]) -> AquaEvent | None:
         """Parse a raw log into AquaEvent, or None if unrelated."""
         for ev in ("Pushed", "Pulled", "Shipped", "Docked"):
             try:
@@ -166,9 +166,9 @@ class AquaClient:
                 continue
         return None
 
-    def get_event_signatures(self) -> List[HexStr]:
+    def get_event_signatures(self) -> list[HexStr]:
         """Return topic0 signatures for Aqua events."""
-        topics: List[HexStr] = []
+        topics: list[HexStr] = []
         for ev_name in ("Pushed", "Pulled", "Shipped", "Docked"):
             event_abi = self.contract.events[ev_name]().abi  # type: ignore[index]
             inputs = event_abi.get("inputs", [])

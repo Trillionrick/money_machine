@@ -10,6 +10,7 @@ Uses Alpaca's SSE API for push-based updates instead of polling.
 
 import asyncio
 import json
+import time
 from collections.abc import AsyncIterator
 from typing import Any
 
@@ -308,7 +309,7 @@ async def convert_trade_event_to_fill(event: dict[str, Any]) -> Fill | None:
             dt = datetime.fromisoformat(filled_at.replace("Z", "+00:00"))
             timestamp = int(dt.timestamp() * 1e9)
         else:
-            timestamp = int(asyncio.get_event_loop().time() * 1e9)
+            timestamp = time.time_ns()
 
         # Create fill
         fill = Fill(

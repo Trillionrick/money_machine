@@ -8,7 +8,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from decimal import Decimal
-from typing import Dict, List, Optional, Tuple
 
 import structlog
 from web3 import Web3
@@ -23,9 +22,9 @@ class PriceQuote:
     source: str  # e.g., "Uniswap V3", "OANDA", "SushiSwap"
     symbol: str  # e.g., "ETH/USDC"
     price: Decimal
-    liquidity: Optional[Decimal] = None  # Available liquidity
-    timestamp: Optional[int] = None
-    gas_cost_wei: Optional[int] = None  # Estimated gas for this route
+    liquidity: Decimal | None = None  # Available liquidity
+    timestamp: int | None = None
+    gas_cost_wei: int | None = None  # Estimated gas for this route
 
 
 @dataclass
@@ -39,7 +38,7 @@ class ArbitrageOpportunity:
     estimated_profit: Decimal  # Gross profit estimate
     recommended_size: Decimal  # Optimal trade size
     confidence: str  # "high", "medium", "low"
-    risk_factors: List[str]  # Potential risks
+    risk_factors: list[str]  # Potential risks
 
 
 class PriceComparator:
@@ -54,8 +53,8 @@ class PriceComparator:
 
     def __init__(
         self,
-        min_spread_bps: Optional[Decimal] = None,
-        min_liquidity: Optional[Decimal] = None,
+        min_spread_bps: Decimal | None = None,
+        min_liquidity: Decimal | None = None,
     ):
         """Initialize price comparator.
 
@@ -86,8 +85,8 @@ class PriceComparator:
         return spread_bps
 
     def find_best_spread(
-        self, quotes: List[PriceQuote]
-    ) -> Optional[Tuple[PriceQuote, PriceQuote, Decimal]]:
+        self, quotes: list[PriceQuote]
+    ) -> tuple[PriceQuote, PriceQuote, Decimal] | None:
         """Find the best spread across all quotes.
 
         Args:
@@ -100,8 +99,8 @@ class PriceComparator:
             return None
 
         best_spread = Decimal("0")
-        best_buy: Optional[PriceQuote] = None
-        best_sell: Optional[PriceQuote] = None
+        best_buy: PriceQuote | None = None
+        best_sell: PriceQuote | None = None
 
         # Compare all pairs
         for i, quote_1 in enumerate(quotes):
@@ -169,7 +168,7 @@ class PriceComparator:
         sell_quote: PriceQuote,
         size: Decimal,
         flash_loan_fee_bps: Decimal = Decimal("5"),  # Aave V3 fee
-    ) -> Tuple[Decimal, Decimal]:
+    ) -> tuple[Decimal, Decimal]:
         """Estimate gross and net profit for a trade.
 
         Args:
@@ -204,7 +203,7 @@ class PriceComparator:
 
     def assess_risk_factors(
         self, buy_quote: PriceQuote, sell_quote: PriceQuote, spread_bps: Decimal
-    ) -> List[str]:
+    ) -> list[str]:
         """Assess risk factors for an arbitrage opportunity.
 
         Args:
@@ -238,8 +237,8 @@ class PriceComparator:
         return risks
 
     def analyze_opportunity(
-        self, quotes: List[PriceQuote], max_size: Decimal = Decimal("100")
-    ) -> Optional[ArbitrageOpportunity]:
+        self, quotes: list[PriceQuote], max_size: Decimal = Decimal("100")
+    ) -> ArbitrageOpportunity | None:
         """Analyze quotes and identify the best arbitrage opportunity.
 
         Args:
@@ -296,8 +295,8 @@ class PriceComparator:
         return opportunity
 
     def compare_multi_source(
-        self, quotes_by_symbol: Dict[str, List[PriceQuote]], max_size: Decimal = Decimal("100")
-    ) -> List[ArbitrageOpportunity]:
+        self, quotes_by_symbol: dict[str, list[PriceQuote]], max_size: Decimal = Decimal("100")
+    ) -> list[ArbitrageOpportunity]:
         """Compare prices across multiple symbols and sources.
 
         Args:

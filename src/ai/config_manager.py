@@ -19,7 +19,7 @@ import json
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import structlog
 
@@ -337,7 +337,7 @@ class AIConfigManager:
 
 
 # Singleton instance
-_config_manager: Optional[AIConfigManager] = None
+_config_manager: AIConfigManager | None = None
 
 
 def get_ai_config_manager() -> AIConfigManager:

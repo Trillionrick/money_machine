@@ -1,0 +1,45 @@
+Do I use the requirements.txt and new split structure when I upzip the file after zipping it? 
+
+● After unzipping the backup, use the NEW split structure.
+
+  Here's what will be in the backup:
+
+  money_machine_backup.tar.gz contains:
+  ├── requirements.txt              # OLD (bloated, 4.5GB)
+  ├── requirements-core.txt         # NEW ✅ (use this)
+  ├── requirements-dev.txt          # NEW ✅
+  ├── requirements-ml.txt           # NEW ✅
+  ├── requirements-analysis.txt     # NEW ✅
+  ├── REQUIREMENTS_GUIDE.md         # Instructions
+  └── [rest of your code]
+
+  Recovery Process
+
+  1. Extract backup:
+  cd /mnt/c/Users/catty/Desktop
+  tar -xzf money_machine_backup.tar.gz
+  cd money_machine
+
+  2. Create fresh environment:
+  python -m venv .venv
+  source .venv/bin/activate
+
+  3. Install using NEW structure:
+  pip install -r requirements-core.txt  # ✅ Use this, not requirements.txt
+
+  4. Optional - add more:
+  pip install -r requirements-dev.txt   # If developing
+  pip install -r requirements-ml.txt    # If using ML features
+
+  ---
+  The Rule
+
+  - ❌ requirements.txt = Old, deprecated (but kept as reference)
+  - ✅ requirements-core.txt = New, use this going forward
+
+  The backup has both, but always use the split structure. The old requirements.txt is just there in case      
+  you need to reference it or roll back.
+
+  Think of it like:
+  - requirements.txt = Old photo album (keep for memories)
+  - requirements-*.txt = New organized albums (use these)

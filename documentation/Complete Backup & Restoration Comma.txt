@@ -1,0 +1,387 @@
+Complete Backup & Restoration Commands
+
+  PART 1: BACKUP (Before You Need It)
+
+  Option A: Git (Recommended)
+
+  cd /mnt/c/Users/catty/Desktop/money_machine
+
+  # Commit everything
+  git add -A
+  git commit -m "Complete system with ML integration - $(date +%Y%m%d)"
+  git tag -a v1.0-ml -m "ML integration complete"
+
+  # Push to remote (if you have one)
+  git push origin main
+  git push origin v1.0-ml
+
+  Option B: Tar Archive
+
+  cd /mnt/c/Users/catty/Desktop
+This is very slow:
+
+  # Create compressed backup (excludes venv, cache, node_modules)
+  tar -czf money_machine_backup_$(date +%Y%m%d).tar.gz \
+    --exclude='money_machine/.venv' \
+    --exclude='money_machine/node_modules' \
+    --exclude='money_machine/__pycache__' \
+    --exclude='money_machine/.git' \
+    --exclude='money_machine/*.pyc' \
+    money_machine/
+
+=================================================================
+Run tar inside the directory and exclude by relative patterns:
+
+cd money_machine
+tar -czf "../money_machine_backup_$(date +%Y%m%d).tar.gz" \
+  --exclude='.venv' \
+  --exclude='node_modules' \
+  --exclude='__pycache__' \
+  --exclude='.git' \
+  --exclude='*.pyc' \
+  .
+
+This reduces how deep tar must search.
+===============================================================
+Compression itself is slow (-z gzip compression)
+
+-z uses gzip, which uses a single CPU thread and can be slow on large directories.
+
+✔ Faster compression options:
+
+Way faster, but larger file:
+
+tar -cf backup.tar money_machine/
+
+
+Balanced (fast + compressed):
+
+tar -c --zstd -f "backup_$(date +%Y%m%d).tar.zst" money_machine/
+
+
+Zstandard can be 10x faster than gzip.
+
+===============================================================
+
+This reduces how deep tar must search.
+
+  # Verify backup was created
+  ls -lh money_machine_backup_*.tar.gz
+
+  Option C: Save Trained Models Separately
+
+  # Backup trained models (important!)
+  tar -czf models_backup_$(date +%Y%m%d).tar.gz money_machine/models/
+
+  # Backup database (optional, if you want training data)
+  docker exec trading_timescaledb pg_dump -U trading_user trading_db > db_backup_$(date +%Y%m%d).sql
+
+  ---
+  PART 2: RESTORATION (When You Need It)
+
+  Step 1: Extract Backup
+
+  cd /mnt/c/Users/catty/Desktop
+
+  # Extract from tar
+  tar -xzf money_machine_backup_YYYYMMDD.tar.gz
+
+  # Or if using git
+  git clone <your-repo-url>
+  # OR
+  cd money_machine && git pull
+
+  cd money_machine
+
+  Step 2: Stop Running Services
+
+  # Kill any running dashboard
+  pkill -f uvicorn
+
+  # Check Docker status
+  docker compose ps
+
+  Step 3: Clean Environment
+
+  # Remove old/corrupted venv
+  rm -rf .venv
+
+  # Create fresh virtual environment
+  python3 -m venv .venv
+
+  # Activate it
+  source .venv/bin/activate
+
+  # Upgrade pip first
+  pip install --upgrade pip wheel setuptools
+
+  Step 4: Install Core Dependencies
+
+  # Install core packages (5-10 minutes, NO HANGING)
+  pip install -r requirements-core.txt
+
+  # Verify installation
+  python -c "import fastapi, web3, structlog; print('Core packages OK')"
+
+  Step 5: Install ML Packages
+
+  # Install ML dependencies (5 minutes)
+  pip install -r requirements-ml.txt
+
+  # Verify ML packages
+  python -c "import xgboost, sklearn; print('ML packages OK')"
+
+  Step 6: Install Dev Tools (Optional)
+
+  # Only if you're developing/testing
+  pip install -r requirements-dev.txt
+
+  Step 7: Restore Trained Models (If You Backed Them Up)
+
+  # Extract models backup
+  tar -xzf models_backup_YYYYMMDD.tar.gz
+
+  Step 8: Setup ML Infrastructure
+
+  # Make setup script executable
+  chmod +x scripts/setup_ml.sh
+
+  # Run ML setup (creates directories, database schema)
+  ./scripts/setup_ml.sh
+
+  Step 9: Restore Database (Optional)
+
+  # If you backed up the database
+  docker exec -i trading_timescaledb psql -U trading_user -d trading_db < db_backup_YYYYMMDD.sql
+
+  Step 10: Make All Scripts Executable
+
+  chmod +x start_dashboard.sh
+  chmod +x install_packages.sh
+  chmod +x scripts/*.sh
+  chmod +x scripts/*.py
+
+  Step 11: Verify Environment Variables
+
+  # Check .env file exists and has credentials
+  cat .env | grep -E "ALPACA_API_KEY|ETH_RPC_URL|WALLET_PRIVATE_KEY"
+
+  # If missing, you need to recreate .env with your credentials
+
+  ---
+  PART 3: REGENERATE ML FILES (If Missing)
+
+  If Restored from Old Backup Without ML Files:
+
+  # Check if ML files exist
+  ls -la src/ai/opportunity_logger.py
+  ls -la src/live/flash_arb_ml_runner.py
+
+  # If missing, ask Claude to regenerate:
+  # "Recreate all ML integration files"
+
+  # Or manually create directories
+  mkdir -p src/ai
+  mkdir -p src/live
+  mkdir -p scripts
+  mkdir -p docs
+  mkdir -p models
+
+  ---
+  PART 4: DATABASE SETUP
+
+  Start Docker Services
+
+  # Start infrastructure
+  docker compose up -d
+
+  # Wait for services to be healthy (30 seconds)
+  sleep 30
+
+  # Check status
+  docker compose ps
+
+  # Should show:
+  # trading_timescaledb   healthy
+  # trading_redis         healthy
+  # trading_grafana       running
+
+  Initialize ML Database Schema
+
+  # Copy schema to container
+  docker cp scripts/init_ml_schema.sql trading_timescaledb:/tmp/
+
+  # Run schema initialization
+  docker exec trading_timescaledb psql -U trading_user -d trading_db -f /tmp/init_ml_schema.sql
+
+  # Verify tables were created
+  docker exec trading_timescaledb psql -U trading_user -d trading_db -c "\dt"
+
+  # Should show:
+  # arbitrage_opportunities
+  # ml_model_metrics
+  # oanda_candles
+  # oanda_transactions
+
+  ---
+  PART 5: START SYSTEM
+
+  Start Dashboard
+
+  # Start in background
+  ./start_dashboard.sh &
+
+  # Or run in foreground to see logs
+  ./start_dashboard.sh
+
+  Verify Dashboard Running
+
+  # Check if listening on port 8080
+  curl -s http://localhost:8080/api/status | head -50
+
+  # Should return JSON with system status
+
+  Access Services
+
+  # Dashboard
+  xdg-open http://localhost:8080  # or just open in browser
+
+  # Grafana
+  xdg-open http://localhost:3000  # login: admin/admin
+
+  ---
+  PART 6: VERIFICATION CHECKLIST
+
+  System Health Check
+
+  # 1. Check Python version
+  python --version  # Should be 3.11+
+
+  # 2. Check venv activated
+  which python  # Should show .venv/bin/python
+
+  # 3. Check core packages
+  python -c "import fastapi, web3, alpaca, ccxt; print('✅ Core OK')"
+
+  # 4. Check ML packages
+  python -c "import xgboost, sklearn; print('✅ ML OK')"
+
+  # 5. Check database connection
+  docker exec trading_timescaledb psql -U trading_user -d trading_db -c "SELECT version();"
+
+  # 6. Check Redis
+  docker exec trading_redis redis-cli ping  # Should return PONG
+
+  # 7. Check dashboard API
+  curl -s http://localhost:8080/api/status | grep -q "running" && echo "✅ Dashboard OK"
+
+  # 8. Check file structure
+  ls -la src/ai/opportunity_logger.py && echo "✅ ML files present"
+
+  ---
+  PART 7: COMMON ISSUES & FIXES
+
+  Issue: "requirements.txt hanging"
+
+  # DON'T USE old requirements.txt!
+  # Use split structure instead:
+  pip install -r requirements-core.txt
+  pip install -r requirements-ml.txt
+
+  Issue: "Module not found"
+
+  # Reinstall package
+  pip install <package-name>
+
+  # Or reinstall all
+  pip install -r requirements-core.txt --force-reinstall
+
+  Issue: "Port 8080 already in use"
+
+  # Kill existing process
+  pkill -f uvicorn
+
+  # Or find and kill specific PID
+  lsof -ti:8080 | xargs kill -9
+
+  Issue: "Docker containers not starting"
+
+  # Clean restart
+  docker compose down -v
+  docker compose up -d
+
+  # Check logs
+  docker compose logs -f
+
+  Issue: "Database connection failed"
+
+  # Check if TimescaleDB is running
+  docker ps | grep timescaledb
+
+  # Restart it
+  docker compose restart timescaledb
+
+  # Wait for healthy status
+  docker compose ps
+
+  ---
+  PART 8: TRAINING ML MODEL (After 1 Week)
+
+  Train Slippage Predictor
+
+  # Check training data available
+  docker exec trading_timescaledb psql -U trading_user -d trading_db \
+    -c "SELECT COUNT(*) FROM arbitrage_opportunities WHERE executed = TRUE;"
+
+  # Need at least 50 samples
+
+  # Run training
+  python scripts/train_slippage_model.py
+
+  # Train with custom parameters
+  python scripts/train_slippage_model.py --days 60 --min-samples 100 --rounds 200
+
+  # Verify model was saved
+  ls -la models/slippage_xgb.json
+
+  ---
+  COMPLETE WORKFLOW SUMMARY
+
+  Full Backup Command:
+
+  cd /mnt/c/Users/catty/Desktop && \
+  tar -czf money_machine_backup_$(date +%Y%m%d).tar.gz \
+    --exclude='money_machine/.venv' \
+    --exclude='money_machine/node_modules' \
+    --exclude='money_machine/__pycache__' \
+    money_machine/ && \
+  ls -lh money_machine_backup_*.tar.gz
+
+  Full Restoration Command Chain:
+
+  cd /mnt/c/Users/catty/Desktop && \
+  tar -xzf money_machine_backup_YYYYMMDD.tar.gz && \
+  cd money_machine && \
+  rm -rf .venv && \
+  python3 -m venv .venv && \
+  source .venv/bin/activate && \
+  pip install --upgrade pip && \
+  pip install -r requirements-core.txt && \
+  pip install -r requirements-ml.txt && \
+  chmod +x scripts/*.sh scripts/*.py start_dashboard.sh && \
+  ./scripts/setup_ml.sh && \
+  docker compose up -d && \
+  sleep 30 && \
+  ./start_dashboard.sh
+
+  Quick Verification:
+
+  # One command to check everything
+  python -c "import fastapi, web3, xgboost; print('✅ Packages OK')" && \
+  docker compose ps | grep -q healthy && echo "✅ Docker OK" && \
+  curl -s http://localhost:8080/api/status > /dev/null && echo "✅ Dashboard OK"
+
+  ---
+  SAVE THIS FILE
+
+  Save these commands for future reference. This is your complete restoration playbook.

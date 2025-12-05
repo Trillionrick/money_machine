@@ -12,7 +12,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import structlog
 
@@ -32,7 +32,7 @@ class WalletConfig:
 
     address: str
     name: str
-    chains: Optional[list[str]] = None  # None = all chains
+    chains: list[str] | None = None  # None = all chains
     enabled: bool = True
 
 
@@ -40,15 +40,15 @@ class WalletConfig:
 class PortfolioCache:
     """Cached portfolio data with timestamp."""
 
-    snapshot: Optional[PortfolioSnapshot] = None
-    metrics_1d: Optional[PortfolioMetrics] = None
-    metrics_1w: Optional[PortfolioMetrics] = None
-    metrics_1m: Optional[PortfolioMetrics] = None
-    last_snapshot_update: Optional[datetime] = None
-    last_metrics_update: Optional[datetime] = None
+    snapshot: PortfolioSnapshot | None = None
+    metrics_1d: PortfolioMetrics | None = None
+    metrics_1w: PortfolioMetrics | None = None
+    metrics_1m: PortfolioMetrics | None = None
+    last_snapshot_update: datetime | None = None
+    last_metrics_update: datetime | None = None
     update_count: int = 0
     error_count: int = 0
-    last_error: Optional[str] = None
+    last_error: str | None = None
 
 
 @dataclass
@@ -70,7 +70,7 @@ class PortfolioTracker:
     cache_ttl: float = 3600.0  # seconds (1 hour)
     enabled: bool = True
 
-    _client: Optional[OneInchPortfolioClient] = field(default=None, init=False, repr=False)
+    _client: OneInchPortfolioClient | None = field(default=None, init=False, repr=False)
     _cache: dict[str, PortfolioCache] = field(default_factory=dict, init=False, repr=False)
     _stop: asyncio.Event = field(default_factory=asyncio.Event, init=False, repr=False)
     _tasks: list[asyncio.Task] = field(default_factory=list, init=False, repr=False)
@@ -303,7 +303,7 @@ class PortfolioTracker:
 
     # ========== Query Methods ==========
 
-    def get_cached_snapshot(self, address: str) -> Optional[PortfolioSnapshot]:
+    def get_cached_snapshot(self, address: str) -> PortfolioSnapshot | None:
         """Get cached snapshot for a wallet address.
 
         Args:
@@ -329,7 +329,7 @@ class PortfolioTracker:
         self,
         address: str,
         time_range: TimeRange = TimeRange.ONE_MONTH,
-    ) -> Optional[PortfolioMetrics]:
+    ) -> PortfolioMetrics | None:
         """Get cached metrics for a wallet address.
 
         Args:
@@ -431,7 +431,7 @@ class PortfolioTracker:
         }
 
 
-def create_portfolio_tracker_from_env() -> Optional[PortfolioTracker]:
+def create_portfolio_tracker_from_env() -> PortfolioTracker | None:
     """Create portfolio tracker from environment variables.
 
     Environment variables:

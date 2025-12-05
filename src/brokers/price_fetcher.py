@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import asyncio
 from decimal import Decimal
-from typing import Dict, Optional
 
 import httpx
 import structlog
@@ -46,16 +45,16 @@ class CEXPriceFetcher:
         self.coingecko_enabled = coingecko_enabled
 
         # Initialize clients
-        self.binance_client: Optional[any] = None
-        self.alpaca_client: Optional[any] = None
-        self.kraken_client: Optional[httpx.AsyncClient] = None
-        self.coingecko_client: Optional[httpx.AsyncClient] = None
+        self.binance_client: any | None = None
+        self.alpaca_client: any | None = None
+        self.kraken_client: httpx.AsyncClient | None = None
+        self.coingecko_client: httpx.AsyncClient | None = None
         self.kraken_base_url = "https://api.kraken.com"
         self.coingecko_base_url = "https://api.coingecko.com/api/v3"
 
         # Price cache (symbol -> price)
-        self._price_cache: Dict[Symbol, Price] = {}
-        self._cache_timestamp: Dict[Symbol, float] = {}
+        self._price_cache: dict[Symbol, Price] = {}
+        self._cache_timestamp: dict[Symbol, float] = {}
         self._cache_ttl = 5.0  # Cache prices for 5 seconds
 
         # Rate limiting for CoinGecko (free tier: ~10-50 calls/min)
@@ -141,7 +140,7 @@ class CEXPriceFetcher:
             )
             self.coingecko_enabled = False
 
-    async def get_price(self, symbol: Symbol) -> Optional[Price]:
+    async def get_price(self, symbol: Symbol) -> Price | None:
         """Get current price for a symbol from appropriate exchange.
 
         Args:
@@ -167,7 +166,7 @@ class CEXPriceFetcher:
 
         return price
 
-    async def _fetch_price(self, symbol: Symbol) -> Optional[Price]:
+    async def _fetch_price(self, symbol: Symbol) -> Price | None:
         """Fetch price from appropriate exchange."""
         # Normalize symbol (but preserve original for special cases)
         original = symbol.replace("_", "/")
@@ -233,7 +232,7 @@ class CEXPriceFetcher:
                 return True
         return False
 
-    async def _fetch_inverse_pair_price(self, base: str, quote: str) -> Optional[Price]:
+    async def _fetch_inverse_pair_price(self, base: str, quote: str) -> Price | None:
         """Fetch price for inverse pairs by calculating ratio.
 
         Example: ETH/stETH = price(ETH in USD) / price(stETH in USD)
@@ -332,7 +331,7 @@ class CEXPriceFetcher:
             return quote in crypto_quotes
         return False
 
-    async def _fetch_binance_price(self, symbol: str) -> Optional[Price]:
+    async def _fetch_binance_price(self, symbol: str) -> Price | None:
         """Fetch price from Binance.
 
         Args:
@@ -391,7 +390,7 @@ class CEXPriceFetcher:
         # BTC/USDT -> BTCUSDT
         return f"{base}{quote}"
 
-    async def _fetch_alpaca_price(self, symbol: str) -> Optional[Price]:
+    async def _fetch_alpaca_price(self, symbol: str) -> Price | None:
         """Fetch price from Alpaca.
 
         Args:
@@ -430,7 +429,7 @@ class CEXPriceFetcher:
 
         return None
 
-    async def _fetch_kraken_price(self, symbol: str) -> Optional[Price]:
+    async def _fetch_kraken_price(self, symbol: str) -> Price | None:
         """Fetch price from Kraken public API with retry logic.
 
         Args:
@@ -548,7 +547,7 @@ class CEXPriceFetcher:
 
         return f"{base}{quote}"
 
-    async def _fetch_coingecko_price(self, symbol: str) -> Optional[Price]:
+    async def _fetch_coingecko_price(self, symbol: str) -> Price | None:
         """Fetch price from CoinGecko public API with retry logic.
 
         Args:
@@ -635,7 +634,7 @@ class CEXPriceFetcher:
 
         return None
 
-    def _to_coingecko_id(self, token: str) -> Optional[str]:
+    def _to_coingecko_id(self, token: str) -> str | None:
         """Map token symbol to CoinGecko coin ID."""
         # Common token mappings to CoinGecko IDs
         mappings = {
@@ -660,7 +659,7 @@ class CEXPriceFetcher:
         }
         return mappings.get(token)
 
-    def _to_coingecko_currency(self, quote: str) -> Optional[str]:
+    def _to_coingecko_currency(self, quote: str) -> str | None:
         """Map quote currency to CoinGecko vs_currency."""
         mappings = {
             "USDT": "usd",
@@ -674,7 +673,7 @@ class CEXPriceFetcher:
     async def get_multiple_prices(
         self,
         symbols: list[Symbol]
-    ) -> Dict[Symbol, Optional[Price]]:
+    ) -> dict[Symbol, Price | None]:
         """Fetch prices for multiple symbols concurrently.
 
         Args:
@@ -702,7 +701,7 @@ class CEXPriceFetcher:
 
 
 # Convenience function for simple usage
-async def fetch_cex_price(symbol: Symbol) -> Optional[Price]:
+async def fetch_cex_price(symbol: Symbol) -> Price | None:
     """Quick helper to fetch a single price.
 
     Example:

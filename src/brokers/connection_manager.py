@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 from contextlib import AsyncExitStack
-from typing import Any, Dict
+from typing import Any
 
 import structlog
 from pydantic import ValidationError
@@ -26,8 +26,8 @@ class ConnectionManager:
 
     def __init__(self, credentials: BrokerCredentials, dex_config: UniswapConfig | None = None):
         self.creds = credentials
-        self.connectors: Dict[str, Any] = {}
-        self.tasks: Dict[str, asyncio.Task[Any]] = {}
+        self.connectors: dict[str, Any] = {}
+        self.tasks: dict[str, asyncio.Task[Any]] = {}
         self.exit_stack = AsyncExitStack()
         self.dex_config = dex_config
         self.router: OrderRouter | None = None

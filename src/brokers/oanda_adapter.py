@@ -16,6 +16,7 @@ from __future__ import annotations
 import asyncio
 from collections.abc import AsyncIterator
 from decimal import Decimal, ROUND_HALF_UP
+import time
 from typing import Any
 
 import httpx
@@ -122,7 +123,7 @@ class OandaAdapter:
         sliding window approach with exponential backoff on errors.
         """
         async with self._rate_limit_lock:
-            now = asyncio.get_event_loop().time()
+            now = time.monotonic()
             window = 1.0  # 1 second window
 
             # Remove requests outside the window
@@ -133,7 +134,7 @@ class OandaAdapter:
                 wait_time = window - (now - self._request_times[0])
                 if wait_time > 0:
                     await asyncio.sleep(wait_time)
-                    now = asyncio.get_event_loop().time()
+                    now = time.monotonic()
                     self._request_times = [
                         t for t in self._request_times if now - t < window
                     ]

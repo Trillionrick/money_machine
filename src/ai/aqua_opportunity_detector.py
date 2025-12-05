@@ -10,7 +10,6 @@ import asyncio
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from decimal import Decimal
-from typing import Optional
 
 import structlog
 from web3 import AsyncWeb3, Web3
@@ -72,7 +71,7 @@ class AquaOpportunityDetector:
         ai_decider: AIDecider,
         uniswap_connector: UniswapConnector,
         price_fetcher: CEXPriceFetcher,
-        flash_executor: Optional[FlashLoanExecutor] = None,
+        flash_executor: FlashLoanExecutor | None = None,
     ):
         self.w3_eth = w3_ethereum
         self.w3_polygon = w3_polygon
@@ -114,7 +113,7 @@ class AquaOpportunityDetector:
         self.token_prices[cache_key] = price
         return price
 
-    async def analyze_pushed_event(self, event: AquaEvent) -> Optional[AquaOpportunity]:
+    async def analyze_pushed_event(self, event: AquaEvent) -> AquaOpportunity | None:
         """Analyze a Pushed event (token deposit) for opportunities.
 
         Strategy: Large deposits often precede profitable strategies.
@@ -164,7 +163,7 @@ class AquaOpportunityDetector:
 
         return None
 
-    async def analyze_pulled_event(self, event: AquaEvent) -> Optional[AquaOpportunity]:
+    async def analyze_pulled_event(self, event: AquaEvent) -> AquaOpportunity | None:
         """Analyze a Pulled event (token withdrawal) for opportunities.
 
         Strategy: Large withdrawals indicate strategy completion.
@@ -213,7 +212,7 @@ class AquaOpportunityDetector:
 
         return None
 
-    async def analyze_shipped_event(self, event: AquaEvent) -> Optional[AquaOpportunity]:
+    async def analyze_shipped_event(self, event: AquaEvent) -> AquaOpportunity | None:
         """Analyze a Shipped event (strategy deployed) for opportunities.
 
         Strategy: Track new strategies from successful traders.
@@ -563,7 +562,7 @@ class AquaOpportunityDetector:
 
     async def process_event(self, event: AquaEvent) -> None:
         """Process a single Aqua event and detect opportunities."""
-        opportunity: Optional[AquaOpportunity] = None
+        opportunity: AquaOpportunity | None = None
 
         if event.name == "Pushed":
             opportunity = await self.analyze_pushed_event(event)

@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from decimal import Decimal
-from typing import Any, Dict, Optional
+from typing import Any
 
 import structlog
 from eth_typing import ChecksumAddress, HexStr
@@ -32,7 +32,7 @@ class FlashLoanSettings(BaseSettings):
     )
 
     # Contract addresses
-    arb_contract_address: Optional[str] = Field(default=None, alias="ARB_CONTRACT_ADDRESS")
+    arb_contract_address: str | None = Field(default=None, alias="ARB_CONTRACT_ADDRESS")
     aave_pool_address: str = Field(
         default="0x87870Bca3f5FD6335c3f4d4C530Eed06fb5de523",  # Mainnet Aave V3
         alias="AAVE_POOL_ADDRESS",
@@ -51,8 +51,8 @@ class FlashLoanSettings(BaseSettings):
     )
 
     # Web3 connection
-    eth_rpc_url: Optional[str] = Field(default=None, alias="ETH_RPC_URL")
-    private_key: Optional[str] = Field(default=None, alias="PRIVATE_KEY")
+    eth_rpc_url: str | None = Field(default=None, alias="ETH_RPC_URL")
+    private_key: str | None = Field(default=None, alias="PRIVATE_KEY")
 
     # Gas settings
     max_gas_price_gwei: int = Field(default=100, alias="MAX_GAS_PRICE_GWEI")
@@ -204,8 +204,8 @@ class FlashLoanExecutor:
 
     def __init__(
         self,
-        settings: Optional[FlashLoanSettings] = None,
-        w3: Optional[Web3] = None,
+        settings: FlashLoanSettings | None = None,
+        w3: Web3 | None = None,
     ):
         """Initialize the flash loan executor."""
         self.settings = settings or FlashLoanSettings()
@@ -246,7 +246,7 @@ class FlashLoanExecutor:
         token_in: str,
         token_out: str,
         fee_tier: int = 3000,
-        intermediate_token: Optional[str] = None,
+        intermediate_token: str | None = None,
     ) -> bytes:
         """Encode Uniswap V3 swap path.
 
@@ -350,7 +350,7 @@ class FlashLoanExecutor:
         self,
         borrow_amount: Wei,
         expected_profit: Wei,
-        gas_estimate: Optional[int] = None,
+        gas_estimate: int | None = None,
     ) -> ProfitabilityCheck:
         """Calculate profitability using the contract's view function.
 
@@ -398,7 +398,7 @@ class FlashLoanExecutor:
         pair_address_2: str,
         borrow_amount: Wei,
         zero_for_one: bool = True,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Simulate arbitrage opportunity using on-chain data.
 
         Args:
@@ -437,7 +437,7 @@ class FlashLoanExecutor:
         loan_amount: Wei,
         arb_plan: ArbPlan,
         dry_run: bool = True,
-    ) -> Optional[TxReceipt]:
+    ) -> TxReceipt | None:
         """Execute flash loan arbitrage.
 
         Args:
@@ -524,7 +524,7 @@ class FlashLoanExecutor:
         self,
         borrow_amount_eth: float,
         expected_profit_eth: float,
-        min_profit_eth: Optional[float] = None,
+        min_profit_eth: float | None = None,
     ) -> ArbPlan:
         """Build a standard WETH/USDC circular arbitrage plan.
 

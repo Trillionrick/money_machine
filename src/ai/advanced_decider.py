@@ -13,7 +13,6 @@ import pickle
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Optional
 
 import numpy as np
 import structlog
@@ -92,8 +91,8 @@ class RouteSuccessPredictor:
     def __init__(self, model_path: Path | None = None):
         """Initialize predictor with optional pre-trained model."""
         self.model_path = model_path or Path("models/route_success_model.pkl")
-        self.model: Optional[object] = None  # sklearn GradientBoostingClassifier
-        self.feature_scaler: Optional[object] = None  # sklearn StandardScaler
+        self.model: object | None = None  # sklearn GradientBoostingClassifier
+        self.feature_scaler: object | None = None  # sklearn StandardScaler
         self.is_trained = False
 
         if self.model_path.exists():
@@ -253,7 +252,7 @@ class AdvancedAIDecider:
         self.route_success_rates: dict[str, float] = {}
         self.current_regime: MarketRegime | None = None
         self.last_trace: list[dict] = []
-        self.last_decision: Optional[AIDecision] = None
+        self.last_decision: AIDecision | None = None
 
         # Performance tracking
         self.total_predictions = 0
@@ -269,7 +268,7 @@ class AdvancedAIDecider:
         self,
         candidates: list[AICandidate],
         portfolio_value_eth: float = 100.0,
-    ) -> Optional[AIDecision]:
+    ) -> AIDecision | None:
         """Score all candidates with advanced multi-factor analysis.
 
         Args:
@@ -282,7 +281,7 @@ class AdvancedAIDecider:
         if not candidates:
             return None
 
-        best_decision: Optional[AIDecision] = None
+        best_decision: AIDecision | None = None
         best_score = -np.inf
         self.last_trace = []
 

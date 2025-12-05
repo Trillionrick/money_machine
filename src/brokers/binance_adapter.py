@@ -110,7 +110,7 @@ class BinanceAdapter:
         side = "BUY" if order.side == Side.BUY else "SELL"
 
         # Get symbol info for precision
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         symbol_info = await loop.run_in_executor(
             None,
             self.client.get_symbol_info,
@@ -174,7 +174,7 @@ class BinanceAdapter:
             order_id: Binance order ID (format: "SYMBOL:ORDER_ID")
         """
         symbol, binance_order_id = order_id.split(":")
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
 
         await loop.run_in_executor(
             None,
@@ -192,7 +192,7 @@ class BinanceAdapter:
         Args:
             symbol: If provided, only cancel for this symbol
         """
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
 
         if symbol:
             binance_symbol = symbol.replace("/", "")
@@ -217,7 +217,7 @@ class BinanceAdapter:
         Returns:
             List of open orders
         """
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
 
         if symbol:
             binance_symbol = symbol.replace("/", "")
@@ -256,7 +256,7 @@ class BinanceAdapter:
         Returns:
             Dictionary of symbol -> quantity
         """
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         account = await loop.run_in_executor(
             None,
             self.client.get_account,
@@ -288,7 +288,7 @@ class BinanceAdapter:
             await asyncio.sleep(1.0)
 
             try:
-                loop = asyncio.get_event_loop()
+                loop = asyncio.get_running_loop()
                 # Get recent trades
                 trades = await loop.run_in_executor(
                     None,
@@ -328,7 +328,7 @@ class BinanceAdapter:
         Returns:
             Dictionary with balances
         """
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         account = await loop.run_in_executor(
             None,
             self.client.get_account,
@@ -343,7 +343,7 @@ class BinanceAdapter:
 
     async def get_ticker_price(self, symbol: str) -> float:
         """Get the latest traded price for a symbol (e.g., ETHUSDC)."""
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         ticker = await loop.run_in_executor(
             None,
             lambda: self.client.get_symbol_ticker(symbol=symbol),

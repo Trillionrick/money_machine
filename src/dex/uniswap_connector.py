@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import os
 from decimal import Decimal
-from typing import Any, Dict
+from typing import Any
 
 import structlog
 
@@ -63,7 +63,7 @@ class UniswapConnector:
         token_out: str,
         amount_in: Decimal,
         fee_tier: int = 3000,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Get swap quote with liquidity and price impact context."""
         pool = await self._get_pool(token_in, token_out, fee_tier)
 
@@ -127,7 +127,7 @@ class UniswapConnector:
 
         return tx_hash
 
-    async def _get_pool(self, token0: str, token1: str, fee: int) -> Dict[str, Any]:
+    async def _get_pool(self, token0: str, token1: str, fee: int) -> dict[str, Any]:
         pool = await self.subgraph.get_pool_by_tokens(token0, token1, fee)
         if pool is None:
             msg = f"No pool found for pair ({token0}, {token1}) at fee tier {fee}"

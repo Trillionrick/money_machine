@@ -9,7 +9,6 @@ Implements token bucket algorithm with:
 import asyncio
 import time
 from collections import deque
-from typing import Optional
 
 import structlog
 
@@ -108,7 +107,7 @@ class MultiEndpointRateLimiter:
     def __init__(
         self,
         limits: dict[str, tuple[int, float]],
-        default_limit: Optional[tuple[int, float]] = None,
+        default_limit: tuple[int, float] | None = None,
     ) -> None:
         """Initialize multi-endpoint rate limiter.
 

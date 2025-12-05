@@ -8,21 +8,37 @@ This script:
 4. Fetches and stores instrument metadata
 """
 
+from __future__ import annotations
+
 import asyncio
 import sys
-from datetime import datetime, timezone, timedelta
+from pathlib import Path
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 
+import structlog
+
 try:
-    import asyncpg
+import asyncpg
 except ImportError:
     print("❌ Error: asyncpg not installed")
     print("Install with: pip install asyncpg")
     sys.exit(1)
 
+# Ensure project root on path for src imports when executed as a script
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
-async def fetch_initial_forex_data():
-    """Fetch initial historical data from OANDA."""
+log = structlog.get_logger()
+
+
+async def fetch_initial_forex_data() -> bool:
+    """Fetch initial historical data from OANDA.
+
+    Returns:
+        True if successful, False otherwise
+    """
 
     print("🚀 Starting initial data fetch from OANDA...")
     print()
@@ -36,6 +52,7 @@ async def fetch_initial_forex_data():
             CandleGranularity,
             PriceComponent,
         )
+        from src.utils.db_config import DatabaseSettings
     except ImportError as e:
         print(f"❌ Import error: {e}")
         print("Make sure you're in the project root directory")
@@ -54,23 +71,23 @@ async def fetch_initial_forex_data():
         return False
 
     # Connect to database
+    db_settings = DatabaseSettings()
+    db_config = db_settings.asyncpg_kwargs()
+
     try:
-        conn = await asyncpg.connect(
-            host="localhost",
-            port=5433,
-            user="trading_user",
-            password="trading_pass_change_in_production",
-            database="trading_db",
-        )
+        conn = await asyncpg.connect(**db_config)
         print("✅ Connected to TimescaleDB")
+        log.info("database.connected", **db_config)
         print()
     except Exception as e:
         print(f"❌ Database connection failed: {e}")
+        log.error("database.connection_failed", error=str(e))
         return False
 
     try:
         async with OandaAdapter(config) as adapter:
             print("✅ Connected to OANDA API")
+            log.info("oanda.connected")
             print()
 
             # Fetch and store instrument metadata
@@ -108,6 +125,7 @@ async def fetch_initial_forex_data():
                     print(f"   ⚠️  Failed to insert {inst.get('name')}: {e}")
 
             print(f"✅ Stored {instruments_inserted} instruments")
+            log.info("instruments.stored", count=instruments_inserted)
             print()
 
             # Fetch historical candles for major pairs
@@ -211,6 +229,7 @@ async def fetch_initial_forex_data():
 
             print()
             print(f"✅ Total candles stored: {total_candles}")
+            log.info("candles.stored", total=total_candles)
             print()
 
             # Summary
@@ -254,18 +273,28 @@ async def fetch_initial_forex_data():
             print("3. Run strategies on forex data")
             print()
 
+            log.info("fetch.complete", success=True)
             return True
 
     except Exception as e:
         print(f"❌ Error: {e}")
+        log.error("fetch.failed", error=str(e))
         import traceback
         traceback.print_exc()
         return False
 
     finally:
         await conn.close()
+        log.info("database.disconnected")
 
 
 if __name__ == "__main__":
-    success = asyncio.run(fetch_initial_forex_data())
-    sys.exit(0 if success else 1)
+    try:
+        success = asyncio.run(fetch_initial_forex_data())
+        sys.exit(0 if success else 1)
+    except KeyboardInterrupt:
+        log.info("fetch.interrupted")
+        sys.exit(130)
+    except Exception as e:
+        log.error("fetch.exception", error=str(e))
+        sys.exit(1)

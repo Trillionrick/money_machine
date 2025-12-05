@@ -1,15 +1,16 @@
 {
   "name": "money-machine-arbitrage-encoder",
   "version": "1.0.0",
-  "description": "JavaScript encoding tools for flash loan arbitrage",
+  "description": "[DEPRECATED] Use encode_arb_data.py instead - JavaScript encoding tools for flash loan arbitrage",
   "main": "encode_arb_data.js",
   "scripts": {
-    "encode": "node encode_arb_data.js",
-    "test": "echo \"No tests yet\""
+    "encode": "echo 'DEPRECATED: Use Python version instead' && echo 'Run: python encode_arb_data.py' && exit 1",
+    "test": "echo \"No tests - see Python version\""
   },
   "dependencies": {
     "ethers": "^5.7.2"
   },
+  "deprecated": "This package is deprecated. Use the Python version (encode_arb_data.py) which integrates with the Money Machine Python codebase and uses web3.py v7.",
   "devDependencies": {},
   "author": "",
   "license": "MIT"

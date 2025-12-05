@@ -9,6 +9,7 @@ Implements:
 
 import asyncio
 import random
+import time
 from collections.abc import Awaitable, Callable
 from functools import wraps
 from typing import Any, ParamSpec, TypeVar
@@ -135,7 +136,7 @@ class CircuitBreaker:
             # Check if timeout expired
             if (
                 self.last_failure_time
-                and asyncio.get_event_loop().time() - self.last_failure_time
+                and time.monotonic() - self.last_failure_time
                 > self.timeout
             ):
                 log.info("circuit_breaker.half_open", name=self.name)
@@ -171,7 +172,7 @@ class CircuitBreaker:
     def _on_failure(self) -> None:
         """Handle failed request."""
         self.failure_count += 1
-        self.last_failure_time = asyncio.get_event_loop().time()
+        self.last_failure_time = time.monotonic()
 
         if self.failure_count >= self.failure_threshold:
             log.warning(

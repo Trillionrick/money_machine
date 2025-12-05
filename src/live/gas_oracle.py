@@ -12,6 +12,7 @@ from __future__ import annotations
 import asyncio
 from dataclasses import dataclass
 import os
+import time
 from typing import Literal
 
 import httpx
@@ -102,7 +103,7 @@ class GasOracle:
             )
 
         # Cache result
-        self._cache[chain] = (price, asyncio.get_event_loop().time())
+        self._cache[chain] = (price, time.monotonic())
 
         if price.confidence == "low":
             log.warning(
@@ -128,7 +129,7 @@ class GasOracle:
             return None
 
         price, timestamp = self._cache[chain]
-        age = asyncio.get_event_loop().time() - timestamp
+        age = time.monotonic() - timestamp
 
         if age < self.cache_ttl_seconds:
             log.debug("gas_oracle.cache_hit", chain=chain, age_seconds=age)

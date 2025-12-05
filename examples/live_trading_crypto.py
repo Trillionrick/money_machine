@@ -11,6 +11,7 @@ Key differences from stock trading:
 """
 
 import asyncio
+import time
 from collections.abc import AsyncIterator
 
 import polars as pl
@@ -58,7 +59,7 @@ async def create_crypto_data_feed(
 
             if prices:
                 snapshot = MarketSnapshot(
-                    timestamp=int(asyncio.get_event_loop().time() * 1e9),
+                    timestamp=time.time_ns(),
                     prices=prices,
                     volumes=volumes,
                 )

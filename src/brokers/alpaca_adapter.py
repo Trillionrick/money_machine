@@ -148,7 +148,7 @@ class AlpacaAdapter:
             )
 
         # Submit (synchronous call, wrap in executor for async)
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         alpaca_order = await loop.run_in_executor(
             None,
             self.client.submit_order,
@@ -169,7 +169,7 @@ class AlpacaAdapter:
         Args:
             order_id: Alpaca order ID
         """
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         await loop.run_in_executor(
             None,
             self.client.cancel_order_by_id,
@@ -183,7 +183,7 @@ class AlpacaAdapter:
         Args:
             symbol: If provided, only cancel for this symbol
         """
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
 
         if symbol:
             # Alpaca doesn't have cancel by symbol, so get all and filter
@@ -212,7 +212,7 @@ class AlpacaAdapter:
         Returns:
             List of open orders
         """
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         alpaca_orders = await loop.run_in_executor(
             None,
             lambda: self.client.get_orders(
@@ -242,7 +242,7 @@ class AlpacaAdapter:
         Returns:
             Dictionary of symbol -> quantity
         """
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         alpaca_positions = await loop.run_in_executor(
             None,
             self.client.get_all_positions,
@@ -334,7 +334,7 @@ class AlpacaAdapter:
             await asyncio.sleep(1.0)  # Poll every second
 
             try:
-                loop = asyncio.get_event_loop()
+                loop = asyncio.get_running_loop()
                 filled_orders = await loop.run_in_executor(
                     None,
                     lambda: self.client.get_orders(filter={"status": "filled"}),
@@ -369,7 +369,7 @@ class AlpacaAdapter:
         Returns:
             Dictionary with cash, equity, buying_power
         """
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         account = await loop.run_in_executor(
             None,
             self.client.get_account,

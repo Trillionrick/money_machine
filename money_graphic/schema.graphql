@@ -1,56 +1,49 @@
 type Approval @entity(immutable: true) {
   id: Bytes!
-  owner: Bytes! # address
-  spender: Bytes! # address
-  value: BigInt! # uint256
+  owner: Bytes!
+  spender: Bytes!
+  value: BigInt!
   blockNumber: BigInt!
   blockTimestamp: BigInt!
   transactionHash: Bytes!
-}
-
-# schema.graphql
-type HolderBalance @entity {
-  id: ID!
-  token: Token! # Foreign key to the Token entity
-  holder: Bytes! # Address of the holder
-  balance: BigInt!
-  firstSeenBlock: BigInt!
-  lastUpdatedBlock: BigInt!
-  lastUpdatedTimestamp: BigInt!
 }
 
 type Transfer @entity(immutable: true) {
   id: Bytes!
-  from: Bytes! # address
-  to: Bytes! # address
-  value: BigInt! # uint256
+  from: Bytes!
+  to: Bytes!
+  value: BigInt!
   blockNumber: BigInt!
   blockTimestamp: BigInt!
   transactionHash: Bytes!
 }
 
-type Token @entity {
+type Token @entity(immutable: false) {
   id: Bytes!
   name: String
   symbol: String
   decimals: Int
   totalSupply: BigInt!
   holderCount: Int!
+  transferCount: Int!
+  totalVolume: BigInt!
   lastUpdatedBlock: BigInt!
   lastUpdatedTimestamp: BigInt!
+  balances: [HolderBalance!]! @derivedFrom(field: "token")
+  dailySnapshots: [DailySnapshot!]! @derivedFrom(field: "token")
 }
 
-type HolderBalance @entity {
+type HolderBalance @entity(immutable: false) {
   id: ID!
-  holder: Bytes!
   token: Token!
+  holder: Bytes!
   balance: BigInt!
   firstSeenBlock: BigInt!
   lastUpdatedBlock: BigInt!
   lastUpdatedTimestamp: BigInt!
 }
 
-type DailySnapshot @entity {
+type DailySnapshot @entity(immutable: false) {
   id: ID!
   token: Token!
   date: Int!
@@ -62,17 +55,21 @@ type DailySnapshot @entity {
   blockTimestamp: BigInt!
 }
 
-type Vault @entity {
+type Vault @entity(immutable: false) {
   id: Bytes!
   stakeToken: Bytes
   rewardToken: Bytes
   owner: Bytes
   totalStaked: BigInt!
-  rewardRate: BigInt
-  periodFinish: BigInt
-  lastUpdate: BigInt
+  rewardRate: BigInt!
+  periodFinish: BigInt!
+  lastUpdate: BigInt!
   lastUpdatedBlock: BigInt!
   lastUpdatedTimestamp: BigInt!
+  stakes: [StakeAction!]! @derivedFrom(field: "vault")
+  withdrawals: [WithdrawAction!]! @derivedFrom(field: "vault")
+  rewardPayments: [RewardPaidAction!]! @derivedFrom(field: "vault")
+  rewardNotifications: [RewardNotification!]! @derivedFrom(field: "vault")
 }
 
 type StakeAction @entity(immutable: true) {
@@ -117,8 +114,8 @@ type RewardNotification @entity(immutable: true) {
 
 # ========== ARBITRAGE TRACKING ==========
 
-type ArbitrageContract @entity {
-  id: Bytes! # contract address
+type ArbitrageContract @entity(immutable: false) {
+  id: Bytes!
   owner: Bytes!
   aavePool: Bytes!
   uniV3Router: Bytes!
@@ -132,16 +129,21 @@ type ArbitrageContract @entity {
   createdTimestamp: BigInt!
   lastUpdatedBlock: BigInt!
   lastUpdatedTimestamp: BigInt!
+  executions: [ArbitrageExecution!]! @derivedFrom(field: "contract")
+  flashLoans: [FlashLoanInitiated!]! @derivedFrom(field: "contract")
+  profitabilityChecks: [ProfitabilityAnalysis!]! @derivedFrom(field: "contract")
+  configUpdates: [ConfigUpdate!]! @derivedFrom(field: "contract")
+  dailySnapshots: [DailyArbitrageSnapshot!]! @derivedFrom(field: "contract")
 }
 
 type ArbitrageExecution @entity(immutable: true) {
-  id: Bytes! # transaction hash + log index
+  id: Bytes!
   contract: ArbitrageContract!
-  asset: Bytes! # token borrowed
+  asset: Bytes!
   borrowAmount: BigInt!
   profit: BigInt!
   gasCost: BigInt!
-  netProfit: BigInt! # profit - gasCost
+  netProfit: BigInt!
   gasPrice: BigInt!
   blockNumber: BigInt!
   blockTimestamp: BigInt!
@@ -149,7 +151,7 @@ type ArbitrageExecution @entity(immutable: true) {
 }
 
 type FlashLoanInitiated @entity(immutable: true) {
-  id: Bytes! # transaction hash + log index
+  id: Bytes!
   contract: ArbitrageContract!
   asset: Bytes!
   amount: BigInt!
@@ -160,7 +162,7 @@ type FlashLoanInitiated @entity(immutable: true) {
 }
 
 type ProfitabilityAnalysis @entity(immutable: true) {
-  id: Bytes! # transaction hash + log index
+  id: Bytes!
   contract: ArbitrageContract!
   grossProfit: BigInt!
   flashLoanFee: BigInt!
@@ -173,7 +175,7 @@ type ProfitabilityAnalysis @entity(immutable: true) {
 }
 
 type ConfigUpdate @entity(immutable: true) {
-  id: Bytes! # transaction hash + log index
+  id: Bytes!
   contract: ArbitrageContract!
   maxGasPrice: BigInt!
   slippageTolerance: BigInt!
@@ -183,16 +185,16 @@ type ConfigUpdate @entity(immutable: true) {
 }
 
 # Daily aggregated arbitrage stats
-type DailyArbitrageSnapshot @entity {
-  id: ID! # contract address + date (YYYY-MM-DD)
+type DailyArbitrageSnapshot @entity(immutable: false) {
+  id: ID!
   contract: ArbitrageContract!
-  date: Int! # unix timestamp (day start)
+  date: Int!
   executionCount: Int!
   totalProfit: BigInt!
   totalGasCost: BigInt!
   netProfit: BigInt!
   avgProfitPerTrade: BigInt!
-  successRate: BigDecimal! # percentage of profitable trades
+  successRate: BigDecimal!
   blockNumber: BigInt!
   blockTimestamp: BigInt!
 }

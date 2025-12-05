@@ -105,7 +105,7 @@ async def test_crypto_order() -> None:
         )
 
         # Submit
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         order = await loop.run_in_executor(
             None,
             adapter.client.submit_order,

@@ -9,6 +9,7 @@ Run this to verify SSE is working before live trading.
 """
 
 import asyncio
+import time
 from datetime import datetime
 
 import structlog
@@ -35,11 +36,11 @@ async def test_trade_events(client: AlpacaSSEClient, duration_seconds: int = 30)
     print()
 
     event_count = 0
-    start_time = asyncio.get_event_loop().time()
+    start_time = time.monotonic()
 
     try:
         async for event in client.stream_trade_events():
-            elapsed = asyncio.get_event_loop().time() - start_time
+            elapsed = time.monotonic() - start_time
             if elapsed > duration_seconds:
                 break
 
@@ -92,11 +93,11 @@ async def test_account_status(client: AlpacaSSEClient, duration_seconds: int = 1
     print()
 
     event_count = 0
-    start_time = asyncio.get_event_loop().time()
+    start_time = time.monotonic()
 
     try:
         async for event in client.stream_account_status():
-            elapsed = asyncio.get_event_loop().time() - start_time
+            elapsed = time.monotonic() - start_time
             if elapsed > duration_seconds:
                 break
 
@@ -133,11 +134,11 @@ async def test_nta_events(client: AlpacaSSEClient, duration_seconds: int = 10) -
     print()
 
     event_count = 0
-    start_time = asyncio.get_event_loop().time()
+    start_time = time.monotonic()
 
     try:
         async for event in client.stream_nta_events():
-            elapsed = asyncio.get_event_loop().time() - start_time
+            elapsed = time.monotonic() - start_time
             if elapsed > duration_seconds:
                 break
 

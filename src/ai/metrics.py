@@ -15,7 +15,7 @@ import asyncio
 from collections import deque
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from typing import Any, Optional
+from typing import Any
 
 import structlog
 
@@ -56,7 +56,7 @@ class ModelMetrics:
     model_name: str
     is_trained: bool = False
     training_samples: int = 0
-    last_training_time: Optional[datetime] = None
+    last_training_time: datetime | None = None
     prediction_accuracy: float = 0.0
     avg_prediction_confidence: float = 0.0
 
@@ -463,7 +463,7 @@ class AIMetricsCollector:
 
 
 # Global metrics collector instance
-_metrics_collector: Optional[AIMetricsCollector] = None
+_metrics_collector: AIMetricsCollector | None = None
 
 
 def get_metrics_collector() -> AIMetricsCollector:

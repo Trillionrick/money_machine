@@ -80,9 +80,10 @@ class ForexDataCollector:
         log.info("initializing_collector")
 
         # Import OANDA modules
-        from src.brokers.oanda_config import OandaConfig
-        from src.brokers.oanda_adapter import OandaAdapter
-        from src.brokers.oanda_streaming import OandaStreamingClient
+from src.brokers.oanda_config import OandaConfig
+from src.brokers.oanda_adapter import OandaAdapter
+from src.brokers.oanda_streaming import OandaStreamingClient
+from src.utils.db_config import DatabaseSettings
 
         # Load OANDA config
         try:
@@ -98,12 +99,9 @@ class ForexDataCollector:
 
         # Create database connection pool
         try:
+            db_settings = DatabaseSettings()
             self.db_pool = await asyncpg.create_pool(
-                host="localhost",
-                port=5434,
-                user="trading_user",
-                password="trading_pass_change_in_production",
-                database="trading_db",
+                **db_settings.asyncpg_kwargs(),
                 min_size=2,
                 max_size=10,
             )

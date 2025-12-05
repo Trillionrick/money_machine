@@ -12,7 +12,7 @@ be swapped for an ML/RL model later without touching the rest of the app.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Iterable, Optional
+from typing import Iterable
 
 
 @dataclass
@@ -36,8 +36,8 @@ class AICandidate:
     flash_fee_quote: float = 0.0
     slippage_quote: float = 0.0
     hop_count: int = 1
-    cex_price: Optional[float] = None
-    dex_price: Optional[float] = None
+    cex_price: float | None = None
+    dex_price: float | None = None
     chain: str = "ethereum"
     confidence: float = 0.5  # caller-supplied prior confidence
 
@@ -58,8 +58,8 @@ class AIDecision:
     net_quote: float
     confidence: float
     chain: str
-    cex_price: Optional[float] = None
-    dex_price: Optional[float] = None
+    cex_price: float | None = None
+    dex_price: float | None = None
     gas_cost_quote: float = 0.0
     flash_fee_quote: float = 0.0
     slippage_quote: float = 0.0
@@ -94,14 +94,14 @@ class AIDecision:
 class AIDecider:
     """Simple scoring wrapper; drop-in replacement for ML/RL later."""
 
-    def __init__(self, config: Optional[AIConfig] = None):
+    def __init__(self, config: AIConfig | None = None):
         self.config = config or AIConfig()
         self.last_trace: list[dict] = []
-        self.last_decision: Optional[AIDecision] = None
+        self.last_decision: AIDecision | None = None
 
-    def pick_best(self, candidates: Iterable[AICandidate]) -> Optional[AIDecision]:
+    def pick_best(self, candidates: Iterable[AICandidate]) -> AIDecision | None:
         """Score all candidates and return the best viable decision."""
-        best: Optional[AIDecision] = None
+        best: AIDecision | None = None
         self.last_trace = []
         self.last_decision = None
 

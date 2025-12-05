@@ -15,7 +15,7 @@ from dataclasses import dataclass, field
 from decimal import Decimal
 import math
 from pathlib import Path
-from typing import Any, Awaitable, Callable, Mapping, Sequence, Optional
+from typing import Any, Awaitable, Callable, Mapping, Sequence
 
 import structlog
 import httpx
@@ -130,7 +130,7 @@ class ArbitrageRunner:
     trades_skipped: int = 0
     failures: int = 0
     _polygon_w3: AsyncWeb3 | None = field(default=None, init=False, repr=False)
-    _polygon_rpc_manager: Optional[PolygonRPCManager] = field(default=None, init=False, repr=False)
+    _polygon_rpc_manager: PolygonRPCManager | None = field(default=None, init=False, repr=False)
     _gas_oracle: GasOracle | None = field(default=None, init=False, repr=False)
     route_failures: dict[str, int] = field(default_factory=dict)
     blacklisted_routes: set[str] = field(default_factory=set)

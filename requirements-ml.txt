@@ -1,0 +1,14 @@
+# Machine Learning & Deep Learning (Optional)
+# Install with: pip install -r requirements-ml.txt
+# Use for: Slippage prediction, gas forecasting, regime detection
+
+# Traditional ML (lightweight, fast - 5 min install)
+scikit-learn==1.5.2
+xgboost==2.1.2
+lightgbm==4.5.0
+joblib==1.4.2
+
+# Deep Learning (heavy, slow - 30 min install)
+# Uncomment only when you need LSTM/Transformers for time-series forecasting
+# torch==2.4.1
+# tensorflow==2.17.0

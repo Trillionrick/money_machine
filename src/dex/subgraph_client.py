@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import structlog
 from gql import Client, gql
@@ -33,7 +33,7 @@ class UniswapSubgraphClient:
         self.client = Client(transport=transport, fetch_schema_from_transport=False)
         self._lock = asyncio.Lock()
 
-    async def get_pool_data(self, pool_address: str) -> Dict[str, Any]:
+    async def get_pool_data(self, pool_address: str) -> dict[str, Any]:
         """Return pool-level stats including liquidity and prices."""
         query = gql(
             """
@@ -65,7 +65,7 @@ class UniswapSubgraphClient:
 
     async def get_pool_by_tokens(
         self, token_a: str, token_b: str, fee_tier: int
-    ) -> Optional[Dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         """Find a pool for a token pair and fee tier."""
         query = gql(
             """
@@ -131,7 +131,7 @@ class UniswapSubgraphClient:
 
         return derived_eth * eth_price_usd
 
-    async def get_top_pools(self, limit: int = 10) -> List[Dict[str, Any]]:
+    async def get_top_pools(self, limit: int = 10) -> list[dict[str, Any]]:
         """Return top pools by TVL."""
         query = gql(
             """
@@ -162,7 +162,7 @@ class UniswapSubgraphClient:
 
     async def get_token_swaps(
         self, token_address: str, limit: int = 100
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Return recent swaps for a token (order flow proxy)."""
         query = gql(
             """

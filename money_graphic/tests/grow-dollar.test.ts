@@ -22,8 +22,8 @@ describe("Describe entity assertions", () => {
       "0x0000000000000000000000000000000000000001"
     )
     let value = BigInt.fromI32(234)
-    let newApprovalEvent = createApprovalEvent(owner, spender, value)
-    handleApproval(newApprovalEvent)
+    let approvalEvent = createApprovalEvent(owner, spender, value)
+    handleApproval(approvalEvent)
   })
 
   afterAll(() => {
@@ -35,23 +35,23 @@ describe("Describe entity assertions", () => {
 
   test("Approval created and stored", () => {
     assert.entityCount("Approval", 1)
+    const approvalId = "0xa16081f360e3847006db660bae1c6d1b2e17ec2a01000000"
 
-    // 0xa16081f360e3847006db660bae1c6d1b2e17ec2a is the default address used in newMockEvent() function
     assert.fieldEquals(
       "Approval",
-      "0xa16081f360e3847006db660bae1c6d1b2e17ec2a-1",
+      approvalId,
       "owner",
       "0x0000000000000000000000000000000000000001"
     )
     assert.fieldEquals(
       "Approval",
-      "0xa16081f360e3847006db660bae1c6d1b2e17ec2a-1",
+      approvalId,
       "spender",
       "0x0000000000000000000000000000000000000001"
     )
     assert.fieldEquals(
       "Approval",
-      "0xa16081f360e3847006db660bae1c6d1b2e17ec2a-1",
+      approvalId,
       "value",
       "234"
     )

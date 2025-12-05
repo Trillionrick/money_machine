@@ -22,7 +22,6 @@ import pickle
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Optional
 
 import numpy as np
 import structlog
@@ -76,7 +75,7 @@ class FlashLoanProfitPredictor:
     def __init__(self, config: ProfitMaximizerConfig):
         """Initialize profit predictor."""
         self.config = config
-        self.model: Optional[object] = None  # sklearn model
+        self.model: object | None = None  # sklearn model
         self.is_trained = False
         self.feature_importance: dict[str, float] = {}
         self.training_samples = 0

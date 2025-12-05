@@ -1,14 +1,28 @@
 #!/usr/bin/env python3
-"""
-Candle Data Viewer
-Shows latest candlestick data with charts
-"""
+"""Candle Data Viewer - Shows latest candlestick data with charts."""
+
+from __future__ import annotations
+
 import asyncio
+import sys
+from pathlib import Path
+
 import asyncpg
-from datetime import datetime
+import structlog
+
+# Ensure project root on sys.path for src imports when running as script
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+from src.utils.db_config import DatabaseSettings
+
+log = structlog.get_logger()
 
 
-def candlestick_chart(open_price, high, low, close, width=20):
+def candlestick_chart(
+    open_price: float, high: float, low: float, close: float, width: int = 20
+) -> str:
     """Create a simple ASCII candlestick"""
     bullish = close > open_price
     body_char = '█' if bullish else '░'
@@ -40,15 +54,18 @@ def candlestick_chart(open_price, high, low, close, width=20):
     return ''.join(chart)
 
 
-async def main():
-    conn = await asyncpg.connect(
-        host='localhost',
-        port=5434,
-        user='trading_user',
-        password='trading_pass_change_in_production',
-        database='trading_db'
-    )
+async def main() -> None:
+    """Display latest candlestick data from database."""
+    db_config = DatabaseSettings().asyncpg_kwargs()
 
+    try:
+        conn = await asyncpg.connect(**db_config)
+    except Exception as e:
+        log.error("database.connection_failed", error=str(e), **db_config)
+        sys.exit(1)
+
+    log.info("database.connected", host=db_config["host"], port=db_config["port"])
+    log.info("candles.fetching")
     print("\n📊 LATEST CANDLESTICK DATA\n")
     print("=" * 100)
 
@@ -117,7 +134,15 @@ async def main():
     print("=" * 100 + "\n")
 
     await conn.close()
+    log.info("candles.complete", total=stats['total_candles'])
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        log.info("candles.interrupted")
+        sys.exit(0)
+    except Exception as e:
+        log.error("candles.failed", error=str(e))
+        sys.exit(1)

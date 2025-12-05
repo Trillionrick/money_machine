@@ -9,42 +9,55 @@ This script:
 5. Tests basic insert/query operations
 """
 
+from __future__ import annotations
+
 import asyncio
 import sys
+from pathlib import Path
 from datetime import datetime, timezone
 from decimal import Decimal
 
+import structlog
+
 try:
-    import asyncpg
+import asyncpg
 except ImportError:
     print("❌ Error: asyncpg not installed")
     print("Install with: pip install asyncpg")
     sys.exit(1)
 
+# Ensure project root on sys.path for src imports when running as script
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
-async def verify_database_setup():
-    """Verify TimescaleDB setup and OANDA schema."""
+from src.utils.db_config import DatabaseSettings
 
-    # Connection settings
-    config = {
-        "host": "localhost",
-        "port": 5433,
-        "user": "trading_user",
-        "password": "trading_pass_change_in_production",
-        "database": "trading_db",
-    }
+log = structlog.get_logger()
+
+
+async def verify_database_setup() -> bool:
+    """Verify TimescaleDB setup and OANDA schema.
+
+    Returns:
+        True if verification successful, False otherwise
+    """
+    # Connection settings from environment
+    db_config = DatabaseSettings().asyncpg_kwargs()
 
     print("🔌 Connecting to TimescaleDB...")
-    print(f"   Host: {config['host']}:{config['port']}")
-    print(f"   Database: {config['database']}")
+    print(f"   Host: {db_config['host']}:{db_config['port']}")
+    print(f"   Database: {db_config['database']}")
     print()
 
     try:
-        conn = await asyncpg.connect(**config)
+        conn = await asyncpg.connect(**db_config)
         print("✅ Connected successfully!")
+        log.info("database.connected", **db_config)
         print()
     except Exception as e:
         print(f"❌ Connection failed: {e}")
+        log.error("database.connection_failed", error=str(e), **db_config)
         print()
         print("Make sure TimescaleDB is running:")
         print("   docker-compose up -d timescaledb")
@@ -203,18 +216,28 @@ async def verify_database_setup():
         print("3. Start trading!")
         print()
 
+        log.info("verification.complete", success=True)
         return True
 
     except Exception as e:
         print(f"❌ Verification failed: {e}")
+        log.error("verification.failed", error=str(e))
         import traceback
         traceback.print_exc()
         return False
 
     finally:
         await conn.close()
+        log.info("database.disconnected")
 
 
 if __name__ == "__main__":
-    success = asyncio.run(verify_database_setup())
-    sys.exit(0 if success else 1)
+    try:
+        success = asyncio.run(verify_database_setup())
+        sys.exit(0 if success else 1)
+    except KeyboardInterrupt:
+        log.info("verification.interrupted")
+        sys.exit(130)
+    except Exception as e:
+        log.error("verification.exception", error=str(e))
+        sys.exit(1)

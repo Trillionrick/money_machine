@@ -10,7 +10,7 @@ import asyncio
 from dataclasses import dataclass, field
 from datetime import datetime
 from decimal import Decimal
-from typing import Awaitable, Callable, Optional, cast
+from typing import Awaitable, Callable, cast
 
 import structlog
 from web3 import Web3
@@ -66,9 +66,9 @@ class FlashArbConfig(ArbitrageConfig):
 class FlashArbitrageRunner(ArbitrageRunner):
     """Arbitrage runner with flash loan execution capabilities."""
 
-    flash_executor: Optional[FlashLoanExecutor] = None
-    on_opportunity: Optional[Callable[[dict], Awaitable[None] | None]] = None
-    on_trade: Optional[Callable[[dict], Awaitable[None] | None]] = None
+    flash_executor: FlashLoanExecutor | None = None
+    on_opportunity: Callable[[dict], Awaitable[None] | None] | None = None
+    on_trade: Callable[[dict], Awaitable[None] | None] | None = None
 
     flash_executions: int = 0
     flash_failures: int = 0
@@ -598,7 +598,7 @@ async def run_flash_arbitrage_scanner(
     dex: UniswapConnector,
     price_fetcher: PriceFetcher,
     token_addresses: dict[str, str],
-    config: Optional[FlashArbConfig] = None,
+    config: FlashArbConfig | None = None,
 ) -> None:
     """Main entry point for running flash arbitrage scanner.
 

@@ -17,6 +17,7 @@ import uvicorn
 from web3 import Web3
 
 from run_live_arbitrage import ArbitrageSystem
+from run_ai_integrated_arbitrage import AIIntegratedArbitrageSystem
 from src.ai.decider import AICandidate, AIDecider, AIConfig
 from src.live.flash_arb_runner import FlashArbitrageRunner
 from src.brokers.price_fetcher import CEXPriceFetcher
@@ -48,6 +49,8 @@ stats_task: Optional[asyncio.Task] = None
 aqua_tasks: list[asyncio.Task] = []
 scanner_system: Optional[ArbitrageSystem] = None
 runner_ref: Optional[FlashArbitrageRunner] = None
+ai_onchain_system: Optional[AIIntegratedArbitrageSystem] = None
+ai_onchain_task: Optional[asyncio.Task] = None
 scanner_running = False
 scanner_started_at: Optional[datetime] = None
 opportunities: List[Dict] = []
@@ -117,6 +120,34 @@ def get_web3() -> Optional[Web3]:
         return None
 
     return _web3_client
+
+
+async def init_ai_onchain_runner() -> None:
+    """Start the AI-integrated runner and register it with the API router."""
+    global ai_onchain_system, ai_onchain_task
+
+    if ai_onchain_system or ai_onchain_task:
+        return
+
+    try:
+        # Run in live mode (not dry-run) for real execution stats; ensure env is production-ready.
+        ai_onchain_system = AIIntegratedArbitrageSystem(dry_run=False)
+        set_ai_runner(ai_onchain_system.runner)
+        ai_onchain_task = asyncio.create_task(ai_onchain_system.run())
+        log.info("ai_onchain.runner_started", dry_run=False)
+    except Exception as e:
+        log.warning("ai_onchain.runner_start_failed", error=str(e))
+
+
+@app.on_event("startup")
+async def _startup() -> None:
+    await init_ai_onchain_runner()
+
+
+@app.on_event("shutdown")
+async def _shutdown() -> None:
+    if ai_onchain_task:
+        ai_onchain_task.cancel()
 
 
 async def refresh_wallet_balances() -> None:

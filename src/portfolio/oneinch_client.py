@@ -15,7 +15,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from decimal import Decimal
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 import httpx
 import structlog
@@ -88,7 +88,7 @@ class ProtocolMetrics:
     chain_id: str
     absolute_profit_usd: Decimal
     roi_percentage: Decimal
-    apr_percentage: Optional[Decimal] = None
+    apr_percentage: Decimal | None = None
     current_value_usd: Decimal = Decimal("0")
 
 
@@ -137,7 +137,7 @@ class OneInchPortfolioClient:
         self.max_retries = max_retries
         self.retry_delay = retry_delay
 
-        self._client: Optional[httpx.AsyncClient] = None
+        self._client: httpx.AsyncClient | None = None
         self._headers = {
             "accept": "application/json",
             "Authorization": f"Bearer {api_key}",
@@ -162,7 +162,7 @@ class OneInchPortfolioClient:
         self,
         method: str,
         endpoint: str,
-        params: Optional[dict[str, Any]] = None,
+        params: dict[str, Any] | None = None,
         retry_count: int = 0,
     ) -> dict[str, Any]:
         """Make API request with retry logic.
@@ -301,7 +301,7 @@ class OneInchPortfolioClient:
         self,
         address: str,
         time_range: TimeRange = TimeRange.ONE_MONTH,
-        chain_id: Optional[str] = None,
+        chain_id: str | None = None,
     ) -> list[dict[str, Any]]:
         """Get historical portfolio value chart data.
 
@@ -342,7 +342,7 @@ class OneInchPortfolioClient:
     async def get_tokens_snapshot(
         self,
         address: str,
-        chain_ids: Optional[list[str]] = None,
+        chain_ids: list[str] | None = None,
     ) -> dict[str, Any]:
         """Get current snapshot of all token balances and values.
 
@@ -369,7 +369,7 @@ class OneInchPortfolioClient:
         self,
         address: str,
         time_range: TimeRange = TimeRange.ONE_MONTH,
-        chain_ids: Optional[list[str]] = None,
+        chain_ids: list[str] | None = None,
     ) -> list[TokenMetrics]:
         """Get historical metrics for token holdings (profits, ROI).
 
@@ -417,7 +417,7 @@ class OneInchPortfolioClient:
     async def get_protocols_snapshot(
         self,
         address: str,
-        chain_ids: Optional[list[str]] = None,
+        chain_ids: list[str] | None = None,
     ) -> dict[str, Any]:
         """Get current snapshot of all protocol positions.
 
@@ -444,7 +444,7 @@ class OneInchPortfolioClient:
         self,
         address: str,
         time_range: TimeRange = TimeRange.ONE_MONTH,
-        chain_ids: Optional[list[str]] = None,
+        chain_ids: list[str] | None = None,
     ) -> list[ProtocolMetrics]:
         """Get historical metrics for protocol positions (PnL, ROI, APR).
 
@@ -493,7 +493,7 @@ class OneInchPortfolioClient:
     async def get_full_snapshot(
         self,
         address: str,
-        chain_ids: Optional[list[str]] = None,
+        chain_ids: list[str] | None = None,
     ) -> PortfolioSnapshot:
         """Get complete portfolio snapshot (tokens + protocols).
 
@@ -566,7 +566,7 @@ class OneInchPortfolioClient:
         self,
         address: str,
         time_range: TimeRange = TimeRange.ONE_MONTH,
-        chain_ids: Optional[list[str]] = None,
+        chain_ids: list[str] | None = None,
     ) -> PortfolioMetrics:
         """Get complete portfolio metrics (tokens + protocols).
 

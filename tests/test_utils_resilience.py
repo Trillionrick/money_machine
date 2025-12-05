@@ -78,7 +78,7 @@ async def test_circuit_breaker_opens_and_recovers() -> None:
             pass
 
     # Fast-forward timeout and allow half-open
-    breaker.last_failure_time = asyncio.get_event_loop().time() - 1.0
+    breaker.last_failure_time = time.monotonic() - 1.0
     async with breaker:
         pass
     assert breaker.state == "CLOSED"
