@@ -195,7 +195,7 @@ class AIIntegratedArbitrageSystem:
                 api_key=os.getenv("KRAKEN_API_KEY", ""),
                 api_secret=os.getenv("KRAKEN_API_SECRET", ""),
             )
-            self.order_router.add_broker(kraken)
+            connectors["kraken"] = kraken
             log.info("order_router.kraken_added")
         except Exception as e:
             log.warning("order_router.kraken_failed", error=str(e))

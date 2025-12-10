@@ -2,7 +2,7 @@
 
 Multi-chain arbitrage detection and execution system with flash loan integration, targeting CEX-DEX price discrepancies across Ethereum and Polygon networks.
 
-**[📚 Complete Documentation Index](documentation/INDEX.md)**
+**[📚 Complete Documentation Index](docs/INDEX.md)**
 
 ## Architecture Overview
 
@@ -84,6 +84,11 @@ source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 
 # Install core dependencies
 uv pip install -e .
+
+# Install broker/on-chain extras (Web3, Alpaca, etc.)
+# Note: If you need `eth_account.Account`, do NOT install the abandoned
+# `Account` package (it has broken Celery metadata). Use this extras group instead:
+uv pip install -e ".[exchange]"
 
 # Install development dependencies
 uv pip install -e ".[dev]"

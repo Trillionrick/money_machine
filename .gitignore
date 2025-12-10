@@ -28,6 +28,12 @@ venv/
 ENV/
 env/
 
+# Node / Frontend
+node_modules/
+dist/
+build/
+.vite/
+
 # IDE
 .vscode/
 .idea/
@@ -98,3 +104,13 @@ Pipfile.lock
 # OS
 Thumbs.db
 .directory
+
+# Documentation
+docs/_build/
+docs/.doctrees/
+site/
+.mkdocs_cache/
+*.tmp.md
+*_draft.md
+docs/**/*.tmp
+docs/**/*_draft
