@@ -23,7 +23,6 @@ duckdb>=1.1.0
 
 # Async runtime
 uvloop>=0.21.0
-asyncio>=3.4.3
 
 # Fast serialization
 msgspec>=0.18.0
@@ -51,7 +50,6 @@ typing-extensions>=4.12.0
 alpaca-py>=0.34.0
 httpx>=0.28.0  # Updated to 0.28+ for 2025 standards (no deprecated verify/cert patterns)
 httpx-sse>=0.4.0
-python-binance>=1.0.0
 python-dotenv>=1.0.0
 yfinance>=0.2.0
 orjson>=3.9.0
@@ -66,6 +64,7 @@ ibapi>=9.81.1.post1
 # Additional exchanges
 ccxt>=4.0.0
 krakenex>=2.2.0
+oandapyV20>=0.7.2
 
 # ============================================================================
 # Blockchain/DEX (Web3, Uniswap, Flash Loans)
@@ -242,7 +241,6 @@ backoff>=2.2.1
 shortuuid>=1.0.11
 
 # File operations
-pathlib2>=2.3.7
 watchdog>=4.0.0
 
 # Compression

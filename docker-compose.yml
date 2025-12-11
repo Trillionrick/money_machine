@@ -1,3 +1,5 @@
+name: money_machine
+
 services:
   # Main trading application with ML models and production safety
   trading_app:
@@ -6,7 +8,8 @@ services:
       dockerfile: Dockerfile
     container_name: money_machine_app
     ports:
-      - "8080:8080"
+      - "8080:8080"  # Main dashboard
+      - "8081:8081"  # Alpaca trading dashboard
       - "9090:9090"  # Metrics port
     environment:
       # Python configuration
@@ -16,8 +19,22 @@ services:
       - ALCHEMY_API_KEY=${ALCHEMY_API_KEY}
       - KRAKEN_API_KEY=${KRAKEN_API_KEY}
       - KRAKEN_API_SECRET=${KRAKEN_API_SECRET}
+
+      # Alpaca (supports both paper and live trading)
       - ALPACA_API_KEY=${ALPACA_API_KEY}
       - ALPACA_API_SECRET=${ALPACA_API_SECRET}
+      - ALPACA_PAPER_API_KEY=${ALPACA_PAPER_API_KEY}
+      - ALPACA_PAPER_API_SECRET=${ALPACA_PAPER_API_SECRET}
+      - ALPACA_LIVE_API_KEY=${ALPACA_LIVE_API_KEY}
+      - ALPACA_LIVE_API_SECRET=${ALPACA_LIVE_API_SECRET}
+      - ALPACA_PAPER=${ALPACA_PAPER:-true}
+
+      # OANDA (Forex trading)
+      - OANDA_API_TOKEN=${OANDA_API_TOKEN}
+      - OANDA_ACCOUNT_ID=${OANDA_ACCOUNT_ID}
+      - OANDA_ENVIRONMENT=${OANDA_ENVIRONMENT:-practice}
+
+      # Wallet keys
       - WALLET_PRIVATE_KEY=${WALLET_PRIVATE_KEY}
       - PRIVATE_KEY=${PRIVATE_KEY}
 
@@ -28,7 +45,7 @@ services:
       - NFT_CHAINS=${NFT_CHAINS:-ethereum,polygon}
 
       # Database & Cache
-      - DATABASE_URL=postgresql://trading_user:trading_pass_change_in_production@timescaledb:5432/trading_db
+      - DATABASE_URL=postgresql://trading_user:${POSTGRES_PASSWORD:-trading_pass_change_in_production}@timescaledb:5432/trading_db
       - REDIS_URL=redis://redis:6379/0
 
       # RPC Endpoints (with failover)
@@ -103,14 +120,9 @@ services:
         condition: service_healthy
 
     # Resource limits for production stability
-    deploy:
-      resources:
-        limits:
-          cpus: '4.0'
-          memory: 8G
-        reservations:
-          cpus: '2.0'
-          memory: 4G
+    cpus: 4.0
+    mem_limit: 8g
+    mem_reservation: 4g
 
     # Health check for monitoring
     healthcheck:
@@ -121,7 +133,8 @@ services:
       start_period: 40s
 
     restart: unless-stopped
-    command: ["python", "run_ai_integrated_arbitrage.py"]
+    # Start both AI arbitrage system and Alpaca dashboard
+    command: ["sh", "-c", "python run_ai_integrated_arbitrage.py & python alpaca_server.py"]
 
   # MLflow for ML model tracking and versioning
   mlflow:
@@ -133,7 +146,7 @@ services:
     ports:
       - "5000:5000"
     environment:
-      - BACKEND_STORE_URI=postgresql://trading_user:trading_pass_change_in_production@timescaledb:5432/trading_db
+      - BACKEND_STORE_URI=postgresql://trading_user:${POSTGRES_PASSWORD:-trading_pass_change_in_production}@timescaledb:5432/trading_db
       - DEFAULT_ARTIFACT_ROOT=/mlflow/artifacts
     volumes:
       - mlflow_artifacts:/mlflow/artifacts
@@ -142,7 +155,7 @@ services:
         condition: service_healthy
     command: >
       mlflow server
-      --backend-store-uri postgresql://trading_user:trading_pass_change_in_production@timescaledb:5432/trading_db
+      --backend-store-uri postgresql://trading_user:${POSTGRES_PASSWORD:-trading_pass_change_in_production}@timescaledb:5432/trading_db
       --default-artifact-root /mlflow/artifacts
       --host 0.0.0.0
       --port 5000
@@ -156,7 +169,7 @@ services:
       - "5433:5432"  # Use 5433 to avoid conflict with money_graphic postgres
     environment:
       POSTGRES_USER: trading_user
-      POSTGRES_PASSWORD: trading_pass_change_in_production
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-trading_pass_change_in_production}
       POSTGRES_DB: trading_db
     volumes:
       - timescaledb_data:/var/lib/postgresql/data
@@ -185,14 +198,9 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-    deploy:
-      resources:
-        limits:
-          cpus: '2.0'
-          memory: 4G
-        reservations:
-          cpus: '1.0'
-          memory: 2G
+    cpus: 2.0
+    mem_limit: 4g
+    mem_reservation: 2g
     restart: unless-stopped
 
   # Redis for caching and pub/sub with production settings
@@ -209,19 +217,14 @@ services:
       interval: 10s
       timeout: 3s
       retries: 5
-    deploy:
-      resources:
-        limits:
-          cpus: '1.0'
-          memory: 2G
-        reservations:
-          cpus: '0.5'
-          memory: 1G
+    cpus: 1.0
+    mem_limit: 2g
+    mem_reservation: 1g
     restart: unless-stopped
 
   # Grafana for monitoring with production dashboards
   grafana:
-    image: grafana/grafana:latest
+    image: grafana/grafana:10.2.3
     container_name: trading_grafana
     ports:
       - "3000:3000"
@@ -240,16 +243,13 @@ services:
       - ./grafana/dashboards:/var/lib/grafana/dashboards
     depends_on:
       - timescaledb
-    deploy:
-      resources:
-        limits:
-          cpus: '1.0'
-          memory: 1G
+    cpus: 1.0
+    mem_limit: 1g
     restart: unless-stopped
 
   # Prometheus for metrics collection (production monitoring)
   prometheus:
-    image: prom/prometheus:latest
+    image: prom/prometheus:v2.48.1
     container_name: trading_prometheus
     ports:
       - "9091:9090"
@@ -264,16 +264,13 @@ services:
       - '--web.console.templates=/etc/prometheus/consoles'
     depends_on:
       - trading_app
-    deploy:
-      resources:
-        limits:
-          cpus: '1.0'
-          memory: 2G
+    cpus: 1.0
+    mem_limit: 2g
     restart: unless-stopped
 
   # Alert Manager for production alerts (optional but recommended)
   alertmanager:
-    image: prom/alertmanager:latest
+    image: prom/alertmanager:v0.26.0
     container_name: trading_alertmanager
     ports:
       - "9093:9093"
@@ -283,11 +280,8 @@ services:
     command:
       - '--config.file=/etc/alertmanager/alertmanager.yml'
       - '--storage.path=/alertmanager'
-    deploy:
-      resources:
-        limits:
-          cpus: '0.5'
-          memory: 512M
+    cpus: 0.5
+    mem_limit: 512m
     restart: unless-stopped
 
   # Postgres Exporter for TimescaleDB Database Observability
@@ -297,7 +291,7 @@ services:
     ports:
       - "9187:9187"
     environment:
-      DATA_SOURCE_NAME: "postgresql://trading_user:trading_pass_change_in_production@timescaledb:5432/trading_db?sslmode=disable"
+      DATA_SOURCE_NAME: "postgresql://trading_user:${POSTGRES_PASSWORD:-trading_pass_change_in_production}@timescaledb:5432/trading_db?sslmode=disable"
       PG_EXPORTER_EXTEND_QUERY_PATH: "/etc/postgres_exporter/queries.yaml"
       PG_EXPORTER_CONSTANT_LABELS: "environment=production,service=trading_db"
     volumes:
@@ -305,16 +299,13 @@ services:
     depends_on:
       timescaledb:
         condition: service_healthy
-    deploy:
-      resources:
-        limits:
-          cpus: '0.5'
-          memory: 256M
+    cpus: 0.5
+    mem_limit: 256m
     restart: unless-stopped
 
   # Loki for log aggregation
   loki:
-    image: grafana/loki:latest
+    image: grafana/loki:2.9.3
     container_name: trading_loki
     ports:
       - "3100:3100"
@@ -322,16 +313,13 @@ services:
       - ./monitoring/loki-config.yaml:/etc/loki/local-config.yaml
       - loki_data:/loki
     command: -config.file=/etc/loki/local-config.yaml
-    deploy:
-      resources:
-        limits:
-          cpus: '1.0'
-          memory: 1G
+    cpus: 1.0
+    mem_limit: 1g
     restart: unless-stopped
 
   # Promtail for log shipping to Loki
   promtail:
-    image: grafana/promtail:latest
+    image: grafana/promtail:2.9.3
     container_name: trading_promtail
     volumes:
       - ./monitoring/promtail-config.yaml:/etc/promtail/config.yaml
@@ -341,11 +329,8 @@ services:
     command: -config.file=/etc/promtail/config.yaml
     depends_on:
       - loki
-    deploy:
-      resources:
-        limits:
-          cpus: '0.5'
-          memory: 256M
+    cpus: 0.5
+    mem_limit: 256m
     restart: unless-stopped
 
 volumes:
