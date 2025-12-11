@@ -20,7 +20,6 @@ from typing import Any, Awaitable, Callable, Mapping, Sequence
 import structlog
 import httpx
 from web3 import AsyncHTTPProvider, AsyncWeb3
-from web3.middleware import ExtraDataToPOAMiddleware
 
 from src.brokers.routing import OrderRouter
 from src.core.execution import Order, OrderType, Side
@@ -104,7 +103,6 @@ def build_polygon_web3(rpc_url: str | None = None) -> AsyncWeb3:
     resolved_url = resolved_url.strip()
 
     w3 = AsyncWeb3(AsyncHTTPProvider(resolved_url, request_kwargs={"timeout": 8}))
-    w3.middleware_onion.inject(ExtraDataToPOAMiddleware, layer=0)
 
     # Note: w3.is_connected() is async and can't be called from sync context
     # Connection will be verified on first use
@@ -223,17 +221,19 @@ class ArbitrageRunner:
             return
 
         base, quote = symbol.split("/", 1)
-        token_in = self.token_addresses.get(quote)
-        token_out = self.token_addresses.get(base)
+        # For "ETH/USDC", we want to swap ETH→USDC to get price in USDC terms
+        # So token_in should be the base (ETH), token_out should be quote (USDC)
+        token_in = self.token_addresses.get(base)
+        token_out = self.token_addresses.get(quote)
         primary_chain = getattr(self.dex, "chain", None)
         primary_chain_label = (
             primary_chain.name.lower() if isinstance(primary_chain, Chain) else "primary"
         )
         polygon_token_in = (
-            self.polygon_token_addresses.get(quote) if self.polygon_token_addresses else token_in
+            self.polygon_token_addresses.get(base) if self.polygon_token_addresses else token_in
         )
         polygon_token_out = (
-            self.polygon_token_addresses.get(base) if self.polygon_token_addresses else token_out
+            self.polygon_token_addresses.get(quote) if self.polygon_token_addresses else token_out
         )
 
         if not token_in or not token_out:
@@ -247,8 +247,9 @@ class ArbitrageRunner:
             log.debug("arbitrage.skip_no_cex_price", symbol=symbol)
             return
 
-        notional_quote = min(self.config.max_notional, cex_price * self.config.max_position)
-        amount_in = Decimal(str(notional_quote))
+        # Since we're swapping base→quote, amount_in should be in base currency
+        # Use a small test amount (1 unit) for price discovery
+        amount_in = Decimal("1.0")
 
         candidates = await self._collect_quotes(
             symbol=symbol,
@@ -398,10 +399,16 @@ class ArbitrageRunner:
             return candidates
 
         try:
+            # Get token decimals for fallback 1inch quote (base→quote swap)
+            token_in_decimals = self._get_token_decimals(base_symbol)
+            token_out_decimals = self._get_token_decimals(quote_symbol)
+
             primary_quote = await self.dex.get_quote(
                 token_in=token_in,
                 token_out=token_out,
                 amount_in=amount_in,
+                token_in_decimals=token_in_decimals,
+                token_out_decimals=token_out_decimals,
             )
             dex_price = float(primary_quote["expected_output"] / amount_in)
             edge_bps = self._calculate_edge_bps(cex_price, dex_price)

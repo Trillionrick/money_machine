@@ -12,8 +12,12 @@ from typing import Any
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
+from src.ai.alert_system import Alert, AlertLevel, get_alert_system
+from src.ai.circuit_breakers import CircuitBreakerType, get_circuit_breaker_manager
 from src.ai.config_manager import get_ai_config_manager, reload_ai_config
 from src.ai.metrics import get_metrics_collector
+from src.ai.production_safety import get_production_safety_guard
+from src.ai.transaction_logger import get_transaction_logger
 
 # Create router
 router = APIRouter(prefix="/api/ai", tags=["AI System"])
@@ -344,4 +348,341 @@ async def get_ai_health() -> dict[str, Any]:
         "net_profit": net_profit,
         "alerts": alerts,
         "uptime_seconds": summary["system"]["uptime_seconds"],
+    }
+
+
+# ============================================================================
+# PRODUCTION SAFETY ENDPOINTS
+# ============================================================================
+
+
+@router.get("/safety/status")
+async def get_safety_status() -> dict[str, Any]:
+    """Get production safety guard status.
+
+    Returns:
+        Safety limits, current usage, and emergency shutdown status
+    """
+    safety = get_production_safety_guard()
+    return safety.get_status()
+
+
+@router.get("/safety/stats")
+async def get_safety_stats() -> dict[str, Any]:
+    """Get production safety statistics.
+
+    Returns:
+        Trade counts, P&L tracking, limit usage
+    """
+    safety = get_production_safety_guard()
+    return safety.get_status()
+
+
+@router.post("/safety/reset")
+async def reset_safety_shutdown(reason: str = "Manual reset from API") -> dict[str, str]:
+    """Reset emergency shutdown state.
+
+    ⚠️ Use with caution - only after addressing the root cause.
+
+    Args:
+        reason: Reason for reset
+
+    Returns:
+        Success status
+    """
+    safety = get_production_safety_guard()
+    safety.reset_emergency_shutdown(reason=reason)
+    return {"status": "success", "message": "Emergency shutdown reset", "reason": reason}
+
+
+# ============================================================================
+# CIRCUIT BREAKER ENDPOINTS
+# ============================================================================
+
+
+@router.get("/circuit-breakers")
+async def get_circuit_breakers() -> dict[str, Any]:
+    """Get all circuit breaker states.
+
+    Returns:
+        Status of all circuit breakers with current values and thresholds
+    """
+    breakers = get_circuit_breaker_manager()
+    return breakers.get_status()
+
+
+@router.get("/circuit-breakers/{breaker_type}")
+async def get_circuit_breaker(breaker_type: str) -> dict[str, Any]:
+    """Get specific circuit breaker status.
+
+    Args:
+        breaker_type: Type of breaker (win_rate, drawdown, gas_cost, etc.)
+
+    Returns:
+        Breaker status with current value and threshold
+    """
+    breakers = get_circuit_breaker_manager()
+    status = breakers.get_status()
+
+    if breaker_type not in status["breakers"]:
+        raise HTTPException(status_code=404, detail=f"Circuit breaker '{breaker_type}' not found")
+
+    return {
+        "type": breaker_type,
+        **status["breakers"][breaker_type],
+        "trading_allowed": status["trading_allowed"],
+    }
+
+
+@router.post("/circuit-breakers/{breaker_type}/reset")
+async def reset_circuit_breaker(breaker_type: str) -> dict[str, str]:
+    """Attempt to reset a specific circuit breaker.
+
+    Args:
+        breaker_type: Type of breaker to reset
+
+    Returns:
+        Success status with new state
+    """
+    breakers = get_circuit_breaker_manager()
+
+    # Convert string to enum
+    try:
+        breaker_enum = CircuitBreakerType(breaker_type)
+    except ValueError:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid breaker_type '{breaker_type}'. Valid types: {[e.value for e in CircuitBreakerType]}",
+        )
+
+    # Attempt recovery
+    recovered = breakers.attempt_recovery(breaker_enum)
+
+    if recovered:
+        return {
+            "status": "success",
+            "message": f"Circuit breaker '{breaker_type}' recovered",
+            "breaker_type": breaker_type,
+        }
+    else:
+        return {
+            "status": "failed",
+            "message": f"Circuit breaker '{breaker_type}' could not be recovered - conditions not met",
+            "breaker_type": breaker_type,
+        }
+
+
+@router.get("/circuit-breakers/history")
+async def get_circuit_breaker_history(limit: int = 50) -> dict[str, Any]:
+    """Get circuit breaker event history.
+
+    Args:
+        limit: Maximum number of events to return
+
+    Returns:
+        Recent circuit breaker trigger events
+    """
+    # Note: Circuit breaker history tracking not yet implemented
+    # Would require adding event logging to CircuitBreakerManager
+    return {
+        "events": [],
+        "count": 0,
+        "message": "Circuit breaker event history not yet implemented",
+    }
+
+
+# ============================================================================
+# TRANSACTION LOGGER ENDPOINTS
+# ============================================================================
+
+
+@router.get("/trades/history")
+async def get_trade_history(limit: int = 50) -> dict[str, Any]:
+    """Get trade execution history.
+
+    Args:
+        limit: Maximum number of trades to return (1-500)
+
+    Returns:
+        Recent trades with decisions and execution results
+    """
+    if limit < 1 or limit > 500:
+        raise HTTPException(status_code=400, detail="Limit must be 1-500")
+
+    tx_logger = get_transaction_logger()
+    return tx_logger.get_session_stats()
+
+
+@router.get("/trades/stats")
+async def get_trade_stats() -> dict[str, Any]:
+    """Get comprehensive trading statistics.
+
+    Returns:
+        Win rate, P&L, execution metrics, AI performance
+    """
+    tx_logger = get_transaction_logger()
+    return tx_logger.get_session_stats()
+
+
+@router.get("/trades/export/csv")
+async def export_trades_csv() -> dict[str, str]:
+    """Export trade history to CSV.
+
+    Returns:
+        CSV file path and row count
+    """
+    tx_logger = get_transaction_logger()
+
+    return {
+        "status": "success",
+        "filepath": str(tx_logger.csv_path),
+        "format": "csv",
+        "message": "CSV file is continuously updated during session",
+    }
+
+
+@router.get("/trades/export/json")
+async def export_trades_json() -> dict[str, str]:
+    """Export trade history to JSON.
+
+    Returns:
+        JSON file path and record count
+    """
+    tx_logger = get_transaction_logger()
+
+    return {
+        "status": "success",
+        "filepath": str(tx_logger.json_path),
+        "format": "json",
+        "message": "JSONL file is continuously updated during session",
+    }
+
+
+@router.get("/metrics/prometheus")
+async def get_prometheus_metrics() -> str:
+    """Export metrics in Prometheus format.
+
+    Returns:
+        Metrics in Prometheus exposition format
+    """
+    metrics = get_metrics_collector()
+    summary = metrics.get_summary()
+
+    # Build Prometheus metrics format
+    lines = []
+
+    # Decisions metrics
+    lines.append("# HELP arbitrage_decisions_total Total number of AI decisions made")
+    lines.append("# TYPE arbitrage_decisions_total counter")
+    lines.append(f"arbitrage_decisions_total {summary['decisions']['total']}")
+
+    lines.append("# HELP arbitrage_decisions_executed_total Total decisions executed")
+    lines.append("# TYPE arbitrage_decisions_executed_total counter")
+    lines.append(f"arbitrage_decisions_executed_total {summary['decisions']['executed']}")
+
+    lines.append("# HELP arbitrage_avg_confidence Average AI confidence")
+    lines.append("# TYPE arbitrage_avg_confidence gauge")
+    lines.append(f"arbitrage_avg_confidence {summary['decisions']['avg_confidence']}")
+
+    lines.append("# HELP arbitrage_avg_edge_bps Average edge in basis points")
+    lines.append("# TYPE arbitrage_avg_edge_bps gauge")
+    lines.append(f"arbitrage_avg_edge_bps {summary['decisions']['avg_edge_bps']}")
+
+    lines.append("# HELP arbitrage_win_rate Win rate ratio (0-1)")
+    lines.append("# TYPE arbitrage_win_rate gauge")
+    lines.append(f"arbitrage_win_rate {summary['decisions']['win_rate']}")
+
+    lines.append("# HELP arbitrage_sharpe_ratio Sharpe ratio")
+    lines.append("# TYPE arbitrage_sharpe_ratio gauge")
+    lines.append(f"arbitrage_sharpe_ratio {summary['decisions']['sharpe_ratio']}")
+
+    # Execution metrics
+    lines.append("# HELP arbitrage_executions_total Total execution attempts")
+    lines.append("# TYPE arbitrage_executions_total counter")
+    lines.append(f"arbitrage_executions_total {summary['execution']['total']}")
+
+    lines.append("# HELP arbitrage_executions_successful_total Successful executions")
+    lines.append("# TYPE arbitrage_executions_successful_total counter")
+    lines.append(f"arbitrage_executions_successful_total {summary['execution']['successful']}")
+
+    lines.append("# HELP arbitrage_executions_failed_total Failed executions")
+    lines.append("# TYPE arbitrage_executions_failed_total counter")
+    lines.append(f"arbitrage_executions_failed_total {summary['execution']['failed']}")
+
+    lines.append("# HELP arbitrage_success_rate Execution success rate (0-1)")
+    lines.append("# TYPE arbitrage_success_rate gauge")
+    lines.append(f"arbitrage_success_rate {summary['execution']['success_rate']}")
+
+    lines.append("# HELP arbitrage_total_profit_usd Total profit in USD")
+    lines.append("# TYPE arbitrage_total_profit_usd counter")
+    lines.append(f"arbitrage_total_profit_usd {summary['execution']['total_profit_usd']}")
+
+    lines.append("# HELP arbitrage_total_gas_cost_usd Total gas cost in USD")
+    lines.append("# TYPE arbitrage_total_gas_cost_usd counter")
+    lines.append(f"arbitrage_total_gas_cost_usd {summary['execution']['total_gas_cost_usd']}")
+
+    lines.append("# HELP arbitrage_net_profit_usd Net profit (profit - gas) in USD")
+    lines.append("# TYPE arbitrage_net_profit_usd gauge")
+    lines.append(f"arbitrage_net_profit_usd {summary['execution']['net_profit_usd']}")
+
+    lines.append("# HELP arbitrage_avg_execution_time_ms Average execution time in milliseconds")
+    lines.append("# TYPE arbitrage_avg_execution_time_ms gauge")
+    lines.append(f"arbitrage_avg_execution_time_ms {summary['execution']['avg_execution_time_ms']}")
+
+    # Opportunities metrics
+    lines.append("# HELP arbitrage_opportunities_detected_total Total opportunities detected")
+    lines.append("# TYPE arbitrage_opportunities_detected_total counter")
+    lines.append(f"arbitrage_opportunities_detected_total {summary['opportunities']['detected']}")
+
+    lines.append("# HELP arbitrage_opportunities_executed_total Opportunities executed")
+    lines.append("# TYPE arbitrage_opportunities_executed_total counter")
+    lines.append(f"arbitrage_opportunities_executed_total {summary['opportunities']['executed']}")
+
+    lines.append("# HELP arbitrage_conversion_rate Opportunity conversion rate (0-1)")
+    lines.append("# TYPE arbitrage_conversion_rate gauge")
+    lines.append(f"arbitrage_conversion_rate {summary['opportunities']['conversion_rate']}")
+
+    lines.append("# HELP arbitrage_avg_opportunity_quality Average opportunity quality score")
+    lines.append("# TYPE arbitrage_avg_opportunity_quality gauge")
+    lines.append(f"arbitrage_avg_opportunity_quality {summary['opportunities']['avg_quality']}")
+
+    # System metrics
+    lines.append("# HELP arbitrage_uptime_seconds System uptime in seconds")
+    lines.append("# TYPE arbitrage_uptime_seconds counter")
+    lines.append(f"arbitrage_uptime_seconds {summary['system']['uptime_seconds']}")
+
+    return "\n".join(lines)
+
+
+# ============================================================================
+# ALERT SYSTEM ENDPOINTS
+# ============================================================================
+
+
+@router.post("/alerts/test")
+async def test_alert_system() -> dict[str, str]:
+    """Send a test alert to verify Discord integration.
+
+    Returns:
+        Success status
+    """
+    from datetime import datetime
+
+    alert_system = get_alert_system()
+
+    # Create a test alert
+    test_alert = Alert(
+        level=AlertLevel.INFO,
+        title="🧪 Test Alert",
+        message="This is a test alert from the API endpoint. If you see this, your alert system is working correctly!",
+        timestamp=datetime.utcnow(),
+        data={"source": "API", "endpoint": "/api/ai/alerts/test"},
+    )
+
+    # Send the alert
+    alert_system._send_alert(test_alert, force=True)
+
+    return {
+        "status": "success",
+        "message": "Test alert sent - check Discord channel",
     }

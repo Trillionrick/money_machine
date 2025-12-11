@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from typing import Any, Iterable
 
 from eth_typing import ChecksumAddress, HexStr
-from web3 import Web3
+from web3 import AsyncWeb3, Web3
 from web3.contract.contract import ContractEvent
 
 
@@ -121,7 +121,7 @@ class AquaEvent:
 class AquaClient:
     """Lightweight Aqua contract helper."""
 
-    def __init__(self, w3: Web3, chain_id: int):
+    def __init__(self, w3: Web3 | AsyncWeb3, chain_id: int):
         self.w3 = w3
         self.chain_id = chain_id
         self.address = Web3.to_checksum_address(AQUA_CONTRACT_ADDRESSES[chain_id])

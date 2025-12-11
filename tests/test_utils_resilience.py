@@ -3,7 +3,7 @@
 import asyncio
 import time
 
-import pytest
+import pytest  # type: ignore[import-not-found]
 
 from src.utils.rate_limiter import AdaptiveRateLimiter, MultiEndpointRateLimiter
 from src.utils.resilience import (
@@ -24,7 +24,8 @@ async def test_adaptive_rate_limiter_enforces_window() -> None:
     await limiter.acquire()  # should wait for window to roll
     elapsed = time.perf_counter() - start
     assert elapsed >= 0.05
-    assert limiter.get_stats()["total_waited"] > 0
+    total_waited = float(limiter.get_stats()["total_waited"])
+    assert total_waited > 0
 
 
 def test_multi_endpoint_rate_limiter_returns_specific_limiters() -> None:
@@ -36,7 +37,7 @@ def test_multi_endpoint_rate_limiter_returns_specific_limiters() -> None:
     assert multi.limit("/unknown").name == "_default"
     # Ensure missing default creates permissive limiter
     multi_no_default = MultiEndpointRateLimiter({})
-    assert multi_no_default.limit("/foo").max_requests > 1000
+    assert float(multi_no_default.limit("/foo").max_requests) > 1000
 
 
 @pytest.mark.asyncio

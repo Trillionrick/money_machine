@@ -24,7 +24,12 @@ class UniswapSubgraphClient:
     def __init__(self, api_key: str, chain_slug: str = "mainnet", version: str = "v3"):
         endpoint_key = f"{version}_{chain_slug}"
         try:
-            endpoint_url = SUBGRAPH_ENDPOINTS[endpoint_key].format(api_key=api_key)
+            endpoint_template = SUBGRAPH_ENDPOINTS[endpoint_key]
+            # Support both API key templates and direct URLs
+            if "{api_key}" in endpoint_template:
+                endpoint_url = endpoint_template.format(api_key=api_key)
+            else:
+                endpoint_url = endpoint_template
         except KeyError as exc:
             msg = f"Unsupported subgraph target: {endpoint_key}"
             raise ValueError(msg) from exc

@@ -342,11 +342,35 @@ class AIIntegratedArbitrageRunner:
             if not quote_result or expected_output <= 0:
                 return opportunities
 
-            # Calculate DEX price
+            # Calculate DEX price (quote per base, same units as CEX price)
+            # For symbol "BASE/QUOTE", we quote token_in=QUOTE, token_out=BASE
+            # So dex_price should be: QUOTE / BASE (same as cex_price)
             dex_price = float(test_amount) / float(expected_output)
 
-            # Calculate edge
+            # Sanity check: if edge is absurdly large, prices are likely inverted
             edge_bps = ((cex_price / dex_price) - 1) * 10_000 if dex_price > 0 else 0.0
+            if abs(edge_bps) > 1_000_000:  # More than 10,000% edge is unrealistic
+                # Prices might be inverted - try the opposite calculation
+                dex_price_inverted = float(expected_output) / float(test_amount)
+                edge_bps_inverted = ((cex_price / dex_price_inverted) - 1) * 10_000
+
+                log.warning(
+                    "ai_integrated_runner.suspicious_price_detected",
+                    symbol=symbol,
+                    chain=chain,
+                    cex_price=cex_price,
+                    dex_price_original=dex_price,
+                    edge_bps_original=edge_bps,
+                    dex_price_inverted=dex_price_inverted,
+                    edge_bps_inverted=edge_bps_inverted,
+                    test_amount=float(test_amount),
+                    expected_output=float(expected_output),
+                )
+
+                # If inverted calculation produces more reasonable edge, use it
+                if abs(edge_bps_inverted) < abs(edge_bps):
+                    dex_price = dex_price_inverted
+                    edge_bps = edge_bps_inverted
 
             # Determine if this is a flash loan opportunity
             is_flash_opportunity = edge_bps >= self.config.arbitrage_config.min_edge_bps

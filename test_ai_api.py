@@ -41,11 +41,14 @@ except Exception as e:
     print(f"   ❌ Failed: {e}")
     sys.exit(1)
 
+from fastapi.routing import APIRoute
+
 # Test 4: List available endpoints
 print("\n4. Available AI Endpoints:")
 for route in router.routes:
-    methods = ', '.join(route.methods)
-    print(f"   {methods:8} {route.path}")
+    if isinstance(route, APIRoute):
+        methods = ", ".join(route.methods or [])
+        print(f"   {methods:8} {route.path}")
 
 print("\n✅ All tests passed! AI API is ready.\n")
 print("Next steps:")

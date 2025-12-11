@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Money Machine - Production Dashboard</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #0f0f23;
+            color: #e0e0e0;
+            padding: 20px;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+            flex-wrap: wrap;
+        }
+
+        .nav-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            color: white;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+
+        .nav-link:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateY(-2px);
+        }
+
+        h1 { font-size: 28px; font-weight: 600; }
+        h2 { font-size: 20px; margin-bottom: 15px; color: #667eea; }
+        h3 { font-size: 16px; margin-bottom: 10px; color: #a0a0a0; }
+
+        .status-badge {
+            display: inline-block;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-left: 10px;
+        }
+
+        .badge-healthy { background: #10b981; color: white; }
+        .badge-warning { background: #f59e0b; color: white; }
+        .badge-error { background: #ef4444; color: white; }
+        .badge-open { background: #ef4444; color: white; animation: pulse 2s infinite; }
+        .badge-closed { background: #10b981; color: white; }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .card {
+            background: #1a1a2e;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            border: 1px solid #2a2a3e;
+        }
+
+        .metric {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid #2a2a3e;
+        }
+
+        .metric:last-child { border-bottom: none; }
+
+        .metric-label {
+            color: #a0a0a0;
+            font-size: 14px;
+        }
+
+        .metric-value {
+            font-size: 18px;
+            font-weight: 600;
+            color: #667eea;
+        }
+
+        .big-number {
+            font-size: 36px;
+            font-weight: 700;
+            color: #667eea;
+            margin: 10px 0;
+        }
+
+        .positive { color: #10b981; }
+        .negative { color: #ef4444; }
+
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: background 0.3s;
+            margin: 5px;
+        }
+
+        button:hover { background: #5568d3; }
+        button:disabled {
+            background: #4a4a5e;
+            cursor: not-allowed;
+        }
+
+        .danger-btn {
+            background: #ef4444;
+        }
+
+        .danger-btn:hover {
+            background: #dc2626;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #2a2a3e;
+        }
+
+        th {
+            background: #2a2a3e;
+            color: #a0a0a0;
+            font-weight: 600;
+            font-size: 12px;
+            text-transform: uppercase;
+        }
+
+        tr:hover {
+            background: #252538;
+        }
+
+        .chart-container {
+            height: 200px;
+            background: #252538;
+            border-radius: 6px;
+            margin: 10px 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #666;
+        }
+
+        .refresh-indicator {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #10b981;
+            margin-left: 10px;
+            animation: blink 2s infinite;
+        }
+
+        @keyframes blink {
+            0%, 50%, 100% { opacity: 1; }
+            25%, 75% { opacity: 0.2; }
+        }
+
+        .circuit-breaker-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 10px;
+        }
+
+        .breaker-card {
+            background: #252538;
+            padding: 15px;
+            border-radius: 6px;
+            border-left: 4px solid #10b981;
+        }
+
+        .breaker-card.open {
+            border-left-color: #ef4444;
+        }
+
+        .breaker-title {
+            font-size: 12px;
+            color: #a0a0a0;
+            text-transform: uppercase;
+            margin-bottom: 5px;
+        }
+
+        .breaker-state {
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .footer {
+            text-align: center;
+            color: #666;
+            font-size: 12px;
+            margin-top: 40px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>💰 Money Machine - Production Dashboard <span id="systemStatus" class="status-badge">Loading...</span></h1>
+        <p style="margin-top: 10px; opacity: 0.9;">Real-time arbitrage monitoring with ML-powered decision making</p>
+        <p style="margin-top: 5px; font-size: 12px; opacity: 0.7;">Last updated: <span id="lastUpdate">--</span> <span class="refresh-indicator"></span></p>
+
+        <div class="nav-links">
+            <a href="/classic" class="nav-link">📊 Classic Dashboard</a>
+            <a href="http://localhost:8081" class="nav-link" target="_blank">📈 Alpaca Trading</a>
+        </div>
+    </div>
+
+    <!-- System Health Overview -->
+    <div class="grid">
+        <div class="card">
+            <h2>⚡ System Health</h2>
+            <div id="healthStatus">Loading...</div>
+        </div>
+
+        <div class="card">
+            <h2>📊 Performance (24h)</h2>
+            <div class="metric">
+                <span class="metric-label">Opportunities</span>
+                <span class="metric-value" id="oppCount">--</span>
+            </div>
+            <div class="metric">
+                <span class="metric-label">Win Rate</span>
+                <span class="metric-value" id="winRate">--</span>
+            </div>
+            <div class="metric">
+                <span class="metric-label">Total Profit</span>
+                <span class="metric-value positive" id="totalProfit">--</span>
+            </div>
+            <div class="metric">
+                <span class="metric-label">Avg Edge</span>
+                <span class="metric-value" id="avgEdge">--</span>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>🧠 ML Models</h2>
+            <div id="modelStatus">Loading...</div>
+        </div>
+    </div>
+
+    <!-- Circuit Breakers -->
+    <div class="card" style="margin-bottom: 20px;">
+        <h2>🛡️ Circuit Breakers <span id="tradingStatus" class="status-badge">--</span></h2>
+        <div class="circuit-breaker-grid" id="circuitBreakers">
+            Loading...
+        </div>
+        <div style="margin-top: 15px;">
+            <button onclick="attemptRecovery()" id="recoveryBtn">Attempt Recovery</button>
+            <button onclick="resetAllBreakers()" class="danger-btn">⚠️ Reset All Breakers</button>
+        </div>
+    </div>
+
+    <!-- Market Volatility -->
+    <div class="card" style="margin-bottom: 20px;">
+        <h2>📈 Market Volatility</h2>
+        <table id="volatilityTable">
+            <thead>
+                <tr>
+                    <th>Symbol</th>
+                    <th>Price</th>
+                    <th>Vol 1h</th>
+                    <th>Vol 24h</th>
+                    <th>Vol 7d</th>
+                    <th>Returns 1h</th>
+                </tr>
+            </thead>
+            <tbody id="volatilityData">
+                <tr><td colspan="6">Loading...</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Recent Opportunities -->
+    <div class="card">
+        <h2>🎯 Recent Opportunities</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Time</th>
+                    <th>Symbol</th>
+                    <th>Chain</th>
+                    <th>Edge (bps)</th>
+                    <th>Executed</th>
+                    <th>Profitable</th>
+                    <th>Profit</th>
+                </tr>
+            </thead>
+            <tbody id="opportunitiesTable">
+                <tr><td colspan="7">Loading...</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="footer">
+        <p>Money Machine Production Dashboard v2.0 | Auto-refresh every 30s</p>
+        <p style="margin-top: 5px;">
+            <a href="http://localhost:3000" target="_blank" style="color: #667eea;">Grafana</a> |
+            <a href="http://localhost:5000" target="_blank" style="color: #667eea;">MLflow</a> |
+            <a href="/docs" target="_blank" style="color: #667eea;">API Docs</a>
+        </p>
+    </div>
+
+    <script>
+        // Auto-refresh interval
+        const REFRESH_INTERVAL = 30000; // 30 seconds
+
+        // Update last update timestamp
+        function updateTimestamp() {
+            document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString();
+        }
+
+        // Fetch system health
+        async function fetchHealth() {
+            try {
+                const response = await fetch('/api/production/health');
+                const data = await response.json();
+
+                const statusEl = document.getElementById('healthStatus');
+                const systemStatusEl = document.getElementById('systemStatus');
+
+                let html = '';
+                for (const [component, status] of Object.entries(data.components)) {
+                    const badge = status.status === 'healthy' ? 'badge-healthy' :
+                                  status.status === 'error' ? 'badge-error' : 'badge-warning';
+                    html += `
+                        <div class="metric">
+                            <span class="metric-label">${component.replace(/_/g, ' ')}</span>
+                            <span class="status-badge ${badge}">${status.status}</span>
+                        </div>
+                    `;
+                }
+                statusEl.innerHTML = html;
+
+                // Update overall system status
+                const overallBadge = data.overall_status === 'healthy' ? 'badge-healthy' :
+                                     data.overall_status === 'degraded' ? 'badge-error' : 'badge-warning';
+                systemStatusEl.className = `status-badge ${overallBadge}`;
+                systemStatusEl.textContent = data.overall_status.toUpperCase();
+
+            } catch (error) {
+                console.error('Error fetching health:', error);
+            }
+        }
+
+        // Fetch circuit breakers status
+        async function fetchCircuitBreakers() {
+            try {
+                const response = await fetch('/api/production/circuit-breakers/status');
+                const data = await response.json();
+
+                const tradingStatusEl = document.getElementById('tradingStatus');
+                tradingStatusEl.className = data.trading_allowed ? 'status-badge badge-closed' : 'status-badge badge-open';
+                tradingStatusEl.textContent = data.trading_allowed ? 'TRADING ENABLED' : 'TRADING BLOCKED';
+
+                const breakersEl = document.getElementById('circuitBreakers');
+                let html = '';
+
+                for (const [type, breaker] of Object.entries(data.breakers)) {
+                    const isOpen = breaker.state === 'open';
+                    html += `
+                        <div class="breaker-card ${isOpen ? 'open' : ''}">
+                            <div class="breaker-title">${type.replace(/_/g, ' ')}</div>
+                            <div class="breaker-state ${isOpen ? 'negative' : 'positive'}">
+                                ${breaker.state.toUpperCase()}
+                            </div>
+                            ${breaker.trigger_reason ? `<div style="font-size: 11px; color: #ef4444; margin-top: 5px;">${breaker.trigger_reason}</div>` : ''}
+                        </div>
+                    `;
+                }
+
+                breakersEl.innerHTML = html;
+
+            } catch (error) {
+                console.error('Error fetching circuit breakers:', error);
+            }
+        }
+
+        // Fetch ML models status
+        async function fetchModels() {
+            try {
+                const response = await fetch('/api/production/models/current');
+                const data = await response.json();
+
+                const statusEl = document.getElementById('modelStatus');
+                let html = '';
+
+                for (const [name, model] of Object.entries(data.models)) {
+                    if (model.status) {
+                        html += `<div class="metric">
+                            <span class="metric-label">${name.replace(/_/g, ' ')}</span>
+                            <span class="status-badge badge-error">${model.status}</span>
+                        </div>`;
+                    } else {
+                        html += `<div class="metric">
+                            <span class="metric-label">${name.replace(/_/g, ' ')}</span>
+                            <span class="metric-value">${model.training_samples} samples</span>
+                        </div>`;
+                    }
+                }
+
+                statusEl.innerHTML = html;
+
+            } catch (error) {
+                console.error('Error fetching models:', error);
+            }
+        }
+
+        // Fetch opportunity statistics
+        async function fetchStats() {
+            try {
+                const response = await fetch('/api/production/opportunities/stats?hours=24');
+                const data = await response.json();
+                const stats = data.stats;
+
+                document.getElementById('oppCount').textContent = stats.total_opportunities || 0;
+                document.getElementById('winRate').textContent = stats.win_rate
+                    ? (stats.win_rate * 100).toFixed(1) + '%'
+                    : '--';
+                document.getElementById('totalProfit').textContent = stats.total_profit
+                    ? '$' + stats.total_profit.toFixed(2)
+                    : '$0.00';
+                document.getElementById('avgEdge').textContent = stats.avg_edge_bps
+                    ? stats.avg_edge_bps.toFixed(1) + ' bps'
+                    : '--';
+
+            } catch (error) {
+                console.error('Error fetching stats:', error);
+            }
+        }
+
+        // Fetch market volatility
+        async function fetchVolatility() {
+            try {
+                const response = await fetch('/api/production/volatility/current?symbols=ETH/USDC,WETH/USDC,BTC/USDT');
+                const data = await response.json();
+
+                const tbody = document.getElementById('volatilityData');
+                let html = '';
+
+                for (const [symbol, vol] of Object.entries(data.volatility)) {
+                    if (vol.status) {
+                        html += `<tr><td>${symbol}</td><td colspan="5">${vol.status}</td></tr>`;
+                    } else {
+                        html += `
+                            <tr>
+                                <td>${symbol}</td>
+                                <td>$${vol.price ? vol.price.toFixed(2) : '--'}</td>
+                                <td>${vol.volatility_1h ? (vol.volatility_1h * 100).toFixed(2) + '%' : '--'}</td>
+                                <td>${vol.volatility_24h ? (vol.volatility_24h * 100).toFixed(2) + '%' : '--'}</td>
+                                <td>${vol.volatility_7d ? (vol.volatility_7d * 100).toFixed(2) + '%' : '--'}</td>
+                                <td class="${vol.returns_1h > 0 ? 'positive' : 'negative'}">
+                                    ${vol.returns_1h ? vol.returns_1h.toFixed(2) + '%' : '--'}
+                                </td>
+                            </tr>
+                        `;
+                    }
+                }
+
+                tbody.innerHTML = html || '<tr><td colspan="6">No data available</td></tr>';
+
+            } catch (error) {
+                console.error('Error fetching volatility:', error);
+                document.getElementById('volatilityData').innerHTML = '<tr><td colspan="6">Error loading data</td></tr>';
+            }
+        }
+
+        // Fetch recent opportunities
+        async function fetchOpportunities() {
+            try {
+                const response = await fetch('/api/production/opportunities/recent?hours=1&limit=20');
+                const data = await response.json();
+
+                const tbody = document.getElementById('opportunitiesTable');
+                let html = '';
+
+                for (const opp of data.opportunities) {
+                    const time = new Date(opp.timestamp).toLocaleTimeString();
+                    html += `
+                        <tr>
+                            <td>${time}</td>
+                            <td>${opp.symbol}</td>
+                            <td>${opp.chain}</td>
+                            <td>${opp.edge_bps.toFixed(1)}</td>
+                            <td>${opp.executed ? '✅' : '❌'}</td>
+                            <td>${opp.profitable === null ? '--' : opp.profitable ? '✅' : '❌'}</td>
+                            <td class="${opp.profit_quote > 0 ? 'positive' : 'negative'}">
+                                ${opp.profit_quote ? '$' + opp.profit_quote.toFixed(2) : '--'}
+                            </td>
+                        </tr>
+                    `;
+                }
+
+                tbody.innerHTML = html || '<tr><td colspan="7">No opportunities found</td></tr>';
+
+            } catch (error) {
+                console.error('Error fetching opportunities:', error);
+                document.getElementById('opportunitiesTable').innerHTML =
+                    '<tr><td colspan="7">Error loading opportunities</td></tr>';
+            }
+        }
+
+        // Control functions
+        async function resetAllBreakers() {
+            if (!confirm('⚠️ Are you sure you want to reset ALL circuit breakers? This should only be done after fixing underlying issues.')) {
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/production/circuit-breakers/control', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'reset_all' })
+                });
+
+                const data = await response.json();
+                alert(data.message);
+                fetchCircuitBreakers();
+
+            } catch (error) {
+                alert('Error resetting breakers: ' + error.message);
+            }
+        }
+
+        async function attemptRecovery() {
+            // For simplicity, attempt recovery on all open breakers
+            alert('Recovery feature - use Grafana or API for fine-grained control');
+        }
+
+        // Refresh all data
+        async function refreshAll() {
+            updateTimestamp();
+            await Promise.all([
+                fetchHealth(),
+                fetchCircuitBreakers(),
+                fetchModels(),
+                fetchStats(),
+                fetchVolatility(),
+                fetchOpportunities()
+            ]);
+        }
+
+        // Initialize
+        refreshAll();
+        setInterval(refreshAll, REFRESH_INTERVAL);
+    </script>
+</body>
+</html>

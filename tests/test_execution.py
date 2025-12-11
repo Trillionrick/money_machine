@@ -1,6 +1,16 @@
 """Tests for execution types and protocols."""
+# pyright: reportMissingImports=false
 
-import pytest
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    import pytest
+
+try:
+    import pytest  # type: ignore[import-not-found]
+except ImportError:  # pragma: no cover - dev dependency missing
+    pytest = None  # type: ignore[assignment]
+
 from src.core.execution import Fill, Order, OrderType, Side
 
 
@@ -47,6 +57,9 @@ class TestOrder:
             order_type=OrderType.MARKET,
         )
 
+        if pytest is None:
+            return
+
         with pytest.raises(AttributeError):
             order.quantity = 200.0  # type: ignore[misc]
 
@@ -84,6 +97,9 @@ class TestFill:
             price=150.5,
             timestamp=1234567890,
         )
+
+        if pytest is None:
+            return
 
         with pytest.raises(AttributeError):
             fill.price = 151.0  # type: ignore[misc]

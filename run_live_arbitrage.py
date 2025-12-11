@@ -17,16 +17,18 @@ from decimal import Decimal
 
 import structlog
 from dotenv import load_dotenv
+from pydantic import SecretStr
 
 # Load environment variables
 load_dotenv()
 
-from src.brokers.binance_adapter import BinanceAdapter
+# from src.brokers.binance_adapter import BinanceAdapter  # Disabled: geo-blocked in US
 from src.brokers.price_fetcher import CEXPriceFetcher
 from src.brokers.routing import OrderRouter
 from src.brokers.alpaca_adapter import AlpacaAdapter
 from src.brokers.kraken_adapter import KrakenAdapter
 from src.brokers.oanda_adapter import OandaAdapter
+from src.brokers.oanda_config import OandaConfig
 from src.core.types import Symbol
 from src.dex.config import UniswapConfig, Chain
 from src.dex.uniswap_connector import UniswapConnector
@@ -73,22 +75,23 @@ class ArbitrageSystem:
 
         # 1. CEX Price Fetcher
         self.price_fetcher = CEXPriceFetcher(
-            binance_enabled=True,   # Try Binance first, will fall back to Kraken if blocked
+            binance_enabled=False,  # Disabled: geo-blocked in US
             alpaca_enabled=False,   # Enable if you need US equities
-            kraken_enabled=True,    # Kraken as fallback for geo-blocked or missing pairs
+            kraken_enabled=True,    # Kraken as primary for crypto
         )
 
         # 1b. DEX shared config
         eth_rpc_raw = os.getenv("ETH_RPC_URL") or os.getenv("ETHEREUM_RPC_URL")
         eth_rpc = eth_rpc_raw.strip() if eth_rpc_raw else None
-        private_key_raw = os.getenv("PRIVATE_KEY")
+        private_key_raw = os.getenv("PRIVATE_KEY") or os.getenv("WALLET_PRIVATE_KEY")
         private_key = private_key_raw.strip() if private_key_raw else None
+        graph_key = os.getenv("THEGRAPH_API_KEY", "").strip()
 
         self.uniswap_config = UniswapConfig(
-            thegraph_api_key=os.getenv("THEGRAPH_API_KEY", "").strip(),
-            ethereum_rpc=eth_rpc,
-            polygon_rpc=self.polygon_rpc_url,
-            private_key=private_key,
+            THEGRAPH_API_KEY=SecretStr(graph_key) if graph_key else SecretStr(""),
+            ETHEREUM_RPC_URL=SecretStr(eth_rpc) if eth_rpc else None,
+            POLYGON_RPC_URL=SecretStr(self.polygon_rpc_url) if self.polygon_rpc_url else None,
+            WALLET_PRIVATE_KEY=SecretStr(private_key) if private_key else None,
         )
 
         # 2. DEX Connector (Uniswap)
@@ -306,19 +309,19 @@ class ArbitrageSystem:
         connectors = {}
         active = []
 
-        # Add Binance if credentials available
-        if os.getenv("BINANCE_API_KEY") and os.getenv("BINANCE_API_KEY") != "your_binance_key_here":
-            try:
-                binance = BinanceAdapter(
-                    api_key=os.getenv("BINANCE_API_KEY", ""),
-                    api_secret=os.getenv("BINANCE_API_SECRET", ""),
-                    testnet=os.getenv("BINANCE_TESTNET", "true").lower() == "true",
-                )
-                connectors["binance"] = binance
-                active.append("binance")
-                log.info("arbitrage_system.binance_connected")
-            except Exception as e:
-                log.warning("arbitrage_system.binance_failed", error=str(e))
+        # Binance disabled: geo-blocked in US
+        # if os.getenv("BINANCE_API_KEY") and os.getenv("BINANCE_API_KEY") != "your_binance_key_here":
+        #     try:
+        #         binance = BinanceAdapter(
+        #             api_key=os.getenv("BINANCE_API_KEY", ""),
+        #             api_secret=os.getenv("BINANCE_API_SECRET", ""),
+        #             testnet=os.getenv("BINANCE_TESTNET", "true").lower() == "true",
+        #         )
+        #         connectors["binance"] = binance
+        #         active.append("binance")
+        #         log.info("arbitrage_system.binance_connected")
+        #     except Exception as e:
+        #         log.warning("arbitrage_system.binance_failed", error=str(e))
 
         # Add Alpaca if credentials available
         if os.getenv("ALPACA_API_KEY") and os.getenv("ALPACA_API_SECRET"):
@@ -348,14 +351,40 @@ class ArbitrageSystem:
                 log.warning("arbitrage_system.kraken_failed", error=str(e))
 
         # Add Oanda if credentials available
-        if os.getenv("OANDA_API_KEY") and os.getenv("OANDA_ACCOUNT_ID"):
+        oanda_token = os.getenv("OANDA_API_TOKEN")
+        oanda_account = os.getenv("OANDA_ACCOUNT_ID")
+        if oanda_token and oanda_account:
             try:
-                practice = os.getenv("OANDA_PRACTICE", "true").lower() == "true"
-                oanda = OandaAdapter(
-                    api_key=os.getenv("OANDA_API_KEY", ""),
-                    account_id=os.getenv("OANDA_ACCOUNT_ID", ""),
-                    practice=practice,
-                )
+                # Create OandaConfig: inspect the model fields (works for pydantic v1 and v2)
+                try:
+                    model_fields = getattr(OandaConfig, "__fields__", None) or getattr(OandaConfig, "model_fields", None) or {}
+                    field_names = set(model_fields.keys())
+
+                    # Common candidate field names mapped to values
+                    candidates = {
+                        "api_token": SecretStr(oanda_token),
+                        "account_id": oanda_account,
+                        "OANDA_API_TOKEN": SecretStr(oanda_token),
+                        "OANDA_ACCOUNT_ID": oanda_account,
+                    }
+
+                    # Build kwargs only for accepted fields to avoid TypeError
+                    kwargs = {k: v for k, v in candidates.items() if k in field_names}
+
+                    if kwargs:
+                        oanda_config = OandaConfig(**kwargs)
+                    else:
+                        # Fallback: try parse_obj with common keys (allows aliases)
+                        oanda_config = OandaConfig.parse_obj(
+                            {"OANDA_API_TOKEN": oanda_token, "OANDA_ACCOUNT_ID": oanda_account}
+                        )
+                except Exception:
+                    # As a final fallback, parse from a dict to let pydantic handle aliases
+                    oanda_config = OandaConfig.parse_obj(
+                        {"OANDA_API_TOKEN": oanda_token, "OANDA_ACCOUNT_ID": oanda_account}
+                    )
+
+                oanda = OandaAdapter(config=oanda_config)
                 connectors["oanda"] = oanda
                 active.append("oanda")
                 log.info("arbitrage_system.oanda_connected")
@@ -389,6 +418,7 @@ class ArbitrageSystem:
         print("🔍 Starting scanner... Press Ctrl+C to stop")
         print()
 
+        runner: FlashArbitrageRunner | None = None
         try:
             # Create price fetcher wrapper
             async def price_fetcher(symbol: Symbol):
@@ -414,7 +444,7 @@ class ArbitrageSystem:
 
         except KeyboardInterrupt:
             print("\n\n⏹️  System stopped by user")
-            stats = runner.get_stats() if 'runner' in locals() else {}
+            stats = runner.get_stats() if runner else {}
             log.info("arbitrage_system.stopped", stats=stats)
             print(f"\n📊 Final Stats: {stats}")
 

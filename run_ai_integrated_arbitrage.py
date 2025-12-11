@@ -12,10 +12,10 @@ SAFETY: Starts in DRY RUN mode by default. Set ENABLE_EXECUTION=true to trade li
 
 import asyncio
 import os
-from pathlib import Path
 
 import structlog
 from dotenv import load_dotenv
+from pydantic import SecretStr
 from web3 import AsyncHTTPProvider, AsyncWeb3
 
 from src.ai.advanced_decider import AdvancedAIConfig
@@ -118,12 +118,14 @@ class AIIntegratedArbitrageSystem:
 
     def _init_web3(self) -> None:
         """Initialize Web3 connections."""
+        assert self.eth_rpc_url is not None, "ETH_RPC_URL must be set in _load_config"
+
         self.w3_eth = AsyncWeb3(AsyncHTTPProvider(self.eth_rpc_url.strip()))
-        self.w3_polygon = (
-            AsyncWeb3(AsyncHTTPProvider(self.polygon_rpc_url.strip()))
-            if self.polygon_rpc_url
-            else None
-        )
+
+        if self.polygon_rpc_url:
+            self.w3_polygon = AsyncWeb3(AsyncHTTPProvider(self.polygon_rpc_url.strip()))
+        else:
+            self.w3_polygon = None
 
         log.info("web3.initialized", ethereum=bool(self.w3_eth), polygon=bool(self.w3_polygon))
 
@@ -132,29 +134,51 @@ class AIIntegratedArbitrageSystem:
         self.price_fetcher = CEXPriceFetcher()
 
         # Add Kraken (primary)
-        try:
-            kraken = KrakenAdapter(
-                api_key=os.getenv("KRAKEN_API_KEY", ""),
-                api_secret=os.getenv("KRAKEN_API_SECRET", ""),
-            )
-            self.price_fetcher.add_broker(kraken)
-            log.info("price_fetcher.kraken_added")
-        except Exception as e:
-            log.warning("price_fetcher.kraken_failed", error=str(e))
+        kraken_key = os.getenv("KRAKEN_API_KEY")
+        kraken_secret = os.getenv("KRAKEN_API_SECRET")
+
+        if kraken_key and kraken_secret:
+            try:
+                kraken = KrakenAdapter(
+                    api_key=kraken_key,
+                    api_secret=kraken_secret,
+                )
+                self.price_fetcher.add_broker(kraken)
+                log.info("price_fetcher.kraken_added")
+            except Exception as e:
+                log.warning("price_fetcher.kraken_failed", error=str(e))
+        else:
+            log.warning("price_fetcher.kraken_skipped", reason="missing_credentials")
 
         # Could add more brokers (Binance, Coinbase, etc.) here
 
     def _init_dex_connectors(self) -> None:
         """Initialize DEX connectors for quotes."""
+        thegraph_key = os.getenv("THEGRAPH_API_KEY")
+        if not thegraph_key:
+            raise ValueError("THEGRAPH_API_KEY not set; required for Uniswap subgraph access")
+
+        if not self.eth_rpc_url:
+            raise ValueError("ETH_RPC_URL not set; required for Uniswap connectivity")
+
+        eth_rpc_url = self.eth_rpc_url.strip()
+        polygon_rpc_secret = (
+            SecretStr(self.polygon_rpc_url.strip()) if self.polygon_rpc_url else None
+        )
+
+        uni_config = UniswapConfig(
+            THEGRAPH_API_KEY=SecretStr(thegraph_key),
+            ETHEREUM_RPC_URL=SecretStr(eth_rpc_url),
+            POLYGON_RPC_URL=polygon_rpc_secret,
+        )
+
         # Ethereum Uniswap V3
-        eth_config = UniswapConfig(chain=Chain.ETHEREUM)
-        self.dex_eth = UniswapConnector(config=eth_config, web3_client=self.w3_eth)
+        self.dex_eth = UniswapConnector(config=uni_config, chain=Chain.ETHEREUM)
 
         # Polygon Uniswap/QuickSwap V3 (if available)
         self.dex_polygon = None
         if self.w3_polygon:
-            polygon_config = UniswapConfig(chain=Chain.POLYGON)
-            self.dex_polygon = UniswapConnector(config=polygon_config, web3_client=self.w3_polygon)
+            self.dex_polygon = UniswapConnector(config=uni_config, chain=Chain.POLYGON)
 
         log.info("dex.initialized", ethereum=True, polygon=bool(self.dex_polygon))
 
@@ -174,9 +198,9 @@ class AIIntegratedArbitrageSystem:
                 return
 
             flash_settings = FlashLoanSettings(
-                arb_contract_address=arb_contract,
-                eth_rpc_url=self.eth_rpc_url,
-                private_key=os.getenv("PRIVATE_KEY", ""),
+                ARB_CONTRACT_ADDRESS=arb_contract,
+                ETH_RPC_URL=self.eth_rpc_url,
+                PRIVATE_KEY=os.getenv("PRIVATE_KEY", ""),
             )
 
             self.flash_executor = FlashLoanExecutor(settings=flash_settings)
@@ -187,7 +211,7 @@ class AIIntegratedArbitrageSystem:
 
     def _init_order_router(self) -> None:
         """Initialize order router for CEX execution."""
-        self.order_router = OrderRouter()
+        connectors: dict[str, KrakenAdapter] = {}
 
         # Add Kraken as execution venue
         try:
@@ -199,6 +223,8 @@ class AIIntegratedArbitrageSystem:
             log.info("order_router.kraken_added")
         except Exception as e:
             log.warning("order_router.kraken_failed", error=str(e))
+
+        self.order_router = OrderRouter(connectors=connectors)
 
     def _init_ai_runner(self) -> None:
         """Initialize AI-integrated arbitrage runner."""
@@ -228,10 +254,11 @@ class AIIntegratedArbitrageSystem:
             dry_run=self.dry_run,
         )
 
-        profit_config = ProfitMaximizerConfig(
-            current_capital_eth=self.current_capital_eth,
-            target_capital_eth=self.target_capital_eth,
-            ruin_tolerance=0.30 if self.ai_mode == "aggressive" else 0.15,
+        profit_config = ProfitMaximizerConfig()
+        profit_config.current_capital_eth = self.current_capital_eth
+        profit_config.target_capital_eth = self.target_capital_eth
+        profit_config.ruin_tolerance = (
+            0.30 if self.ai_mode == "aggressive" else 0.15
         )
 
         integrated_config = AIIntegratedConfig(
@@ -247,7 +274,7 @@ class AIIntegratedArbitrageSystem:
         self.runner = AIIntegratedArbitrageRunner(
             router=self.order_router,
             dex=self.dex_eth,
-            price_fetcher=self.price_fetcher.fetch_price,
+            price_fetcher=self.price_fetcher.get_price,
             token_addresses=TOKEN_ADDRESSES,
             flash_executor=self.flash_executor,
             polygon_dex=self.dex_polygon,

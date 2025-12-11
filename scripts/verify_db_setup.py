@@ -20,7 +20,7 @@ from decimal import Decimal
 import structlog
 
 try:
-import asyncpg
+    import asyncpg
 except ImportError:
     print("❌ Error: asyncpg not installed")
     print("Install with: pip install asyncpg")

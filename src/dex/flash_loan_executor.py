@@ -18,6 +18,15 @@ from web3 import Web3
 from web3.contract import Contract
 from web3.types import TxParams, TxReceipt, Wei
 
+from src.ai.alert_system import get_alert_system
+from src.ai.circuit_breakers import get_circuit_breaker_manager
+from src.ai.production_safety import get_production_safety_guard
+from src.ai.transaction_logger import (
+    TradeDecision,
+    TradeExecution,
+    get_transaction_logger,
+)
+
 log = structlog.get_logger()
 
 
@@ -235,6 +244,12 @@ class FlashLoanExecutor:
             abi=self.UNI_V3_ROUTER_ABI,
         )
 
+        # Production safety systems
+        self.safety_guard = get_production_safety_guard()
+        self.tx_logger = get_transaction_logger()
+        self.alert_system = get_alert_system()
+        self.circuit_breakers = get_circuit_breaker_manager()
+
         log.info(
             "flash_loan_executor.initialized",
             contract=self.settings.arb_contract_address,
@@ -449,6 +464,19 @@ class FlashLoanExecutor:
         Returns:
             Transaction receipt if executed, None if dry run
         """
+        # 1. CHECK CIRCUIT BREAKERS
+        allowed, breaker_reason = self.circuit_breakers.is_trading_allowed()
+        if not allowed:
+            log.warning("flash_loan.circuit_breaker_blocked", reason=breaker_reason)
+            # send_circuit_breaker_triggered expects (breaker_type, reason, value, threshold)
+            self.alert_system.send_circuit_breaker_triggered(
+                breaker_type="trading",
+                reason=breaker_reason or "unspecified",
+                value=0.0,
+                threshold=0.0,
+            )
+            return None
+
         # Encode the arb plan
         arb_data = self.encode_arb_plan(arb_plan)
 
@@ -479,6 +507,80 @@ class FlashLoanExecutor:
                 max_gwei=self.settings.max_gas_price_gwei,
             )
             return None
+
+        # 2. VALIDATE WITH PRODUCTION SAFETY GUARD
+        loan_eth = float(Web3.from_wei(loan_amount, "ether"))
+        expected_profit_eth = float(Web3.from_wei(arb_plan.expected_profit, "ether"))
+        gas_cost_eth = float(Web3.from_wei(profitability.gas_cost, "ether"))
+        current_gas_price_gwei = float(Web3.from_wei(current_gas_price, "gwei"))
+
+        # Estimate pool liquidity (would query actual pool in production)
+        pool_liquidity_eth = 100.0
+
+        # Calculate slippage from profitability check
+        slippage_cost_eth = float(Web3.from_wei(profitability.slippage_cost, "ether"))
+        expected_slippage_bps = (slippage_cost_eth / loan_eth * 10_000) if loan_eth > 0 else 0.0
+
+        validated, safety_reason = self.safety_guard.validate_trade(
+            position_size_eth=loan_eth,
+            expected_profit_eth=expected_profit_eth,
+            estimated_gas_cost_eth=gas_cost_eth,
+            estimated_gas_price_gwei=current_gas_price_gwei,
+            pool_liquidity_eth=pool_liquidity_eth,
+            expected_slippage_bps=expected_slippage_bps,
+            trade_type="flash_loan",
+        )
+
+        if not validated:
+            log.warning("flash_loan.safety_rejected", reason=safety_reason)
+
+            # Log rejected decision
+            from datetime import datetime
+            trade_decision = TradeDecision(
+                timestamp=datetime.utcnow().isoformat(),
+                opportunity_id=f"flash_loan_{loan_asset}_{loan_amount}",
+                trade_type="flash_loan",
+                symbol=f"{loan_asset}/USD",
+                action="EXECUTE",
+                ai_confidence=0.85,  # Would get from AI decision if available
+                expected_profit_eth=expected_profit_eth,
+                expected_profit_usd=expected_profit_eth * 3000,  # Est. ETH price
+                edge_bps=profitability.roi_bps / 100.0,
+                kelly_fraction=0.25,
+                position_size_eth=loan_eth,
+                estimated_gas_cost_eth=gas_cost_eth,
+                estimated_slippage_bps=expected_slippage_bps,
+                max_potential_loss_eth=gas_cost_eth * 2,
+                pool_liquidity_eth=pool_liquidity_eth,
+                gas_price_gwei=current_gas_price_gwei,
+                approved=False,
+                rejection_reason=safety_reason,
+            )
+            self.tx_logger.log_decision(trade_decision)
+            return None
+
+        # 3. LOG APPROVED DECISION
+        from datetime import datetime
+        trade_decision = TradeDecision(
+            timestamp=datetime.utcnow().isoformat(),
+            opportunity_id=f"flash_loan_{loan_asset}_{loan_amount}",
+            trade_type="flash_loan",
+            symbol=f"{loan_asset}/USD",
+            action="EXECUTE",
+            ai_confidence=0.85,
+            expected_profit_eth=expected_profit_eth,
+            expected_profit_usd=expected_profit_eth * 3000,
+            edge_bps=profitability.roi_bps / 100.0,
+            kelly_fraction=0.25,
+            position_size_eth=loan_eth,
+            estimated_gas_cost_eth=gas_cost_eth,
+            estimated_slippage_bps=expected_slippage_bps,
+            max_potential_loss_eth=gas_cost_eth * 2,
+            pool_liquidity_eth=pool_liquidity_eth,
+            gas_price_gwei=current_gas_price_gwei,
+            approved=True,
+        )
+        decision_id = self.tx_logger.log_decision(trade_decision)
 
         if dry_run:
             log.info("flash_loan.dry_run", loan_amount=loan_amount, expected_profit=arb_plan.expected_profit)
@@ -514,10 +616,95 @@ class FlashLoanExecutor:
                 gas_used=receipt["gasUsed"],
             )
 
+            # 4. LOG EXECUTION RESULT
+            success = receipt["status"] == 1
+            gas_used = receipt.get("gasUsed", 0)
+            effective_gas_price = receipt.get("effectiveGasPrice", current_gas_price)
+            actual_gas_cost_eth = float(Web3.from_wei(gas_used * effective_gas_price, "ether"))
+
+            # Estimate actual profit (would parse from event logs in production)
+            actual_profit_eth = expected_profit_eth - actual_gas_cost_eth if success else 0.0
+
+            trade_execution = TradeExecution(
+                decision_id=decision_id,
+                timestamp=datetime.utcnow().isoformat(),
+                tx_hash=tx_hash.hex(),
+                block_number=receipt.get("blockNumber", 0),
+                executed=success,
+                actual_profit_eth=actual_profit_eth,
+                actual_profit_usd=actual_profit_eth * 3000,
+                actual_gas_cost_eth=actual_gas_cost_eth,
+                actual_gas_price_gwei=float(Web3.from_wei(effective_gas_price, "gwei")),
+                actual_slippage_bps=expected_slippage_bps,  # Would calculate from logs
+                #execution_time_ms=0.0,  # Would track execution time
+                #error_message=None if success else "Transaction reverted",
+            )
+            self.tx_logger.log_execution(decision_id, trade_execution)
+
+            # 5. RECORD IN CIRCUIT BREAKERS
+            self.circuit_breakers.record_trade(
+                success=success,
+                profit=actual_profit_eth,
+                gas_cost=actual_gas_cost_eth,
+                slippage_bps=expected_slippage_bps,
+                expected_slippage_bps=expected_slippage_bps,
+                symbol=f"{loan_asset}/USD",
+            )
+
+            # 6. UPDATE SAFETY GUARD
+            pnl_eth = actual_profit_eth if success else -actual_gas_cost_eth
+            self.safety_guard.record_trade_result(
+                pnl_eth=pnl_eth,
+                gas_cost_eth=actual_gas_cost_eth,
+            )
+
+            # 7. SEND DISCORD ALERTS
+            if success and actual_profit_eth > 0.05:
+                self.alert_system.send_trade_executed(
+                    symbol=f"{loan_asset}/USD",
+                    profit_eth=actual_profit_eth,
+                    profit_usd=actual_profit_eth * 3000,
+                    confidence=0.85,
+                    tx_hash=tx_hash.hex(),
+                )
+            elif not success:
+                self.alert_system.send_trade_failed(
+                    symbol=f"{loan_asset}/USD",
+                    loss_eth=actual_gas_cost_eth,
+                    loss_usd=actual_gas_cost_eth * 3000,
+                    reason="Flash loan execution failed",
+                )
+
             return receipt
 
-        except Exception:
+        except Exception as e:
             log.exception("flash_loan.execution_failed")
+
+            # Log failed execution
+            trade_execution = TradeExecution(
+                decision_id=decision_id,
+                timestamp=datetime.utcnow().isoformat(),
+                tx_hash="",
+                block_number=0,
+                executed=False,
+                actual_profit_eth=0.0,
+                actual_profit_usd=0.0,
+                actual_gas_cost_eth=0.0,
+                actual_gas_price_gwei=current_gas_price_gwei,
+                actual_slippage_bps=0.0,
+                #execution_time_ms=0.0,
+                #error_message=str(e),
+            )
+            self.tx_logger.log_execution(decision_id, trade_execution)
+
+            # Send alert for execution failure
+            self.alert_system.send_trade_failed(
+                symbol=f"{loan_asset}/USD",
+                loss_eth=0.0,
+                loss_usd=0.0,
+                reason=f"Execution error: {str(e)}",
+            )
+
             raise
 
     def build_weth_usdc_arb_plan(

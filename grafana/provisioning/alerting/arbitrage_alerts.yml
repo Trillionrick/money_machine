@@ -1,0 +1,372 @@
+apiVersion: 1
+
+groups:
+  - name: arbitrage_critical_alerts
+    folder: Arbitrage Alerts
+    interval: 1m
+    rules:
+      # Low Win Rate Alert
+      - uid: low_win_rate_alert
+        title: Low Win Rate Detected
+        condition: B
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 3600
+              to: 0
+            datasourceUid: timescaledb_uid
+            model:
+              editorMode: code
+              format: table
+              rawSql: |
+                SELECT
+                  CAST(COUNT(*) FILTER (WHERE profitable = TRUE) AS FLOAT) /
+                  NULLIF(COUNT(*) FILTER (WHERE executed = TRUE), 0) as value
+                FROM arbitrage_opportunities
+                WHERE timestamp > NOW() - INTERVAL '1 hour'
+                AND executed = TRUE
+              refId: A
+          - refId: B
+            relativeTimeRange:
+              from: 0
+              to: 0
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator:
+                    params:
+                      - 0.45
+                    type: lt
+                  operator:
+                    type: and
+                  query:
+                    params:
+                      - B
+                  reducer:
+                    type: last
+                  type: query
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: A
+              reducer: last
+              type: threshold
+        noDataState: NoData
+        execErrState: Alerting
+        for: 5m
+        annotations:
+          description: 'Win rate has fallen below 45% in the last hour. Current value: {{ $values.B.Value }}'
+          summary: Win rate critically low
+        labels:
+          severity: critical
+          component: arbitrage
+          alert_type: performance
+
+      # High Gas Cost Alert
+      - uid: high_gas_cost_alert
+        title: Excessive Gas Costs
+        condition: B
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 3600
+              to: 0
+            datasourceUid: timescaledb_uid
+            model:
+              editorMode: code
+              format: table
+              rawSql: |
+                SELECT
+                  CAST(SUM(gas_cost_quote) AS FLOAT) /
+                  NULLIF(SUM(profit_quote), 0) as value
+                FROM arbitrage_opportunities
+                WHERE timestamp > NOW() - INTERVAL '1 hour'
+                AND executed = TRUE
+                AND profitable = TRUE
+              refId: A
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator:
+                    params:
+                      - 0.30
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params:
+                      - B
+                  reducer:
+                    type: last
+                  type: query
+              expression: A
+              reducer: last
+              type: threshold
+        noDataState: NoData
+        execErrState: Alerting
+        for: 10m
+        annotations:
+          description: 'Gas costs are consuming {{ $values.B.Value }}% of profits'
+          summary: Gas costs too high relative to profits
+        labels:
+          severity: warning
+          component: execution
+          alert_type: cost
+
+      # Negative P&L Alert
+      - uid: negative_pnl_alert
+        title: Negative Profit and Loss
+        condition: B
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 3600
+              to: 0
+            datasourceUid: timescaledb_uid
+            model:
+              editorMode: code
+              format: table
+              rawSql: |
+                SELECT
+                  COALESCE(SUM(profit_quote) - SUM(gas_cost_quote), 0) as value
+                FROM arbitrage_opportunities
+                WHERE timestamp > NOW() - INTERVAL '1 hour'
+                AND executed = TRUE
+              refId: A
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator:
+                    params:
+                      - 0
+                    type: lt
+                  operator:
+                    type: and
+                  query:
+                    params:
+                      - B
+                  reducer:
+                    type: last
+                  type: query
+              expression: A
+              reducer: last
+              type: threshold
+        noDataState: NoData
+        execErrState: Alerting
+        for: 15m
+        annotations:
+          description: 'Net P&L is negative: ${{ $values.B.Value }}'
+          summary: System is losing money
+        labels:
+          severity: critical
+          component: profitability
+          alert_type: loss
+
+      # Low Execution Success Rate
+      - uid: low_execution_success_alert
+        title: Low Execution Success Rate
+        condition: B
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 3600
+              to: 0
+            datasourceUid: timescaledb_uid
+            model:
+              editorMode: code
+              format: table
+              rawSql: |
+                SELECT
+                  CAST(COUNT(*) FILTER (WHERE executed = TRUE AND tx_hash IS NOT NULL) AS FLOAT) /
+                  NULLIF(COUNT(*) FILTER (WHERE executed = TRUE), 0) as value
+                FROM arbitrage_opportunities
+                WHERE timestamp > NOW() - INTERVAL '1 hour'
+                AND executed = TRUE
+              refId: A
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator:
+                    params:
+                      - 0.70
+                    type: lt
+                  operator:
+                    type: and
+                  query:
+                    params:
+                      - B
+                  reducer:
+                    type: last
+                  type: query
+              expression: A
+              reducer: last
+              type: threshold
+        noDataState: NoData
+        execErrState: Alerting
+        for: 10m
+        annotations:
+          description: 'Execution success rate has dropped to {{ $values.B.Value }}%'
+          summary: Many transactions are failing
+        labels:
+          severity: warning
+          component: execution
+          alert_type: reliability
+
+  - name: arbitrage_opportunity_alerts
+    folder: Arbitrage Alerts
+    interval: 5m
+    rules:
+      # No Opportunities Detected
+      - uid: no_opportunities_alert
+        title: No Opportunities Detected
+        condition: B
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 1800
+              to: 0
+            datasourceUid: timescaledb_uid
+            model:
+              editorMode: code
+              format: table
+              rawSql: |
+                SELECT COUNT(*) as value
+                FROM arbitrage_opportunities
+                WHERE timestamp > NOW() - INTERVAL '30 minutes'
+              refId: A
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator:
+                    params:
+                      - 1
+                    type: lt
+                  operator:
+                    type: and
+                  query:
+                    params:
+                      - B
+                  reducer:
+                    type: last
+                  type: query
+              expression: A
+              reducer: last
+              type: threshold
+        noDataState: Alerting
+        execErrState: Alerting
+        for: 10m
+        annotations:
+          description: 'No arbitrage opportunities detected in the last 30 minutes'
+          summary: System may not be scanning properly
+        labels:
+          severity: warning
+          component: detection
+          alert_type: availability
+
+      # High Value Opportunity Detected
+      - uid: high_value_opportunity_alert
+        title: High Value Opportunity Detected
+        condition: B
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: timescaledb_uid
+            model:
+              editorMode: code
+              format: table
+              rawSql: |
+                SELECT MAX(profit_quote) as value
+                FROM arbitrage_opportunities
+                WHERE timestamp > NOW() - INTERVAL '5 minutes'
+                AND edge_bps > 100
+              refId: A
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator:
+                    params:
+                      - 100
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params:
+                      - B
+                  reducer:
+                    type: last
+                  type: query
+              expression: A
+              reducer: last
+              type: threshold
+        noDataState: NoData
+        execErrState: Alerting
+        for: 0s
+        annotations:
+          description: 'High value opportunity detected with potential profit of ${{ $values.B.Value }}'
+          summary: Large arbitrage opportunity available
+        labels:
+          severity: info
+          component: detection
+          alert_type: opportunity
+
+  - name: arbitrage_system_health
+    folder: Arbitrage Alerts
+    interval: 2m
+    rules:
+      # System Uptime Monitor
+      - uid: system_down_alert
+        title: Arbitrage System Down
+        condition: B
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: timescaledb_uid
+            model:
+              editorMode: code
+              format: table
+              rawSql: |
+                SELECT
+                  CASE
+                    WHEN MAX(timestamp) > NOW() - INTERVAL '5 minutes' THEN 1
+                    ELSE 0
+                  END as value
+                FROM arbitrage_opportunities
+              refId: A
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator:
+                    params:
+                      - 1
+                    type: lt
+                  operator:
+                    type: and
+                  query:
+                    params:
+                      - B
+                  reducer:
+                    type: last
+                  type: query
+              expression: A
+              reducer: last
+              type: threshold
+        noDataState: Alerting
+        execErrState: Alerting
+        for: 5m
+        annotations:
+          description: 'No recent activity detected - system may be down'
+          summary: Arbitrage system appears to be offline
+        labels:
+          severity: critical
+          component: system
+          alert_type: availability

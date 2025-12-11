@@ -22,7 +22,7 @@ Multi-chain arbitrage detection and execution system with flash loan integration
 - Multi-source price aggregation with failover
 - Inverse pair calculation for synthetic prices
 - CoinGecko fallback for illiquid pairs
-- Handles Binance geo-restrictions gracefully
+- Uses Kraken as primary CEX for crypto prices
 
 #### 2. Arbitrage Detection (`src/core/arbitrage.py`)
 - Real-time CEX-DEX spread monitoring
@@ -159,7 +159,6 @@ status = await manager.get_health_status()
 4. **Circuit breakers**: Auto-disable failing RPC endpoints
 
 ### Known Limitations
-- **Binance blocked**: US geo-restriction, no workaround
 - **1inch reliability**: Currently experiencing service degradation
 - **Flash loan gas costs**: ~300k gas units minimum
 - **MEV vulnerability**: Transactions visible in mempool (TODO: Flashbots integration)

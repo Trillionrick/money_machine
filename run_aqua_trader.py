@@ -14,6 +14,7 @@ from datetime import datetime
 import structlog
 from dotenv import load_dotenv
 from web3 import AsyncHTTPProvider, AsyncWeb3
+from pydantic import SecretStr
 
 from src.ai.aqua_opportunity_detector import AquaOpportunityConfig, AquaOpportunityDetector
 from src.ai.decider import AIConfig, AIDecider
@@ -59,24 +60,24 @@ class AquaTraderSystem:
         )
         self.ai_decider = AIDecider(config=self.ai_config)
 
-        # Price fetcher
-        self.price_fetcher = CEXPriceFetcher()
-        try:
-            binance = BinanceAdapter(
-                api_key=os.getenv("BINANCE_API_KEY", ""),
-                api_secret=os.getenv("BINANCE_API_SECRET", ""),
-                testnet=os.getenv("BINANCE_TESTNET", "false").lower() == "true",
-            )
-            self.price_fetcher.add_broker(binance)
-        except Exception as e:
-            log.warning("binance_adapter_failed", error=str(e))
+        # Price fetcher (CEXPriceFetcher handles Binance internally)
+        self.price_fetcher = CEXPriceFetcher(
+            binance_enabled=True,
+            kraken_enabled=True,
+            alpaca_enabled=False,
+            coingecko_enabled=True,
+        )
 
         # Uniswap connector
-        uniswap_config = UniswapConfig(chain=Chain.ETHEREUM)
-        self.uniswap = UniswapConnector(
-            config=uniswap_config,
-            web3_client=self.w3_eth,
+        graph_key = os.getenv("THEGRAPH_API_KEY")
+        if not graph_key:
+            raise ValueError("THEGRAPH_API_KEY not set in .env (required for Uniswap subgraph)")
+
+        uniswap_config = UniswapConfig(
+            THEGRAPH_API_KEY=SecretStr(graph_key),
+            ETHEREUM_RPC_URL=SecretStr(eth_rpc),
         )
+        self.uniswap = UniswapConnector(config=uniswap_config, chain=Chain.ETHEREUM)
 
         # Flash loan executor (optional)
         self.flash_executor = None
@@ -125,15 +126,18 @@ class AquaTraderSystem:
         contract_address = aqua_client.address
         event_signatures = aqua_client.get_event_signatures()
 
-        last_block = await aqua_client.w3.eth.block_number
+        # Get the current block number
+        eth = aqua_client.w3.eth
+        last_block = int(await eth.block_number)  # type: ignore[misc]
 
         while self.running:
             try:
-                current_block = await aqua_client.w3.eth.block_number
+                # Get current block number
+                current_block = int(await eth.block_number)  # type: ignore[misc]
 
                 if current_block > last_block:
                     # Get logs for new blocks
-                    logs = await aqua_client.w3.eth.get_logs({
+                    logs = await eth.get_logs({  # type: ignore[misc]
                         "fromBlock": last_block + 1,
                         "toBlock": current_block,
                         "address": contract_address,

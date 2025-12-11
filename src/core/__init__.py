@@ -4,6 +4,7 @@ from src.core.execution import (
     ExecutionEngine,
     Fill,
     Order,
+    OrderSeq,
     OrderType,
     Side,
 )

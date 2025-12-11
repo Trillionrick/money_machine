@@ -71,11 +71,27 @@ class OandaAdapter:
 
         Args:
             config: OANDA configuration with credentials and settings
+
+        Raises:
+            ValueError: If OANDA credentials are not configured
         """
+        # Validate that credentials are configured using helper methods
+        # This ensures proper type narrowing and clear error messages
+        if not config.is_configured():
+            msg = (
+                "OANDA credentials not configured. "
+                "Set OANDA_API_TOKEN and OANDA_ACCOUNT_ID environment variables."
+            )
+            raise ValueError(msg)
+
         self.config = config
-        self.account_id = config.oanda_account_id
+        # Use type-safe getter that raises if None (satisfies type checker)
+        self.account_id: str = config.get_account_id()
         self.base_url = config.get_base_url()
         self.stream_url = config.get_stream_url()
+
+        # Get token securely
+        api_token = config.get_token()
 
         # Create async HTTP client with HTTP/2 multiplexing
         self.client = httpx.AsyncClient(
@@ -86,7 +102,7 @@ class OandaAdapter:
                 max_connections=config.max_connections,
             ),
             headers={
-                "Authorization": f"Bearer {config.oanda_token.get_secret_value()}",
+                "Authorization": f"Bearer {api_token}",
                 "Content-Type": "application/json",
                 "Accept-Datetime-Format": "UNIX",  # Unix timestamps instead of RFC3339
             },
@@ -98,7 +114,7 @@ class OandaAdapter:
             base_url=self.stream_url,
             timeout=httpx.Timeout(None),  # No timeout for streaming
             headers={
-                "Authorization": f"Bearer {config.oanda_token.get_secret_value()}",
+                "Authorization": f"Bearer {api_token}",
                 "Accept-Datetime-Format": "UNIX",
             },
             http2=True,
@@ -434,18 +450,24 @@ class OandaAdapter:
             "timeInForce": "FOK",  # Fill-or-Kill by default
         }
 
-        # Add price for limit orders
-        if order.order_type == OrderType.LIMIT and order.price is not None:
+        # Add price for limit or stop-limit orders
+        if order.order_type in (OrderType.LIMIT, OrderType.STOP_LIMIT) and order.price is not None:
             precision = get_instrument_precision(instrument)
             price_str = f"{Decimal(str(order.price)):.{precision}f}"
             order_spec["price"] = price_str
 
         # Add stop price for stop orders
         if order.order_type in (OrderType.STOP, OrderType.STOP_LIMIT):
-            if hasattr(order, "stop_price") and order.stop_price is not None:
+            stop_price = getattr(order, "stop_price", None)
+            if stop_price is not None:
                 precision = get_instrument_precision(instrument)
-                stop_str = f"{Decimal(str(order.stop_price)):.{precision}f}"
-                order_spec["priceBound"] = stop_str
+                stop_str = f"{Decimal(str(stop_price)):.{precision}f}"
+                if order.order_type == OrderType.STOP:
+                    # For pure stop orders, price is the trigger
+                    order_spec["price"] = stop_str
+                else:
+                    # For stop-limit, priceBound is the trigger; price is the limit
+                    order_spec["priceBound"] = stop_str
 
         # Add client extensions for order tracking
         if order.id:

@@ -95,16 +95,16 @@ echo ""
 
 # Install Python dependencies if needed
 echo "🐍 Checking Python dependencies..."
-if ! python -c "import asyncpg" 2>/dev/null; then
+if ! python3 -c "import asyncpg" 2>/dev/null; then
     echo "Installing asyncpg..."
-    pip install asyncpg
+    pip3 install asyncpg
 fi
 echo "✅ Python dependencies ready"
 echo ""
 
 # Run verification
 echo "🔍 Running verification tests..."
-python scripts/verify_db_setup.py
+python3 scripts/verify_db_setup.py
 
 echo ""
 echo "============================================"

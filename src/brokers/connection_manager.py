@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 import asyncio
+import os
 from contextlib import AsyncExitStack
 from typing import Any
 
 import structlog
-from pydantic import ValidationError
+from pydantic import SecretStr, ValidationError
 
-from src.brokers.binance_adapter import BinanceAdapter
+# from src.brokers.binance_adapter import BinanceAdapter  # Disabled: geo-blocked in US
 from src.brokers.credentials import BrokerCredentials
 from src.brokers.kraken_adapter import KrakenAdapter
 from src.brokers.oanda_adapter import OandaAdapter
@@ -39,33 +40,94 @@ class ConnectionManager:
         self._init_router()
 
     async def _init_cex(self) -> None:
-        if self.creds.has_binance():
-            self.connectors["binance"] = BinanceAdapter(
-                api_key=self.creds.binance_api_key.get_secret_value(),
-                api_secret=self.creds.binance_api_secret.get_secret_value(),
-                testnet=self.creds.binance_testnet,
-            )
-        else:
-            logger.info("connector.binance_skipped", reason="missing_credentials")
+        # Binance disabled: geo-blocked in US
+        # if self.creds.has_binance():
+        #     api_key = self.creds.binance_api_key
+        #     api_secret = self.creds.binance_api_secret
+        #     if api_key is None or api_secret is None:
+        #         logger.warning("connector.binance_skipped", reason="missing_credentials")
+        #     else:
+        #         try:
+        #             self.connectors["binance"] = BinanceAdapter(
+        #                 api_key=api_key.get_secret_value(),
+        #                 api_secret=api_secret.get_secret_value(),
+        #                 testnet=self.creds.binance_testnet,
+        #             )
+        #             logger.info("connector.binance_initialized")
+        #         except Exception as exc:
+        #             logger.warning(
+        #                 "connector.binance_failed",
+        #                 error=str(exc),
+        #                 hint="Binance may be geo-blocked in your region",
+        #             )
+        # else:
+        #     logger.info("connector.binance_skipped", reason="missing_credentials")
 
         if self.creds.has_kraken():
-            self.connectors["kraken"] = KrakenAdapter(
-                api_key=self.creds.kraken_api_key.get_secret_value(),  # type: ignore[union-attr]
-                api_secret=self.creds.kraken_api_secret.get_secret_value(),  # type: ignore[union-attr]
-            )
+            api_key = self.creds.kraken_api_key
+            api_secret = self.creds.kraken_api_secret
+            if api_key is None or api_secret is None:
+                logger.warning("connector.kraken_skipped", reason="missing_credentials")
+            else:
+                try:
+                    self.connectors["kraken"] = KrakenAdapter(
+                        api_key=api_key.get_secret_value(),
+                        api_secret=api_secret.get_secret_value(),
+                    )
+                    logger.info("connector.kraken_initialized")
+                except Exception as exc:
+                    logger.warning(
+                        "connector.kraken_failed",
+                        error=str(exc),
+                    )
         else:
             logger.info("connector.kraken_skipped", reason="missing_credentials")
 
         try:
             oanda_config = OandaConfig.from_env()
-            self.connectors["oanda"] = OandaAdapter(oanda_config)
-        except Exception:
-            logger.info("connector.oanda_skipped", reason="missing_or_invalid_config")
+            # Prefer calling is_configured() if it exists; otherwise fall back to checking
+            # the expected credential fields (OANDA_API_TOKEN and OANDA_ACCOUNT_ID).
+            method = getattr(oanda_config, "is_configured", None)
+            if callable(method):
+                configured = method()
+            else:
+                configured = bool(
+                    getattr(oanda_config, "oanda_api_token", None)
+                    and getattr(oanda_config, "oanda_account_id", None)
+                )
+
+            if not configured:
+                logger.info(
+                    "connector.oanda_skipped",
+                    reason="credentials_not_set",
+                    hint="Set OANDA_API_TOKEN and OANDA_ACCOUNT_ID in .env",
+                )
+            else:
+                self.connectors["oanda"] = OandaAdapter(oanda_config)
+                logger.info("connector.oanda_initialized", environment=oanda_config.oanda_environment.value)
+        except ValidationError as exc:
+            logger.warning(
+                "connector.oanda_config_invalid",
+                errors=exc.errors(),
+            )
+        except Exception as exc:
+            logger.warning(
+                "connector.oanda_failed",
+                error=str(exc),
+            )
 
     async def _init_dex(self) -> None:
         if self.dex_config is None:
+            thegraph_key = os.getenv("THEGRAPH_API_KEY")
+            if not thegraph_key:
+                logger.info(
+                    "connector.uniswap_skipped",
+                    reason="missing_THEGRAPH_API_KEY",
+                )
+                return
+
             try:
-                self.dex_config = UniswapConfig()
+                self.dex_config = UniswapConfig(THEGRAPH_API_KEY=SecretStr(thegraph_key))
             except ValidationError as exc:
                 logger.warning(
                     "connector.uniswap_config_invalid",

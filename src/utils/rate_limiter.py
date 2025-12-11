@@ -81,7 +81,7 @@ class AdaptiveRateLimiter:
         """Context manager cleanup."""
         pass
 
-    def get_stats(self) -> dict[str, float]:
+    def get_stats(self) -> dict[str, str | int | float]:
         """Get rate limiter statistics."""
         return {
             "name": self.name,
@@ -150,6 +150,6 @@ class MultiEndpointRateLimiter:
         # No limit configured
         return AdaptiveRateLimiter(max_requests=999999, time_window=1.0, name=endpoint)
 
-    def get_all_stats(self) -> dict[str, dict]:
+    def get_all_stats(self) -> dict[str, dict[str, str | int | float]]:
         """Get statistics for all limiters."""
         return {name: limiter.get_stats() for name, limiter in self.limiters.items()}

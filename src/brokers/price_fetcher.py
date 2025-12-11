@@ -1,7 +1,7 @@
 """Centralized price fetching from multiple CEX (Centralized Exchanges).
 
 Fetches real-time prices from:
-- Binance (crypto)
+- Kraken (crypto)
 - Alpaca (US stocks)
 - Other exchanges as needed
 
@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import asyncio
 from decimal import Decimal
+from typing import Any
 
 import httpx
 import structlog
@@ -26,7 +27,7 @@ class CEXPriceFetcher:
 
     def __init__(
         self,
-        binance_enabled: bool = True,
+        binance_enabled: bool = False,  # Disabled: geo-blocked in US
         alpaca_enabled: bool = False,
         kraken_enabled: bool = True,
         coingecko_enabled: bool = True,
@@ -34,7 +35,7 @@ class CEXPriceFetcher:
         """Initialize price fetcher.
 
         Args:
-            binance_enabled: Enable Binance price fetching
+            binance_enabled: Enable Binance price fetching (disabled by default - geo-blocked)
             alpaca_enabled: Enable Alpaca price fetching
             kraken_enabled: Enable Kraken price fetching (geo-friendly fallback)
             coingecko_enabled: Enable CoinGecko for altcoins/DeFi tokens
@@ -45,12 +46,13 @@ class CEXPriceFetcher:
         self.coingecko_enabled = coingecko_enabled
 
         # Initialize clients
-        self.binance_client: any | None = None
-        self.alpaca_client: any | None = None
+        self.binance_client: Any | None = None
+        self.alpaca_client: Any | None = None
         self.kraken_client: httpx.AsyncClient | None = None
         self.coingecko_client: httpx.AsyncClient | None = None
         self.kraken_base_url = "https://api.kraken.com"
         self.coingecko_base_url = "https://api.coingecko.com/api/v3"
+        self._extra_brokers: list[Any] = []
 
         # Price cache (symbol -> price)
         self._price_cache: dict[Symbol, Price] = {}
@@ -80,6 +82,10 @@ class CEXPriceFetcher:
             kraken=self.kraken_enabled,
             coingecko=self.coingecko_enabled,
         )
+
+    def add_broker(self, broker: Any) -> None:
+        """Register an additional broker client for price checks."""
+        self._extra_brokers.append(broker)
 
     def _init_binance(self):
         """Initialize Binance client (spot market)."""

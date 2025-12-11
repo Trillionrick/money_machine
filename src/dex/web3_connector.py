@@ -10,7 +10,6 @@ from eth_account import Account
 import httpx
 from web3 import AsyncHTTPProvider, AsyncWeb3
 # Import specific types required for web3.py
-from web3.middleware import SignAndSendRawMiddlewareBuilder, Middleware
 from web3.types import TxParams, Nonce, _Hash32, HexBytes, Wei # type: ignore
 
 logger = structlog.get_logger()
@@ -85,12 +84,6 @@ class UniswapWeb3Connector:
 
         if private_key:
             self.account = Account.from_key(private_key)
-            # FIX: Explicitly cast the built middleware to the Middleware type.
-            middleware = SignAndSendRawMiddlewareBuilder.build(private_key)
-            self.w3.middleware_onion.inject(
-                cast(Middleware, middleware),
-                layer=0,
-            )
         else:
             self.account = None
 

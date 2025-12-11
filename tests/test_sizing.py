@@ -1,7 +1,7 @@
 """Tests for position sizing functions."""
 
 import polars as pl
-import pytest
+import pytest  # type: ignore[import-not-found]
 from src.core.sizing import (
     LogUtility,
     TargetUtility,

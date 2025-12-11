@@ -1,0 +1,10 @@
+FROM ghcr.io/mlflow/mlflow:v2.9.2
+
+# Install PostgreSQL driver
+USER root
+RUN pip install --no-cache-dir psycopg2-binary
+
+# Switch back to mlflow user
+USER 1000
+
+EXPOSE 5000

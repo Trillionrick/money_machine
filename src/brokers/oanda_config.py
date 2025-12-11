@@ -2,16 +2,21 @@
 
 OANDA-specific configuration for forex trading integration.
 Follows the same patterns as existing broker configs (Alpaca, Kraken).
+
+Modern implementation (2025):
+- Pydantic BaseSettings v2 with SettingsConfigDict
+- SecretStr for secure credential storage
+- Type-safe optional fields with explicit defaults
+- Field validators with proper error messages
+- Environment variable integration
 """
 
 from __future__ import annotations
 
-from decimal import Decimal
 from enum import StrEnum
-from pathlib import Path
-from typing import Literal
+from typing import Annotated, Literal
 
-from pydantic import Field, SecretStr, field_validator
+from pydantic import Field, SecretStr, ValidationError, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -43,6 +48,11 @@ class OandaConfig(BaseSettings):
     - Account ID required for most endpoints
     - Separate streaming and REST base URLs
     - Decimal precision varies by instrument (stored as strings in API)
+
+    Example .env:
+        OANDA_API_TOKEN=your_api_token_here
+        OANDA_ACCOUNT_ID=001-001-1234567-001
+        OANDA_ENVIRONMENT=practice
     """
 
     model_config = SettingsConfigDict(
@@ -50,73 +60,124 @@ class OandaConfig(BaseSettings):
         env_file_encoding="utf-8",
         case_sensitive=False,
         extra="ignore",
+        populate_by_name=True,
+        validate_default=True,
     )
 
-    # Authentication
-    oanda_token: SecretStr = Field(
-        alias="OANDA_API_TOKEN",
-        description="OANDA v20 API Bearer token",
-    )
-    oanda_account_id: str = Field(
-        alias="OANDA_ACCOUNT_ID",
-        description="OANDA account ID (e.g., '001-001-1234567-001')",
-    )
+    # Authentication (optional to allow testing/config loading without credentials)
+    oanda_token: Annotated[
+        SecretStr | None,
+        Field(
+            description="OANDA v20 API Bearer token (stored securely)",
+            examples=["abc123def456..."],
+        ),
+    ] = None
+
+    oanda_account_id: Annotated[
+        str | None,
+        Field(
+            description="OANDA account ID in format XXX-XXX-XXXXXXX-XXX",
+            examples=["001-001-1234567-001"],
+        ),
+    ] = None
 
     # Environment selection
-    oanda_environment: OandaEnvironment = Field(
-        default=OandaEnvironment.PRACTICE,
-        alias="OANDA_ENVIRONMENT",
-        description="'practice' for demo, 'live' for real trading",
-    )
+    oanda_environment: Annotated[
+        OandaEnvironment,
+        Field(
+            description="Trading environment: 'practice' for demo, 'live' for real money",
+        ),
+    ] = OandaEnvironment.PRACTICE
 
     # Rate limiting (OANDA doesn't publish explicit limits; use adaptive approach)
-    max_requests_per_second: int = Field(
-        default=100,
-        description="Conservative rate limit (actual limit may be higher)",
-    )
+    max_requests_per_second: Annotated[
+        int,
+        Field(
+            ge=1,
+            le=1000,
+            description="Conservative rate limit (actual limit may be higher)",
+        ),
+    ] = 100
 
     # Streaming configuration
-    streaming_heartbeat_interval: int = Field(
-        default=5,
-        description="Heartbeat interval in seconds for streaming connection",
-    )
-    streaming_reconnect_delay: float = Field(
-        default=1.0,
-        description="Initial delay before reconnecting stream (seconds)",
-    )
-    streaming_max_reconnect_delay: float = Field(
-        default=60.0,
-        description="Maximum delay between reconnect attempts (seconds)",
-    )
+    streaming_heartbeat_interval: Annotated[
+        int,
+        Field(
+            ge=1,
+            le=60,
+            description="Heartbeat interval in seconds for streaming connection",
+        ),
+    ] = 5
+
+    streaming_reconnect_delay: Annotated[
+        float,
+        Field(
+            ge=0.1,
+            le=60.0,
+            description="Initial delay before reconnecting stream (seconds)",
+        ),
+    ] = 1.0
+
+    streaming_max_reconnect_delay: Annotated[
+        float,
+        Field(
+            ge=1.0,
+            le=300.0,
+            description="Maximum delay between reconnect attempts (seconds)",
+        ),
+    ] = 60.0
 
     # Market data configuration
-    candle_alignment: Literal["first", "last"] = Field(
-        default="last",
-        description="Candle alignment for daily candles (OANDA uses 17:00 ET)",
-    )
-    max_candles_per_request: int = Field(
-        default=5000,
-        description="Maximum candles returned per request (OANDA limit)",
-    )
+    candle_alignment: Annotated[
+        Literal["first", "last"],
+        Field(
+            description="Candle alignment for daily candles (OANDA uses 17:00 ET)",
+        ),
+    ] = "last"
+
+    max_candles_per_request: Annotated[
+        int,
+        Field(
+            ge=1,
+            le=5000,
+            description="Maximum candles returned per request (OANDA limit)",
+        ),
+    ] = 5000
 
     # Connection pooling
-    max_keepalive_connections: int = Field(
-        default=10,
-        description="Max HTTP/2 keepalive connections",
-    )
-    max_connections: int = Field(
-        default=20,
-        description="Max total HTTP connections",
-    )
-    connection_timeout: float = Field(
-        default=30.0,
-        description="HTTP connection timeout (seconds)",
-    )
+    max_keepalive_connections: Annotated[
+        int,
+        Field(
+            ge=1,
+            le=100,
+            description="Max HTTP/2 keepalive connections",
+        ),
+    ] = 10
+
+    max_connections: Annotated[
+        int,
+        Field(
+            ge=1,
+            le=100,
+            description="Max total HTTP connections",
+        ),
+    ] = 20
+
+    connection_timeout: Annotated[
+        float,
+        Field(
+            ge=1.0,
+            le=300.0,
+            description="HTTP connection timeout (seconds)",
+        ),
+    ] = 30.0
 
     @field_validator("oanda_account_id")
     @classmethod
-    def validate_account_id(cls, v: str) -> str:
+    def validate_account_id(cls, v: str | None) -> str | None:
         """Validate OANDA account ID format."""
+        if v is None:
+            return None
         if not v:
             msg = "OANDA account ID cannot be empty"
             raise ValueError(msg)
@@ -148,7 +209,18 @@ class OandaConfig(BaseSettings):
         Raises:
             ValueError: If required credentials are missing
         """
-        return cls()
+    
+        try:
+            # Instantiate using environment variables; static type-checkers may
+            # complain about missing __init__ args, so ignore that specific check.
+            return cls()  # type: ignore[call-arg]
+        except Exception as e:
+            msg = (
+                f"Failed to load OANDA configuration from environment. "
+                f"Ensure OANDA_API_TOKEN and OANDA_ACCOUNT_ID are set. "
+                f"Error: {e}"
+            )
+            raise ValueError(msg) from e
 
     def get_base_url(self) -> str:
         """Get REST API base URL for current environment."""
@@ -161,6 +233,51 @@ class OandaConfig(BaseSettings):
     def is_live(self) -> bool:
         """Check if using live trading environment."""
         return self.oanda_environment == OandaEnvironment.LIVE
+
+    def is_configured(self) -> bool:
+        """Check if OANDA credentials are configured.
+
+        Returns:
+            True if both API token and account ID are set, False otherwise
+        """
+        return (
+            self.oanda_token is not None
+            and self.oanda_account_id is not None
+        )
+
+    def get_token(self) -> str:
+        """Get the API token value safely.
+
+        Returns:
+            API token string
+
+        Raises:
+            ValueError: If token is not configured
+        """
+        if self.oanda_token is None:
+            msg = (
+                "OANDA API token not configured. "
+                "Set OANDA_API_TOKEN environment variable."
+            )
+            raise ValueError(msg)
+        return self.oanda_token.get_secret_value()
+
+    def get_account_id(self) -> str:
+        """Get the account ID safely.
+
+        Returns:
+            Account ID string
+
+        Raises:
+            ValueError: If account ID is not configured
+        """
+        if self.oanda_account_id is None:
+            msg = (
+                "OANDA account ID not configured. "
+                "Set OANDA_ACCOUNT_ID environment variable."
+            )
+            raise ValueError(msg)
+        return self.oanda_account_id
 
 
 # Instrument-specific metadata for decimal precision

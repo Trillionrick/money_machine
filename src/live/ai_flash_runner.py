@@ -24,7 +24,11 @@ from src.ai.advanced_decider import (
     ExecutionHistory,
     MarketRegime,
 )
+from src.ai.alert_system import get_alert_system
+from src.ai.circuit_breakers import get_circuit_breaker_manager
 from src.ai.decider import AICandidate, AIDecision
+from src.ai.production_safety import get_production_safety_guard
+from src.ai.transaction_logger import TradeDecision, TradeExecution, get_transaction_logger
 from src.core.types import Symbol
 from src.live.flash_arb_runner import FlashArbConfig, FlashArbitrageRunner
 
@@ -72,6 +76,12 @@ class AIFlashArbitrageRunner(FlashArbitrageRunner):
         self.ai_config = ai_config or AdvancedAIConfig()
         self.ai_decider = AdvancedAIDecider(self.ai_config)
 
+        # Production safety systems
+        self.safety_guard = get_production_safety_guard()
+        self.tx_logger = get_transaction_logger()
+        self.alert_system = get_alert_system()
+        self.circuit_breakers = get_circuit_breaker_manager()
+
         # Market regime tracking
         self.current_regime: MarketRegime | None = None
         self.last_regime_update = datetime.now(timezone.utc)
@@ -94,6 +104,10 @@ class AIFlashArbitrageRunner(FlashArbitrageRunner):
             return self.config
         # Fallback to base FlashArbConfig
         return cast(AIFlashArbConfig, self.config)
+
+    def circuit_breaker_status(self) -> list[dict[str, object]]:
+        """Expose circuit breaker status for external monitors/APIs."""
+        return self.circuit_breakers.get_status_snapshot()
 
     async def _scan_symbol(self, symbol: Symbol) -> None:
         """AI-enhanced symbol scanning with intelligent opportunity selection.
@@ -225,6 +239,35 @@ class AIFlashArbitrageRunner(FlashArbitrageRunner):
         Returns:
             AIDecision if executed, None otherwise
         """
+        # 1. CHECK CIRCUIT BREAKERS FIRST
+        allowed, breaker_reason = self.circuit_breakers.is_trading_allowed()
+        if not allowed:
+            breaker_status = self.circuit_breakers.get_open_breaker()
+            trigger_reason: str = (
+                (breaker_status.trigger_reason if breaker_status else None)
+                or breaker_reason
+                or "breaker_open"
+            )
+            breaker_type = breaker_status.breaker_type.value if breaker_status else "unknown"
+            current_value = breaker_status.trigger_value if breaker_status and breaker_status.trigger_value is not None else 0.0
+            threshold_value = breaker_status.threshold_value if breaker_status and breaker_status.threshold_value is not None else 0.0
+
+            log.warning(
+                "ai_flash.circuit_breaker_blocked",
+                reason=trigger_reason,
+                breaker=breaker_type,
+                value=current_value,
+                threshold=threshold_value,
+            )
+            self.alert_system.send_circuit_breaker_triggered(
+                breaker_type=breaker_type,
+                reason=trigger_reason,
+                value=current_value,
+                threshold=threshold_value,
+            )
+            self.trades_skipped += 1
+            return None
+
         # AI scoring with multi-factor analysis
         portfolio_value = self.ai_flash_config.portfolio_value_eth
         decision = self.ai_decider.pick_best(candidates, portfolio_value)
@@ -244,6 +287,63 @@ class AIFlashArbitrageRunner(FlashArbitrageRunner):
                 confidence=decision.confidence,
                 threshold=self.ai_flash_config.ai_min_confidence,
             )
+            self.trades_skipped += 1
+            return None
+
+        # 2. VALIDATE WITH PRODUCTION SAFETY GUARD
+        eth_price = decision.cex_price or decision.dex_price or 3000.0
+        position_size_eth = decision.notional_quote / eth_price
+        expected_profit_eth = decision.net_quote / eth_price
+        gas_cost_eth = decision.gas_cost_quote / eth_price
+
+        # Estimate gas price (would use actual gas oracle)
+        estimated_gas_price_gwei = 50.0
+
+        # Estimate pool liquidity
+        pool_liquidity_eth = 100.0
+
+        # Calculate slippage
+        expected_slippage_bps = (
+            (decision.slippage_quote / decision.notional_quote * 10_000)
+            if decision.notional_quote > 0
+            else 0.0
+        )
+
+        validated, safety_reason = self.safety_guard.validate_trade(
+            position_size_eth=position_size_eth,
+            expected_profit_eth=expected_profit_eth,
+            estimated_gas_cost_eth=gas_cost_eth,
+            estimated_gas_price_gwei=estimated_gas_price_gwei,
+            pool_liquidity_eth=pool_liquidity_eth,
+            expected_slippage_bps=expected_slippage_bps,
+            trade_type="ai_flash_loan",
+        )
+
+        if not validated:
+            log.warning("ai_flash.safety_rejected", reason=safety_reason, symbol=symbol)
+
+            # Log rejected decision
+            trade_decision = TradeDecision(
+                timestamp=datetime.now(timezone.utc).isoformat(),
+                opportunity_id=f"ai_flash_{symbol}_{datetime.now(timezone.utc).timestamp()}",
+                trade_type="ai_flash_loan",
+                symbol=symbol,
+                action="EXECUTE",
+                ai_confidence=decision.confidence,
+                expected_profit_eth=expected_profit_eth,
+                expected_profit_usd=decision.net_quote,
+                edge_bps=decision.edge_bps,
+                kelly_fraction=decision.kelly_fraction,
+                position_size_eth=position_size_eth,
+                estimated_gas_cost_eth=gas_cost_eth,
+                estimated_slippage_bps=expected_slippage_bps,
+                max_potential_loss_eth=gas_cost_eth * 2,
+                pool_liquidity_eth=pool_liquidity_eth,
+                gas_price_gwei=estimated_gas_price_gwei,
+                approved=False,
+                rejection_reason=safety_reason,
+            )
+            self.tx_logger.log_decision(trade_decision)
             self.trades_skipped += 1
             return None
 

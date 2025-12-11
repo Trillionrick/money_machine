@@ -11,6 +11,7 @@ Get API keys: https://alpaca.markets
 
 import asyncio
 from collections.abc import AsyncIterator
+from typing import TYPE_CHECKING, Protocol, cast
 
 import structlog
 
@@ -25,6 +26,39 @@ from src.core.execution import (
 from src.core.types import Quantity, Symbol
 
 log = structlog.get_logger()
+
+
+class AlpacaOrderModel(Protocol):
+    id: str | object  # UUID in real API
+    symbol: str | None
+    side: object | None  # Enum or string depending on SDK version
+    qty: float | str | None
+    limit_price: float | str | None
+    filled_qty: float | str | None
+    filled_avg_price: float | str | None
+    filled_at: object | None
+
+
+class AlpacaPositionModel(Protocol):
+    symbol: str
+    qty: float | str
+
+
+class AlpacaTradeAccountModel(Protocol):
+    cash: float | str | None
+    equity: float | str | None
+    buying_power: float | str | None
+    pattern_day_trader: bool | None
+
+
+if TYPE_CHECKING:
+    from alpaca.trading.models import Order as AlpacaOrder  # pragma: no cover
+    from alpaca.trading.models import Position as AlpacaPosition  # pragma: no cover
+    from alpaca.trading.models import TradeAccount as AlpacaTradeAccount  # pragma: no cover
+else:  # Provide runtime names without importing optional dependency
+    AlpacaOrder = AlpacaOrderModel
+    AlpacaPosition = AlpacaPositionModel
+    AlpacaTradeAccount = AlpacaTradeAccountModel
 
 
 class AlpacaAdapter:
@@ -63,13 +97,16 @@ class AlpacaAdapter:
             from alpaca.trading.requests import (
                 MarketOrderRequest,
                 LimitOrderRequest,
+                GetOrdersRequest,
             )
-            from alpaca.trading.enums import OrderSide, TimeInForce
+            from alpaca.trading.enums import OrderSide, QueryOrderStatus, TimeInForce
 
             self.TradingClient = TradingClient
             self.MarketOrderRequest = MarketOrderRequest
             self.LimitOrderRequest = LimitOrderRequest
+            self.GetOrdersRequest = GetOrdersRequest
             self.OrderSide = OrderSide
+            self.QueryOrderStatus = QueryOrderStatus
             self.TimeInForce = TimeInForce
 
         except ImportError as e:
@@ -91,6 +128,18 @@ class AlpacaAdapter:
             paper=paper,
             base_url=getattr(self.client, '_base_url', 'unknown'),
         )
+
+    def _to_side(self, raw_side: object) -> Side:
+        """Normalize Alpaca side enums/strings to our Side enum."""
+        if raw_side == self.OrderSide.BUY:
+            return Side.BUY
+        if raw_side == self.OrderSide.SELL:
+            return Side.SELL
+
+        side_str = str(raw_side).lower()
+        if "buy" in side_str:
+            return Side.BUY
+        return Side.SELL
 
     async def submit_orders(self, orders: OrderSeq) -> None:
         """Submit orders to Alpaca.
@@ -160,7 +209,7 @@ class AlpacaAdapter:
             symbol=order.symbol,
             side=order.side,
             quantity=quantity,
-            alpaca_order_id=alpaca_order.id,
+            alpaca_order_id=cast(AlpacaOrder, alpaca_order).id,
         )
 
     async def cancel_order(self, order_id: str) -> None:
@@ -187,13 +236,15 @@ class AlpacaAdapter:
 
         if symbol:
             # Alpaca doesn't have cancel by symbol, so get all and filter
+            request = self.GetOrdersRequest(status=self.QueryOrderStatus.OPEN)
             orders = await loop.run_in_executor(
                 None,
-                self.client.get_orders,
+                lambda: self.client.get_orders(request),
             )
             for order in orders:
-                if order.symbol == symbol:
-                    await self.cancel_order(order.id)
+                alpaca_order = cast(AlpacaOrder, order)
+                if alpaca_order.symbol == symbol:
+                    await self.cancel_order(str(alpaca_order.id))
         else:
             # Cancel all
             await loop.run_in_executor(
@@ -213,24 +264,48 @@ class AlpacaAdapter:
             List of open orders
         """
         loop = asyncio.get_running_loop()
+        request = (
+            self.GetOrdersRequest(
+                status=self.QueryOrderStatus.OPEN,
+                symbols=[symbol] if symbol else None,
+            )
+        )
         alpaca_orders = await loop.run_in_executor(
             None,
-            lambda: self.client.get_orders(
-                filter={"symbols": [symbol]} if symbol else None
-            ),
+            lambda: self.client.get_orders(request),
         )
 
         # Convert to our Order type
         orders = []
         for ao in alpaca_orders:
+            alpaca_order = cast(AlpacaOrder, ao)
+            if not alpaca_order.symbol:
+                continue  # Skip malformed broker responses
+
+            # Extract and validate quantity
+            qty_raw = alpaca_order.qty
+            if qty_raw is None:
+                continue  # Skip orders with no quantity
+            quantity = float(qty_raw)
+
+            # Extract limit price if present
+            limit_price_raw = alpaca_order.limit_price
+            limit_price: float | None = (
+                float(limit_price_raw)
+                if limit_price_raw is not None
+                else None
+            )
+
             orders.append(
                 Order(
-                    symbol=ao.symbol,
-                    side=Side.BUY if ao.side == "buy" else Side.SELL,
-                    quantity=float(ao.qty),
-                    price=float(ao.limit_price) if ao.limit_price else None,
-                    order_type=OrderType.LIMIT if ao.limit_price else OrderType.MARKET,
-                    id=ao.id,
+                    symbol=str(alpaca_order.symbol),
+                    side=self._to_side(alpaca_order.side),
+                    quantity=quantity,
+                    price=limit_price,
+                    order_type=(
+                        OrderType.LIMIT if limit_price is not None else OrderType.MARKET
+                    ),
+                    id=str(alpaca_order.id),
                 )
             )
 
@@ -250,7 +325,8 @@ class AlpacaAdapter:
 
         positions = {}
         for pos in alpaca_positions:
-            positions[pos.symbol] = float(pos.qty)
+            alpaca_pos = cast(AlpacaPosition, pos)
+            positions[alpaca_pos.symbol] = float(alpaca_pos.qty)
 
         return positions
 
@@ -337,23 +413,40 @@ class AlpacaAdapter:
                 loop = asyncio.get_running_loop()
                 filled_orders = await loop.run_in_executor(
                     None,
-                    lambda: self.client.get_orders(filter={"status": "filled"}),
+                    lambda: self.client.get_orders(
+                        self.GetOrdersRequest(status=self.QueryOrderStatus.CLOSED)
+                    ),
                 )
 
                 for order in filled_orders:
-                    if order.id in seen_orders:
+                    alpaca_order = cast(AlpacaOrder, order)
+
+                    if alpaca_order.id in seen_orders:
                         continue
 
-                    seen_orders.add(order.id)
+                    # Validate filled quantity and price
+                    filled_qty = alpaca_order.filled_qty
+                    filled_price = alpaca_order.filled_avg_price
+
+                    if filled_qty is None or filled_price is None:
+                        continue  # Skip incomplete fills
+
+                    # Validate symbol
+                    if alpaca_order.symbol is None:
+                        continue  # Skip fills without symbol
+
+                    seen_orders.add(alpaca_order.id)
 
                     # Create fill
                     fill = Fill(
-                        order_id=order.id,
-                        symbol=order.symbol,
-                        side=Side.BUY if order.side == "buy" else Side.SELL,
-                        quantity=float(order.filled_qty),
-                        price=float(order.filled_avg_price),
-                        timestamp=int(order.filled_at.timestamp() * 1e9),
+                        order_id=str(alpaca_order.id),
+                        symbol=alpaca_order.symbol,
+                        side=self._to_side(alpaca_order.side),
+                        quantity=float(filled_qty),
+                        price=float(filled_price),
+                        timestamp=int(
+                            alpaca_order.filled_at.timestamp() * 1e9  # type: ignore[attr-defined]
+                        ),
                         fee=0.0,  # Alpaca is commission-free
                     )
 
@@ -363,21 +456,27 @@ class AlpacaAdapter:
                 log.exception("alpaca.stream_fills_error")
                 await asyncio.sleep(5.0)
 
-    async def get_account(self) -> dict:
+    async def get_account(self) -> dict[str, float | bool]:
         """Get account information.
 
         Returns:
             Dictionary with cash, equity, buying_power
         """
         loop = asyncio.get_running_loop()
-        account = await loop.run_in_executor(
+        account_raw = await loop.run_in_executor(
             None,
             self.client.get_account,
         )
+        account = cast(AlpacaTradeAccount, account_raw)
+
+        # Handle potential None values from API
+        cash = account.cash if account.cash is not None else 0.0
+        equity = account.equity if account.equity is not None else 0.0
+        buying_power = account.buying_power if account.buying_power is not None else 0.0
 
         return {
-            "cash": float(account.cash),
-            "equity": float(account.equity),
-            "buying_power": float(account.buying_power),
-            "pattern_day_trader": account.pattern_day_trader,
+            "cash": float(cash),
+            "equity": float(equity),
+            "buying_power": float(buying_power),
+            "pattern_day_trader": bool(account.pattern_day_trader if account.pattern_day_trader is not None else False),
         }

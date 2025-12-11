@@ -103,13 +103,14 @@ class FlashArbitrageRunner(ArbitrageRunner):
             return
 
         base, quote = symbol.split("/", 1)
-        token_in = self.token_addresses.get(quote)
-        token_out = self.token_addresses.get(base)
+        # For "ETH/USDC", we want to swap ETH→USDC to get price in USDC terms
+        token_in = self.token_addresses.get(base)
+        token_out = self.token_addresses.get(quote)
         polygon_token_in = (
-            self.polygon_token_addresses.get(quote) if self.polygon_token_addresses else token_in
+            self.polygon_token_addresses.get(base) if self.polygon_token_addresses else token_in
         )
         polygon_token_out = (
-            self.polygon_token_addresses.get(base) if self.polygon_token_addresses else token_out
+            self.polygon_token_addresses.get(quote) if self.polygon_token_addresses else token_out
         )
 
         if not token_in or not token_out:

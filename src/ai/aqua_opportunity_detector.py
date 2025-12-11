@@ -312,7 +312,7 @@ class AquaOpportunityDetector:
             # Convert USD to ETH (assuming WETH flash loan)
             eth_price = await self.get_token_price_usd(
                 "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",  # WETH
-                opportunity.event.chain_id,
+                opportunity.event.chain_id or 1,
             )
             if eth_price <= 0:
                 log.warning("aqua.eth_price_unavailable")
@@ -371,7 +371,7 @@ class AquaOpportunityDetector:
 
             # Get token price
             token_price_usd = await self.get_token_price_usd(
-                opportunity.token_address, opportunity.event.chain_id
+                opportunity.token_address, opportunity.event.chain_id or 1
             )
             if token_price_usd <= 0:
                 log.warning("aqua.token_price_unavailable", token=opportunity.token_address)
@@ -408,14 +408,14 @@ class AquaOpportunityDetector:
                     fee_tier=3000,  # 0.3% fee tier
                 )
 
-                if not quote or quote.amount_out <= 0:
+                if not quote or quote["expected_output"] <= 0:
                     log.warning("aqua.quote_failed")
                     return False
 
                 # Check slippage
                 expected_out = Decimal(str(token_amount))
                 slippage_bps = (
-                    abs(float(quote.amount_out - expected_out)) / float(expected_out) * 10_000
+                    abs(float(quote["expected_output"] - expected_out)) / float(expected_out) * 10_000
                 )
 
                 if slippage_bps > self.config.max_slippage_bps:
@@ -427,7 +427,7 @@ class AquaOpportunityDetector:
                     return False
 
                 # Execute swap (dry-run mode for now)
-                log.info("aqua.spot_buy_ready", quote=float(quote.amount_out))
+                log.info("aqua.spot_buy_ready", quote=float(quote["expected_output"]))
                 # In production: tx_hash = await self.uniswap.execute_swap(...)
                 return True
 
@@ -452,14 +452,14 @@ class AquaOpportunityDetector:
                     fee_tier=3000,
                 )
 
-                if not quote or quote.amount_out <= 0:
+                if not quote or quote["expected_output"] <= 0:
                     log.warning("aqua.quote_failed")
                     return False
 
                 # Check slippage
                 expected_out = Decimal(str(trade_size_usd))
                 slippage_bps = (
-                    abs(float(quote.amount_out - expected_out)) / float(expected_out) * 10_000
+                    abs(float(quote["expected_output"] - expected_out)) / float(expected_out) * 10_000
                 )
 
                 if slippage_bps > self.config.max_slippage_bps:
@@ -471,7 +471,7 @@ class AquaOpportunityDetector:
                     return False
 
                 # Execute swap (dry-run mode for now)
-                log.info("aqua.spot_sell_ready", usdc_quote=float(quote.amount_out))
+                log.info("aqua.spot_sell_ready", usdc_quote=float(quote["expected_output"]))
                 # In production: tx_hash = await self.uniswap.execute_swap(...)
                 return True
 
@@ -525,8 +525,12 @@ class AquaOpportunityDetector:
             # Use the most recent Pushed event to determine position
             latest_push = pushed_events[-1]
 
+            if not latest_push.token or not latest_push.amount:
+                log.warning("aqua.strategy_copy_incomplete_event", strategy=strategy_hash)
+                return False
+
             # Calculate copy size (smaller than whale's position)
-            whale_size_usd = latest_push.amount  # Assuming amount is in USD
+            whale_size_usd = float(latest_push.amount)
             copy_size_usd = min(
                 whale_size_usd * 0.1,  # Copy 10% of whale's position
                 self.config.max_position_size_usd,

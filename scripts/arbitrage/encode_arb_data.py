@@ -27,7 +27,7 @@ from decimal import Decimal
 from pathlib import Path
 
 import structlog
-from eth_abi import encode
+from eth_abi.abi import encode
 from web3 import Web3
 
 # Add project root to path for imports
@@ -69,11 +69,24 @@ class ArbConfig:
 
 
 @dataclass
+class ConfigDict:
+    """Configuration dictionary structure."""
+
+    contract_address: str
+    borrow_amount_eth: str
+    min_profit_eth: str
+    expected_profit_eth: str
+    gas_estimate: int
+    slippage_bps: int
+    gas_price_gwei: int
+
+
+@dataclass
 class EncodedArbData:
     """Encoded arbitrage data ready for execution."""
 
     # Configuration
-    config: dict[str, str | int]
+    config: ConfigDict
 
     # Encoded calldata
     swap_data: str
@@ -243,14 +256,15 @@ class ArbitrageEncoder:
 
         return encoded.hex()
 
-    def calculate_profitability(self, borrow_amount_wei: int) -> dict[str, Decimal | int]:
+    def calculate_profitability(self, borrow_amount_wei: int) -> tuple[Decimal, Decimal, Decimal, Decimal, int, int]:
         """Calculate profitability metrics.
 
         Args:
             borrow_amount_wei: Flash loan amount in wei
 
         Returns:
-            Profitability analysis
+            Tuple of (flash_loan_fee_eth, gas_cost_eth, slippage_cost_eth,
+                     net_profit_eth, roi_bps, break_even_bps)
         """
         borrow_eth = Decimal(borrow_amount_wei) / 10**18
 
@@ -288,20 +302,25 @@ class ArbitrageEncoder:
             break_even_bps=break_even_bps,
         )
 
-        return {
-            "flash_loan_fee_eth": flash_loan_fee_eth,
-            "gas_cost_eth": gas_cost_eth,
-            "slippage_cost_eth": slippage_cost_eth,
-            "net_profit_eth": net_profit_eth,
-            "roi_bps": roi_bps,
-            "break_even_bps": break_even_bps,
-        }
+        return (
+            flash_loan_fee_eth,
+            gas_cost_eth,
+            slippage_cost_eth,
+            net_profit_eth,
+            roi_bps,
+            break_even_bps,
+        )
 
-    def run_safety_checks(self, profitability: dict[str, Decimal | int]) -> tuple[bool, list[str]]:
+    def run_safety_checks(
+        self,
+        net_profit_eth: Decimal,
+        roi_bps: int,
+    ) -> tuple[bool, list[str]]:
         """Run pre-flight safety checks.
 
         Args:
-            profitability: Profitability analysis results
+            net_profit_eth: Net profit in ETH
+            roi_bps: ROI in basis points
 
         Returns:
             Tuple of (all_passed, warnings)
@@ -310,22 +329,22 @@ class ArbitrageEncoder:
         warnings = []
 
         # Net profit positive
-        net_profit_positive = profitability["net_profit_eth"] > 0
+        net_profit_positive = net_profit_eth > 0
         checks.append(net_profit_positive)
         if not net_profit_positive:
             warnings.append("Net profit is NEGATIVE - transaction will lose money!")
 
         # Net profit > min profit
-        profit_exceeds_min = profitability["net_profit_eth"] > self.config.min_profit_eth
+        profit_exceeds_min = net_profit_eth > self.config.min_profit_eth
         checks.append(profit_exceeds_min)
         if not profit_exceeds_min:
             warnings.append(f"Net profit below minimum threshold ({self.config.min_profit_eth} ETH)")
 
         # ROI > 1%
-        roi_acceptable = profitability["roi_bps"] > 100
+        roi_acceptable = roi_bps > 100
         checks.append(roi_acceptable)
         if not roi_acceptable:
-            warnings.append(f"ROI too low: {profitability['roi_bps'] / 100}%")
+            warnings.append(f"ROI too low: {roi_bps / 100}%")
 
         # Gas price reasonable
         gas_reasonable = self.config.gas_price_gwei <= 100
@@ -371,32 +390,39 @@ class ArbitrageEncoder:
         arb_data = self.encode_arb_data(swap_data)
 
         # Step 4: Calculate profitability
-        profitability = self.calculate_profitability(borrow_amount_wei)
+        (
+            flash_loan_fee_eth,
+            gas_cost_eth,
+            slippage_cost_eth,
+            net_profit_eth,
+            roi_bps,
+            break_even_bps,
+        ) = self.calculate_profitability(borrow_amount_wei)
 
         # Step 5: Run safety checks
-        checks_passed, warnings = self.run_safety_checks(profitability)
+        checks_passed, warnings = self.run_safety_checks(net_profit_eth, roi_bps)
 
         # Calculate deadline
         deadline = int((datetime.now(timezone.utc) + timedelta(minutes=20)).timestamp())
 
         result = EncodedArbData(
-            config={
-                "contract_address": self.config.contract_address,
-                "borrow_amount_eth": str(self.config.borrow_amount_eth),
-                "min_profit_eth": str(self.config.min_profit_eth),
-                "expected_profit_eth": str(self.config.expected_profit_eth),
-                "gas_estimate": self.config.gas_estimate,
-                "slippage_bps": self.config.slippage_bps,
-                "gas_price_gwei": self.config.gas_price_gwei,
-            },
+            config=ConfigDict(
+                contract_address=self.config.contract_address,
+                borrow_amount_eth=str(self.config.borrow_amount_eth),
+                min_profit_eth=str(self.config.min_profit_eth),
+                expected_profit_eth=str(self.config.expected_profit_eth),
+                gas_estimate=self.config.gas_estimate,
+                slippage_bps=self.config.slippage_bps,
+                gas_price_gwei=self.config.gas_price_gwei,
+            ),
             swap_data=f"0x{swap_data}",
             arb_data=f"0x{arb_data}",
-            flash_loan_fee_eth=profitability["flash_loan_fee_eth"],
-            gas_cost_eth=profitability["gas_cost_eth"],
-            slippage_cost_eth=profitability["slippage_cost_eth"],
-            net_profit_eth=profitability["net_profit_eth"],
-            roi_bps=profitability["roi_bps"],
-            break_even_bps=profitability["break_even_bps"],
+            flash_loan_fee_eth=flash_loan_fee_eth,
+            gas_cost_eth=gas_cost_eth,
+            slippage_cost_eth=slippage_cost_eth,
+            net_profit_eth=net_profit_eth,
+            roi_bps=roi_bps,
+            break_even_bps=break_even_bps,
             loan_asset=self.weth,
             loan_amount_wei=borrow_amount_wei,
             deadline=deadline,
@@ -419,21 +445,21 @@ def print_encoded_data(data: EncodedArbData) -> None:
     print("MONEY MACHINE - ARBITRAGE DATA ENCODER (Python)")
     print("=" * 80)
 
-    print(f"\n✅ Contract Address: {data.config['contract_address']}")
+    print(f"\n✅ Contract Address: {data.config.contract_address}")
 
     print("\n📊 Configuration:")
-    print(f"   Borrow Amount: {data.config['borrow_amount_eth']} WETH")
-    print(f"   Min Profit: {data.config['min_profit_eth']} WETH")
-    print(f"   Expected Profit: {data.config['expected_profit_eth']} WETH")
-    print(f"   Gas Estimate: {data.config['gas_estimate']:,} units")
-    print(f"   Gas Price: {data.config['gas_price_gwei']} Gwei")
-    print(f"   Slippage: {data.config['slippage_bps'] / 100}%")
+    print(f"   Borrow Amount: {data.config.borrow_amount_eth} WETH")
+    print(f"   Min Profit: {data.config.min_profit_eth} WETH")
+    print(f"   Expected Profit: {data.config.expected_profit_eth} WETH")
+    print(f"   Gas Estimate: {data.config.gas_estimate:,} units")
+    print(f"   Gas Price: {data.config.gas_price_gwei} Gwei")
+    print(f"   Slippage: {data.config.slippage_bps / 100}%")
 
     print("\n💰 Profitability Analysis:")
-    print(f"   Expected Gross Profit: {data.config['expected_profit_eth']} WETH")
+    print(f"   Expected Gross Profit: {data.config.expected_profit_eth} WETH")
     print(f"   Flash Loan Fee (0.05%): {data.flash_loan_fee_eth:.6f} WETH")
-    print(f"   Gas Cost ({data.config['gas_price_gwei']} Gwei): {data.gas_cost_eth:.6f} ETH")
-    print(f"   Slippage Cost ({data.config['slippage_bps'] / 100}%): {data.slippage_cost_eth:.6f} WETH")
+    print(f"   Gas Cost ({data.config.gas_price_gwei} Gwei): {data.gas_cost_eth:.6f} ETH")
+    print(f"   Slippage Cost ({data.config.slippage_bps / 100}%): {data.slippage_cost_eth:.6f} WETH")
     print(f"   {'─' * 50}")
     print(f"   Net Profit: {data.net_profit_eth:.6f} WETH")
     print(f"   Profitable: {'✅ YES' if data.net_profit_eth > 0 else '❌ NO'}")
@@ -557,7 +583,15 @@ def main() -> int:
         if args.json:
             # JSON output for automation
             output = {
-                "config": result.config,
+                "config": {
+                    "contract_address": result.config.contract_address,
+                    "borrow_amount_eth": result.config.borrow_amount_eth,
+                    "min_profit_eth": result.config.min_profit_eth,
+                    "expected_profit_eth": result.config.expected_profit_eth,
+                    "gas_estimate": result.config.gas_estimate,
+                    "slippage_bps": result.config.slippage_bps,
+                    "gas_price_gwei": result.config.gas_price_gwei,
+                },
                 "encoded": {
                     "swap_data": result.swap_data,
                     "arb_data": result.arb_data,

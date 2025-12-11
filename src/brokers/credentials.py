@@ -29,6 +29,7 @@ class BrokerCredentials(BaseSettings):
         env_file_encoding="utf-8",
         case_sensitive=False,
         extra="ignore",  # Ignore unknown environment variables
+        populate_by_name=True,  # Allow construction via field names (not just aliases)
     )
 
     # ========================================================================
@@ -213,14 +214,30 @@ class BrokerCredentials(BaseSettings):
             >>> keyring.set_password("trading_system", "alpaca_api_key", "PK...")
             >>> creds = BrokerCredentials.from_keyring()
         """
-        import keyring
+        try:
+            import keyring  # type: ignore[import-not-found]
+        except ImportError as exc:
+            msg = (
+                "keyring is not installed; install it with "
+                "`uv pip install keyring` to use BrokerCredentials.from_keyring()"
+            )
+            raise RuntimeError(msg) from exc
 
-        return cls(
-            alpaca_api_key=keyring.get_password(service_name, "alpaca_api_key") or "",
-            alpaca_api_secret=keyring.get_password(service_name, "alpaca_api_secret")
-            or "",
-            kraken_api_key=keyring.get_password(service_name, "kraken_api_key"),
-            kraken_api_secret=keyring.get_password(service_name, "kraken_api_secret"),
-            bybit_api_key=keyring.get_password(service_name, "bybit_api_key"),
-            bybit_api_secret=keyring.get_password(service_name, "bybit_api_secret"),
-        )
+        def secret_or_none(key: str, *, allow_empty: bool = False) -> SecretStr | None:
+            value = keyring.get_password(service_name, key)
+            if value is None:
+                return SecretStr("") if allow_empty else None
+            return SecretStr(value)
+
+        data = {
+            "alpaca_api_key": secret_or_none("alpaca_api_key", allow_empty=True)
+            or SecretStr(""),
+            "alpaca_api_secret": secret_or_none("alpaca_api_secret", allow_empty=True)
+            or SecretStr(""),
+            "kraken_api_key": secret_or_none("kraken_api_key"),
+            "kraken_api_secret": secret_or_none("kraken_api_secret"),
+            "bybit_api_key": secret_or_none("bybit_api_key"),
+            "bybit_api_secret": secret_or_none("bybit_api_secret"),
+        }
+
+        return cls.model_validate(data)

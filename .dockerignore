@@ -1,0 +1,62 @@
+# Git
+.git
+.gitignore
+
+# Python
+__pycache__
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv
+venv/
+ENV/
+env/
+
+# Testing
+.pytest_cache
+.coverage
+htmlcov/
+.mypy_cache
+.ruff_cache
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# Logs and data
+logs/
+*.log
+data/*.db
+data/*.csv
+
+# Docker
+Dockerfile
+.dockerignore
+docker-compose*.yml
+
+# Documentation
+*.md
+docs/
+documentation/
+
+# CI/CD
+.github
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+*.egg-info
+dist/
+build/
+
+# Benchmarks
+.benchmarks
+
+# Backups
+*.backup
+*.tar.gz

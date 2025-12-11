@@ -1,0 +1,257 @@
+# Custom PostgreSQL/TimescaleDB queries for crypto arbitrage monitoring
+# Extends postgres_exporter with domain-specific metrics
+
+# Arbitrage opportunities metrics
+arbitrage_opportunities:
+  query: |
+    SELECT
+      COUNT(*) FILTER (WHERE timestamp > NOW() - INTERVAL '5 minutes') as recent_count,
+      COUNT(*) FILTER (WHERE executed = TRUE AND timestamp > NOW() - INTERVAL '5 minutes') as executed_count,
+      COUNT(*) FILTER (WHERE profitable = TRUE AND timestamp > NOW() - INTERVAL '5 minutes') as profitable_count,
+      COALESCE(AVG(edge_bps) FILTER (WHERE timestamp > NOW() - INTERVAL '5 minutes'), 0) as avg_edge_bps,
+      COALESCE(SUM(profit_quote) FILTER (WHERE profitable = TRUE AND timestamp > NOW() - INTERVAL '5 minutes'), 0) as total_profit_5m
+    FROM arbitrage_opportunities
+  metrics:
+    - recent_count:
+        usage: "GAUGE"
+        description: "Opportunities detected in last 5 minutes"
+    - executed_count:
+        usage: "GAUGE"
+        description: "Executed opportunities in last 5 minutes"
+    - profitable_count:
+        usage: "GAUGE"
+        description: "Profitable opportunities in last 5 minutes"
+    - avg_edge_bps:
+        usage: "GAUGE"
+        description: "Average edge in basis points (last 5 minutes)"
+    - total_profit_5m:
+        usage: "GAUGE"
+        description: "Total profit in USD (last 5 minutes)"
+
+# Win rate by symbol
+arbitrage_win_rate_by_symbol:
+  query: |
+    SELECT
+      symbol,
+      CAST(COUNT(*) FILTER (WHERE profitable = TRUE) AS FLOAT) /
+      NULLIF(COUNT(*) FILTER (WHERE executed = TRUE), 0) as win_rate,
+      COUNT(*) as total_trades
+    FROM arbitrage_opportunities
+    WHERE timestamp > NOW() - INTERVAL '1 hour'
+    AND executed = TRUE
+    GROUP BY symbol
+    HAVING COUNT(*) > 0
+  metrics:
+    - symbol:
+        usage: "LABEL"
+        description: "Trading pair symbol"
+    - win_rate:
+        usage: "GAUGE"
+        description: "Win rate per symbol (last hour)"
+    - total_trades:
+        usage: "GAUGE"
+        description: "Total executed trades per symbol"
+
+# Gas cost efficiency
+arbitrage_gas_efficiency:
+  query: |
+    SELECT
+      COALESCE(
+        SUM(gas_cost_quote) / NULLIF(SUM(profit_quote), 0),
+        0
+      ) as gas_to_profit_ratio,
+      COALESCE(AVG(gas_cost_quote), 0) as avg_gas_cost,
+      COUNT(*) as sample_size
+    FROM arbitrage_opportunities
+    WHERE timestamp > NOW() - INTERVAL '15 minutes'
+    AND executed = TRUE
+    AND profitable = TRUE
+  metrics:
+    - gas_to_profit_ratio:
+        usage: "GAUGE"
+        description: "Ratio of gas costs to profits (lower is better)"
+    - avg_gas_cost:
+        usage: "GAUGE"
+        description: "Average gas cost in USD"
+    - sample_size:
+        usage: "GAUGE"
+        description: "Number of trades in sample"
+
+# Execution success rate
+arbitrage_execution_metrics:
+  query: |
+    SELECT
+      COUNT(*) as total_attempts,
+      COUNT(*) FILTER (WHERE tx_hash IS NOT NULL) as successful_txs,
+      COUNT(*) FILTER (WHERE executed = TRUE AND tx_hash IS NULL) as failed_txs,
+      CAST(COUNT(*) FILTER (WHERE tx_hash IS NOT NULL) AS FLOAT) /
+      NULLIF(COUNT(*), 0) as success_rate
+    FROM arbitrage_opportunities
+    WHERE timestamp > NOW() - INTERVAL '15 minutes'
+    AND executed = TRUE
+  metrics:
+    - total_attempts:
+        usage: "GAUGE"
+        description: "Total execution attempts (last 15 minutes)"
+    - successful_txs:
+        usage: "GAUGE"
+        description: "Successful transactions (last 15 minutes)"
+    - failed_txs:
+        usage: "GAUGE"
+        description: "Failed transactions (last 15 minutes)"
+    - success_rate:
+        usage: "GAUGE"
+        description: "Execution success rate (0-1)"
+
+# Chain-specific metrics
+arbitrage_by_chain:
+  query: |
+    SELECT
+      chain,
+      COUNT(*) as opportunity_count,
+      COALESCE(AVG(edge_bps), 0) as avg_edge,
+      COALESCE(SUM(profit_quote) FILTER (WHERE profitable = TRUE), 0) as total_profit
+    FROM arbitrage_opportunities
+    WHERE timestamp > NOW() - INTERVAL '1 hour'
+    GROUP BY chain
+  metrics:
+    - chain:
+        usage: "LABEL"
+        description: "Blockchain network"
+    - opportunity_count:
+        usage: "GAUGE"
+        description: "Opportunities per chain"
+    - avg_edge:
+        usage: "GAUGE"
+        description: "Average edge per chain"
+    - total_profit:
+        usage: "GAUGE"
+        description: "Total profit per chain"
+
+# Pool liquidity tracking
+arbitrage_liquidity_metrics:
+  query: |
+    SELECT
+      symbol,
+      COALESCE(AVG(pool_liquidity_quote), 0) as avg_liquidity,
+      COALESCE(MIN(pool_liquidity_quote), 0) as min_liquidity,
+      COUNT(*) as sample_count
+    FROM arbitrage_opportunities
+    WHERE timestamp > NOW() - INTERVAL '30 minutes'
+    GROUP BY symbol
+    HAVING COUNT(*) > 0
+  metrics:
+    - symbol:
+        usage: "LABEL"
+        description: "Trading pair symbol"
+    - avg_liquidity:
+        usage: "GAUGE"
+        description: "Average pool liquidity in USD"
+    - min_liquidity:
+        usage: "GAUGE"
+        description: "Minimum pool liquidity in USD"
+    - sample_count:
+        usage: "GAUGE"
+        description: "Number of samples"
+
+# Database performance metrics
+pg_stat_statements_top_queries:
+  query: |
+    SELECT
+      queryid,
+      LEFT(query, 100) as query_snippet,
+      calls,
+      total_exec_time / 1000 as total_time_seconds,
+      mean_exec_time as mean_time_ms,
+      max_exec_time as max_time_ms
+    FROM pg_stat_statements
+    WHERE query NOT LIKE '%pg_stat_statements%'
+    ORDER BY total_exec_time DESC
+    LIMIT 10
+  metrics:
+    - queryid:
+        usage: "LABEL"
+        description: "Query ID"
+    - query_snippet:
+        usage: "LABEL"
+        description: "First 100 characters of query"
+    - calls:
+        usage: "COUNTER"
+        description: "Number of times executed"
+    - total_time_seconds:
+        usage: "COUNTER"
+        description: "Total execution time in seconds"
+    - mean_time_ms:
+        usage: "GAUGE"
+        description: "Mean execution time in milliseconds"
+    - max_time_ms:
+        usage: "GAUGE"
+        description: "Max execution time in milliseconds"
+
+# TimescaleDB hypertable stats
+timescaledb_hypertable_stats:
+  query: |
+    SELECT
+      hypertable_name,
+      num_chunks,
+      total_bytes / (1024*1024*1024) as size_gb,
+      compression_status
+    FROM timescaledb_information.hypertables h
+    LEFT JOIN timescaledb_information.chunks c ON h.hypertable_name = c.hypertable_name
+    GROUP BY h.hypertable_name, h.num_chunks, h.total_bytes, h.compression_status
+  metrics:
+    - hypertable_name:
+        usage: "LABEL"
+        description: "Hypertable name"
+    - num_chunks:
+        usage: "GAUGE"
+        description: "Number of chunks"
+    - size_gb:
+        usage: "GAUGE"
+        description: "Total size in GB"
+    - compression_status:
+        usage: "LABEL"
+        description: "Compression status"
+
+# Active connections by application
+pg_connections_by_application:
+  query: |
+    SELECT
+      application_name,
+      COUNT(*) as connection_count,
+      COUNT(*) FILTER (WHERE state = 'active') as active_connections,
+      COUNT(*) FILTER (WHERE state = 'idle') as idle_connections
+    FROM pg_stat_activity
+    WHERE datname = 'trading_db'
+    GROUP BY application_name
+  metrics:
+    - application_name:
+        usage: "LABEL"
+        description: "Application name"
+    - connection_count:
+        usage: "GAUGE"
+        description: "Total connections"
+    - active_connections:
+        usage: "GAUGE"
+        description: "Active connections"
+    - idle_connections:
+        usage: "GAUGE"
+        description: "Idle connections"
+
+# Long running queries
+pg_long_running_queries:
+  query: |
+    SELECT
+      COUNT(*) as long_query_count,
+      MAX(EXTRACT(EPOCH FROM (NOW() - query_start))) as max_duration_seconds
+    FROM pg_stat_activity
+    WHERE state = 'active'
+    AND query_start < NOW() - INTERVAL '30 seconds'
+    AND query NOT LIKE '%pg_stat_activity%'
+  metrics:
+    - long_query_count:
+        usage: "GAUGE"
+        description: "Number of queries running > 30 seconds"
+    - max_duration_seconds:
+        usage: "GAUGE"
+        description: "Duration of longest running query in seconds"

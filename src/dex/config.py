@@ -78,24 +78,26 @@ TOKEN_ADDRESSES: dict[str, dict[str, str]] = {
 }
 
 SUBGRAPH_ENDPOINTS: dict[str, str] = {
+    # TheGraph decentralized network - 100k free queries/month per API key
+    # Get free key at: https://thegraph.com/studio/
     "v3_mainnet": (
-        "https://gateway.thegraph.com/api/{api_key}/subgraphs/id/"
+        "https://gateway-arbitrum.network.thegraph.com/api/{api_key}/subgraphs/id/"
         "5zvR82QoaXYFyDEKLZ9t6v9adgnptxYpKpSbxtgVENFV"
     ),
     "v3_polygon": (
-        "https://gateway.thegraph.com/api/{api_key}/subgraphs/id/"
+        "https://gateway-arbitrum.network.thegraph.com/api/{api_key}/subgraphs/id/"
         "3hCPRGf4z88VC5rsBKU5AA9FBBq5nF3jbKJG7VZCbhjm"
     ),
     "v3_arbitrum": (
-        "https://gateway.thegraph.com/api/{api_key}/subgraphs/id/"
+        "https://gateway-arbitrum.network.thegraph.com/api/{api_key}/subgraphs/id/"
         "FbCGRftH4a3yZugY7TnbYgPJVEv2LvMT6oF1fxPe9aJM"
     ),
     "v3_optimism": (
-        "https://gateway.thegraph.com/api/{api_key}/subgraphs/id/"
+        "https://gateway-arbitrum.network.thegraph.com/api/{api_key}/subgraphs/id/"
         "Cghf4LfVqPiFw6fp6Y5X5Ubc8UpmUhSfJL82zwiBFLaj"
     ),
     "v3_base": (
-        "https://gateway.thegraph.com/api/{api_key}/subgraphs/id/"
+        "https://gateway-arbitrum.network.thegraph.com/api/{api_key}/subgraphs/id/"
         "43Hwfi3dJSoN8Qhp5SLeKYEZbkKp2EmizGso61TvG7sK"
     ),
 }
@@ -109,6 +111,7 @@ class UniswapConfig(BaseSettings):
         env_file_encoding="utf-8",
         case_sensitive=False,
         extra="ignore",
+        populate_by_name=True,  # Allow using both field names and aliases in constructor
     )
 
     ethereum_rpc: SecretStr | None = Field(default=None, alias="ETHEREUM_RPC_URL")
@@ -117,7 +120,7 @@ class UniswapConfig(BaseSettings):
     optimism_rpc: SecretStr | None = Field(default=None, alias="OPTIMISM_RPC_URL")
     base_rpc: SecretStr | None = Field(default=None, alias="BASE_RPC_URL")
 
-    thegraph_api_key: SecretStr = Field(alias="THEGRAPH_API_KEY")
+    thegraph_api_key: SecretStr | None = Field(default=None, alias="THEGRAPH_API_KEY")
     private_key: SecretStr | None = Field(default=None, alias="WALLET_PRIVATE_KEY")
 
     factory_addresses: dict[int, str] = Field(

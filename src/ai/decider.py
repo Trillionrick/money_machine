@@ -64,6 +64,7 @@ class AIDecision:
     flash_fee_quote: float = 0.0
     slippage_quote: float = 0.0
     hop_count: int = 1
+    kelly_fraction: float = 0.0
     reason: str = "ok"
 
     def is_profitable(self, min_profit_eth: float, quote_per_eth: float) -> bool:
@@ -161,6 +162,7 @@ class AIDecider:
                 flash_fee_quote=cand.flash_fee_quote,
                 slippage_quote=cand.slippage_quote,
                 hop_count=cand.hop_count,
+                kelly_fraction=0.0,
                 reason="ok",
             )
 

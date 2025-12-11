@@ -80,10 +80,10 @@ class ForexDataCollector:
         log.info("initializing_collector")
 
         # Import OANDA modules
-from src.brokers.oanda_config import OandaConfig
-from src.brokers.oanda_adapter import OandaAdapter
-from src.brokers.oanda_streaming import OandaStreamingClient
-from src.utils.db_config import DatabaseSettings
+        from src.brokers.oanda_config import OandaConfig
+        from src.brokers.oanda_adapter import OandaAdapter
+        from src.brokers.oanda_streaming import OandaStreamingClient
+        from src.utils.db_config import DatabaseSettings
 
         # Load OANDA config
         try:
@@ -101,7 +101,11 @@ from src.utils.db_config import DatabaseSettings
         try:
             db_settings = DatabaseSettings()
             self.db_pool = await asyncpg.create_pool(
-                **db_settings.asyncpg_kwargs(),
+                host=db_settings.host,
+                port=db_settings.port,
+                user=db_settings.user,
+                password=db_settings.password,
+                database=db_settings.database,
                 min_size=2,
                 max_size=10,
             )
@@ -498,7 +502,6 @@ from src.utils.db_config import DatabaseSettings
         """Handle shutdown signals."""
         log.info("shutdown_signal_received", signal=signum)
         self.running = False
-
 
 async def main() -> None:
     """Main entry point."""

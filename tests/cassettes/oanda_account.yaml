@@ -12,10 +12,16 @@ interactions:
     uri: https://api-fxpractice.oanda.com/v3/accounts/001-001-1234567-001
   response:
     body:
-      string: '{"account":{"id":"001-001-1234567-001","balance":"100000.00","NAV":"100000.00","unrealizedPL":"0.00","marginUsed":"0.00","marginAvailable":"100000.00","positionValue":"0.00","openPositionCount":0,"currency":"USD"}}'
+      string: '{"account":{"id":"001-001-1234567-001","alias":"Primary","currency":"USD","balance":"100000.0000","createdByUserID":12345678,"createdTime":"1638316800","pl":"0.0000","resettablePL":"0.0000","resettablePLTime":"0","financing":"0.0000","commission":"0.0000","guaranteedExecutionFees":"0.0000","marginRate":"0.02","marginCallEnterTime":"0","marginCallExtensionCount":0,"lastMarginCallExtensionTime":"0","openTradeCount":0,"openPositionCount":0,"pendingOrderCount":0,"hedgingEnabled":false,"unrealizedPL":"0.0000","NAV":"100000.0000","marginUsed":"0.0000","marginAvailable":"100000.0000","positionValue":"0.0000","marginCloseoutUnrealizedPL":"0.0000","marginCloseoutNAV":"100000.0000","marginCloseoutMarginUsed":"0.0000","marginCloseoutPercent":"0.00000","marginCloseoutPositionValue":"0.0000","withdrawalLimit":"100000.0000","marginCallMarginUsed":"0.0000","marginCallPercent":"0.00000","lastTransactionID":"0","trades":[],"positions":[],"orders":[]},"lastTransactionID":"0"}'
     headers:
       content-type:
       - application/json
+      connection:
+      - keep-alive
+      content-encoding:
+      - gzip
+      server:
+      - nginx
     status:
       code: 200
       message: OK

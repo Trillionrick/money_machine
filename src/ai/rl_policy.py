@@ -11,6 +11,7 @@ Implements intelligent trading strategy using:
 from __future__ import annotations
 
 import pickle
+import random
 from collections import deque
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -97,7 +98,7 @@ class QNetwork:
         self.state_bins = state_bins
         self.actions = actions
         self.action_to_idx = {a: i for i, a in enumerate(actions)}
-        self.idx_to_action = {i: a for i, a in enumerate(actions)}
+        self.idx_to_action: dict[int, Action] = {i: a for i, a in enumerate(actions)}
 
         # Q-table: state -> action -> Q-value
         # For tabular, we use a dictionary
@@ -314,7 +315,7 @@ class RLArbitragePolicy:
         """Select action using epsilon-greedy policy."""
         if np.random.rand() < self.epsilon:
             # Explore: random action
-            return np.random.choice(self.actions)  # type: ignore
+            return random.choice(self.actions)
         else:
             # Exploit: best action from Q-network
             return self.q_network.get_best_action(state)

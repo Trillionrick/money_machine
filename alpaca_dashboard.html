@@ -1,0 +1,1055 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alpaca Trading Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: #333;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            color: #666;
+            font-size: 1.1em;
+        }
+
+        .status-bar {
+            display: flex;
+            gap: 15px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 20px;
+            background: #f5f5f5;
+            border-radius: 25px;
+            font-weight: 600;
+        }
+
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        .status-dot.connected {
+            background: #10b981;
+        }
+
+        .status-dot.disconnected {
+            background: #ef4444;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.2);
+        }
+
+        .card h2 {
+            font-size: 1.2em;
+            color: #1e3c72;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .stat-value {
+            font-size: 2.5em;
+            font-weight: bold;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .stat-label {
+            color: #999;
+            font-size: 0.9em;
+            margin-top: 5px;
+        }
+
+        .controls {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        .trading-panel {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .trading-card {
+            background: #f9fafb;
+            border: 2px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 20px;
+        }
+
+        .trading-card h3 {
+            color: #1e3c72;
+            margin-bottom: 15px;
+            font-size: 1.1em;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid #e5e7eb;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #6b7280;
+            font-weight: 600;
+            font-size: 0.9em;
+        }
+
+        button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 10px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            width: 100%;
+        }
+
+        .btn-buy {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+        }
+
+        .btn-buy:hover {
+            transform: scale(1.02);
+            box-shadow: 0 5px 15px rgba(16, 185, 129, 0.4);
+        }
+
+        .btn-sell {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            color: white;
+        }
+
+        .btn-sell:hover {
+            transform: scale(1.02);
+            box-shadow: 0 5px 15px rgba(239, 68, 68, 0.4);
+        }
+
+        .btn-cancel {
+            background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);
+            color: white;
+        }
+
+        .btn-cancel:hover {
+            transform: scale(1.02);
+            box-shadow: 0 5px 15px rgba(107, 114, 128, 0.4);
+        }
+
+        .positions-list, .orders-list {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .section-header h2 {
+            color: #1e3c72;
+            font-size: 1.5em;
+        }
+
+        .pill {
+            padding: 6px 12px;
+            border-radius: 999px;
+            font-weight: 700;
+            font-size: 0.85em;
+        }
+
+        .pill.success {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .pill.error {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .pill.warning {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .pill.info {
+            background: #e0e7ff;
+            color: #3730a3;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        th {
+            background: #f9fafb;
+            color: #6b7280;
+            font-weight: 700;
+            font-size: 0.85em;
+            text-transform: uppercase;
+        }
+
+        tr:hover {
+            background: #f9fafb;
+        }
+
+        .alert {
+            background: #fef3c7;
+            border-left: 4px solid #f59e0b;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .alert-success {
+            background: #d1fae5;
+            border-left-color: #10b981;
+        }
+
+        .alert-error {
+            background: #fee2e2;
+            border-left-color: #ef4444;
+        }
+
+        .connection-status {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: white;
+            padding: 15px 25px;
+            border-radius: 25px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 600;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(30, 60, 114, 0.3);
+            border-radius: 50%;
+            border-top-color: #1e3c72;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: #1e3c72;
+            text-decoration: none;
+            font-weight: 600;
+            padding: 10px 20px;
+            background: #f3f4f6;
+            border-radius: 10px;
+            transition: all 0.3s;
+            margin-bottom: 20px;
+        }
+
+        .back-link:hover {
+            background: #e5e7eb;
+            transform: translateX(-5px);
+        }
+
+        .mode-selector {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 15px 25px;
+            background: white;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        .mode-selector-label {
+            font-weight: 700;
+            color: #1e3c72;
+            font-size: 1.1em;
+        }
+
+        .toggle-switch {
+            position: relative;
+            width: 70px;
+            height: 34px;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: #10b981;
+            transition: .4s;
+            border-radius: 34px;
+        }
+
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 26px;
+            width: 26px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked + .toggle-slider {
+            background: #ef4444;
+        }
+
+        input:checked + .toggle-slider:before {
+            transform: translateX(36px);
+        }
+
+        .mode-label {
+            font-weight: 700;
+            font-size: 1em;
+            min-width: 100px;
+        }
+
+        .mode-label.paper {
+            color: #10b981;
+        }
+
+        .mode-label.live {
+            color: #ef4444;
+        }
+
+        .mode-warning {
+            background: #fee2e2;
+            border: 2px solid #ef4444;
+            color: #991b1b;
+            padding: 15px;
+            border-radius: 10px;
+            font-weight: 700;
+            text-align: center;
+            display: none;
+        }
+
+        .mode-warning.show {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="http://localhost:8080" class="back-link">
+            ← Back to Main Dashboard
+        </a>
+
+        <!-- Mode Selector -->
+        <div class="mode-selector">
+            <span class="mode-selector-label">Trading Mode:</span>
+            <span class="mode-label paper" id="modeLabel">Paper Trading</span>
+            <label class="toggle-switch">
+                <input type="checkbox" id="modeToggle" onchange="toggleMode()">
+                <span class="toggle-slider"></span>
+            </label>
+            <span style="color: #6b7280; font-size: 0.9em;">(Toggle for Live Trading)</span>
+        </div>
+
+        <div class="mode-warning" id="modeWarning">
+            ⚠️ WARNING: LIVE TRADING MODE ACTIVATED - REAL MONEY AT RISK
+        </div>
+
+        <div class="header">
+            <h1>📈 Alpaca Trading Dashboard</h1>
+            <p>Algorithmic trading for US stocks and cryptocurrencies</p>
+
+            <div class="status-bar">
+                <div class="status-indicator">
+                    <div class="status-dot" id="statusDot"></div>
+                    <span id="statusText">Connecting...</span>
+                </div>
+                <div class="status-indicator" id="accountMode">
+                    <span id="accountModeText">Loading...</span>
+                </div>
+            </div>
+        </div>
+
+        <div id="alerts"></div>
+
+        <!-- Account Summary -->
+        <div class="grid">
+            <div class="card">
+                <h2>💰 Cash</h2>
+                <div class="stat-value" id="cash">$0.00</div>
+                <div class="stat-label">Available cash</div>
+            </div>
+
+            <div class="card">
+                <h2>💼 Equity</h2>
+                <div class="stat-value" id="equity">$0.00</div>
+                <div class="stat-label">Total account value</div>
+            </div>
+
+            <div class="card">
+                <h2>⚡ Buying Power</h2>
+                <div class="stat-value" id="buyingPower">$0.00</div>
+                <div class="stat-label">Available for trading</div>
+            </div>
+
+            <div class="card">
+                <h2>📊 PDT Status</h2>
+                <div class="stat-value" id="pdtStatus">-</div>
+                <div class="stat-label">Pattern Day Trader</div>
+            </div>
+        </div>
+
+        <!-- Trading Panel -->
+        <div class="controls">
+            <h2 style="margin-bottom: 20px;">🎯 Place Orders</h2>
+            <div class="trading-panel">
+                <!-- Market Order -->
+                <div class="trading-card">
+                    <h3>Market Order</h3>
+                    <div class="form-group">
+                        <label>Symbol</label>
+                        <input type="text" id="marketSymbol" placeholder="AAPL" value="SPY">
+                    </div>
+                    <div class="form-group">
+                        <label>Quantity</label>
+                        <input type="number" id="marketQuantity" placeholder="10" value="1" min="1">
+                    </div>
+                    <div class="form-group">
+                        <label>Side</label>
+                        <select id="marketSide">
+                            <option value="buy">Buy</option>
+                            <option value="sell">Sell</option>
+                        </select>
+                    </div>
+                    <button class="btn-buy" onclick="placeMarketOrder()">Place Market Order</button>
+                </div>
+
+                <!-- Limit Order -->
+                <div class="trading-card">
+                    <h3>Limit Order</h3>
+                    <div class="form-group">
+                        <label>Symbol</label>
+                        <input type="text" id="limitSymbol" placeholder="AAPL" value="SPY">
+                    </div>
+                    <div class="form-group">
+                        <label>Quantity</label>
+                        <input type="number" id="limitQuantity" placeholder="10" value="1" min="1">
+                    </div>
+                    <div class="form-group">
+                        <label>Limit Price</label>
+                        <input type="number" id="limitPrice" placeholder="150.00" step="0.01">
+                    </div>
+                    <div class="form-group">
+                        <label>Side</label>
+                        <select id="limitSide">
+                            <option value="buy">Buy</option>
+                            <option value="sell">Sell</option>
+                        </select>
+                    </div>
+                    <button class="btn-buy" onclick="placeLimitOrder()">Place Limit Order</button>
+                </div>
+
+                <!-- Quick Actions -->
+                <div class="trading-card">
+                    <h3>Quick Actions</h3>
+                    <div class="form-group">
+                        <label>Symbol (for cancel)</label>
+                        <input type="text" id="cancelSymbol" placeholder="Leave empty for all">
+                    </div>
+                    <button class="btn-cancel" onclick="cancelOrders()" style="margin-bottom: 10px;">
+                        Cancel Open Orders
+                    </button>
+                    <button class="btn-sell" onclick="closePosition()">
+                        Close Position
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Positions -->
+        <div class="positions-list">
+            <div class="section-header">
+                <h2>📦 Current Positions</h2>
+                <span class="pill info" id="positionsCount">0 positions</span>
+            </div>
+            <table id="positionsTable">
+                <thead>
+                    <tr>
+                        <th>Symbol</th>
+                        <th>Quantity</th>
+                        <th>Avg Price</th>
+                        <th>Current Price</th>
+                        <th>Market Value</th>
+                        <th>P&L</th>
+                        <th>P&L %</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="positionsBody">
+                    <tr>
+                        <td colspan="8" style="text-align: center; color: #9ca3af;">
+                            No positions. Place orders to start trading.
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Open Orders -->
+        <div class="orders-list">
+            <div class="section-header">
+                <h2>📋 Open Orders</h2>
+                <span class="pill info" id="ordersCount">0 orders</span>
+            </div>
+            <table id="ordersTable">
+                <thead>
+                    <tr>
+                        <th>Symbol</th>
+                        <th>Side</th>
+                        <th>Type</th>
+                        <th>Quantity</th>
+                        <th>Limit Price</th>
+                        <th>Status</th>
+                        <th>Time</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="ordersBody">
+                    <tr>
+                        <td colspan="8" style="text-align: center; color: #9ca3af;">
+                            No open orders.
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="connection-status" id="connectionStatus">
+        <div class="loading"></div>
+        <span>Connecting...</span>
+    </div>
+
+    <script>
+        let refreshInterval = null;
+
+        async function loadMode() {
+            try {
+                const response = await fetch('/api/alpaca/mode');
+                const data = await response.json();
+
+                const toggle = document.getElementById('modeToggle');
+                const label = document.getElementById('modeLabel');
+                const warning = document.getElementById('modeWarning');
+
+                toggle.checked = !data.paper; // Checked = live mode
+
+                if (data.paper) {
+                    label.textContent = 'Paper Trading';
+                    label.className = 'mode-label paper';
+                    warning.classList.remove('show');
+                } else {
+                    label.textContent = 'Live Trading';
+                    label.className = 'mode-label live';
+                    warning.classList.add('show');
+                }
+            } catch (error) {
+                console.error('Failed to load mode:', error);
+            }
+        }
+
+        async function toggleMode() {
+            const toggle = document.getElementById('modeToggle');
+            const isPaper = !toggle.checked; // Toggle is checked when in live mode
+
+            if (!isPaper) {
+                // Switching to live mode - require confirmation
+                const confirmed = confirm(
+                    '⚠️ WARNING: You are about to switch to LIVE TRADING MODE.\n\n' +
+                    'This will use REAL MONEY for all trades.\n\n' +
+                    'Are you absolutely sure you want to continue?'
+                );
+
+                if (!confirmed) {
+                    // Revert toggle
+                    toggle.checked = false;
+                    return;
+                }
+            }
+
+            try {
+                const response = await fetch('/api/alpaca/mode', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ paper: isPaper })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    showAlert(data.message, isPaper ? 'success' : 'error');
+                    await loadMode();
+                    await refreshData(); // Reload all data with new connection
+                } else {
+                    showAlert('Failed to switch mode', 'error');
+                    toggle.checked = !toggle.checked; // Revert toggle
+                }
+            } catch (error) {
+                console.error('Failed to toggle mode:', error);
+                showAlert('Failed to switch mode: ' + error.message, 'error');
+                toggle.checked = !toggle.checked; // Revert toggle
+            }
+        }
+
+        async function loadAccountData() {
+            try {
+                const response = await fetch('/api/alpaca/account');
+                const data = await response.json();
+
+                if (!response.ok || data.error || data.detail) {
+                    const errorMsg = data.error || data.detail || 'Failed to load account';
+                    showAlert(errorMsg, 'error');
+                    updateConnectionStatus(false);
+                    return;
+                }
+
+                document.getElementById('cash').textContent = `$${(data.cash || 0).toFixed(2)}`;
+                document.getElementById('equity').textContent = `$${(data.equity || 0).toFixed(2)}`;
+                document.getElementById('buyingPower').textContent = `$${(data.buying_power || 0).toFixed(2)}`;
+                document.getElementById('pdtStatus').textContent = data.pattern_day_trader ? 'Yes' : 'No';
+
+                // Update account mode indicator
+                const modeText = data.paper ? 'Paper Trading' : 'Live Trading';
+                const modeEl = document.getElementById('accountModeText');
+                const modeContainer = document.getElementById('accountMode');
+
+                modeEl.textContent = modeText;
+                modeContainer.style.background = data.paper ? '#10b981' : '#ef4444';
+                modeContainer.style.color = 'white';
+
+                updateConnectionStatus(true);
+            } catch (error) {
+                console.error('Failed to load account:', error);
+                showAlert('Failed to load account data: ' + error.message, 'error');
+                updateConnectionStatus(false);
+            }
+        }
+
+        async function loadPositions() {
+            try {
+                const response = await fetch('/api/alpaca/positions');
+                const data = await response.json();
+
+                if (!response.ok || data.error || data.detail) {
+                    const errorMsg = data.error || data.detail || 'Failed to load positions';
+                    console.error('Positions error:', errorMsg);
+                    return;
+                }
+
+                const tbody = document.getElementById('positionsBody');
+                const count = document.getElementById('positionsCount');
+
+                if (!data.positions || data.positions.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; color: #9ca3af;">No positions. Place orders to start trading.</td></tr>';
+                    count.textContent = '0 positions';
+                    return;
+                }
+
+                count.textContent = `${data.positions.length} position${data.positions.length > 1 ? 's' : ''}`;
+
+                tbody.innerHTML = data.positions.map(pos => {
+                    const pnl = pos.unrealized_pl || 0;
+                    const pnlPct = pos.unrealized_plpc || 0;
+                    const pnlClass = pnl >= 0 ? 'success' : 'error';
+
+                    return `
+                        <tr>
+                            <td><strong>${pos.symbol}</strong></td>
+                            <td>${pos.qty}</td>
+                            <td>$${parseFloat(pos.avg_entry_price).toFixed(2)}</td>
+                            <td>$${parseFloat(pos.current_price).toFixed(2)}</td>
+                            <td>$${parseFloat(pos.market_value).toFixed(2)}</td>
+                            <td class="pill ${pnlClass}">$${pnl.toFixed(2)}</td>
+                            <td class="pill ${pnlClass}">${(pnlPct * 100).toFixed(2)}%</td>
+                            <td>
+                                <button class="btn-sell" onclick="closePositionBySymbol('${pos.symbol}')"
+                                        style="padding: 6px 12px; font-size: 0.8em;">
+                                    Close
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+            } catch (error) {
+                console.error('Failed to load positions:', error);
+                showAlert('Failed to load positions: ' + error.message, 'error');
+            }
+        }
+
+        async function loadOrders() {
+            try {
+                const response = await fetch('/api/alpaca/orders');
+                const data = await response.json();
+
+                if (!response.ok || data.error || data.detail) {
+                    const errorMsg = data.error || data.detail || 'Failed to load orders';
+                    console.error('Orders error:', errorMsg);
+                    return;
+                }
+
+                const tbody = document.getElementById('ordersBody');
+                const count = document.getElementById('ordersCount');
+
+                if (!data.orders || data.orders.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; color: #9ca3af;">No open orders.</td></tr>';
+                    count.textContent = '0 orders';
+                    return;
+                }
+
+                count.textContent = `${data.orders.length} order${data.orders.length > 1 ? 's' : ''}`;
+
+                tbody.innerHTML = data.orders.map(order => {
+                    const side = order.side.toLowerCase();
+                    const sideClass = side === 'buy' ? 'success' : 'error';
+                    const limitPrice = order.limit_price ? `$${parseFloat(order.limit_price).toFixed(2)}` : '-';
+                    const time = new Date(order.created_at).toLocaleTimeString();
+
+                    return `
+                        <tr>
+                            <td><strong>${order.symbol}</strong></td>
+                            <td class="pill ${sideClass}">${side.toUpperCase()}</td>
+                            <td>${order.type}</td>
+                            <td>${order.qty}</td>
+                            <td>${limitPrice}</td>
+                            <td><span class="pill warning">${order.status}</span></td>
+                            <td>${time}</td>
+                            <td>
+                                <button class="btn-cancel" onclick="cancelOrder('${order.id}')"
+                                        style="padding: 6px 12px; font-size: 0.8em;">
+                                    Cancel
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+            } catch (error) {
+                console.error('Failed to load orders:', error);
+                showAlert('Failed to load orders: ' + error.message, 'error');
+            }
+        }
+
+        async function placeMarketOrder() {
+            const symbol = document.getElementById('marketSymbol').value.toUpperCase();
+            const quantity = parseInt(document.getElementById('marketQuantity').value);
+            const side = document.getElementById('marketSide').value;
+
+            if (!symbol || quantity < 1) {
+                showAlert('Please enter valid symbol and quantity', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/alpaca/order/market', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ symbol, quantity, side })
+                });
+
+                const data = await response.json();
+
+                if (data.error) {
+                    showAlert(data.error, 'error');
+                } else {
+                    showAlert(`Market ${side} order placed for ${quantity} ${symbol}`, 'success');
+                    await loadOrders();
+                    await loadAccountData();
+                }
+            } catch (error) {
+                showAlert('Failed to place order: ' + error.message, 'error');
+            }
+        }
+
+        async function placeLimitOrder() {
+            const symbol = document.getElementById('limitSymbol').value.toUpperCase();
+            const quantity = parseInt(document.getElementById('limitQuantity').value);
+            const limitPrice = parseFloat(document.getElementById('limitPrice').value);
+            const side = document.getElementById('limitSide').value;
+
+            if (!symbol || quantity < 1 || !limitPrice) {
+                showAlert('Please enter valid symbol, quantity, and limit price', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/alpaca/order/limit', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ symbol, quantity, side, limit_price: limitPrice })
+                });
+
+                const data = await response.json();
+
+                if (data.error) {
+                    showAlert(data.error, 'error');
+                } else {
+                    showAlert(`Limit ${side} order placed for ${quantity} ${symbol} @ $${limitPrice}`, 'success');
+                    await loadOrders();
+                    await loadAccountData();
+                }
+            } catch (error) {
+                showAlert('Failed to place order: ' + error.message, 'error');
+            }
+        }
+
+        async function cancelOrder(orderId) {
+            if (!confirm('Are you sure you want to cancel this order?')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/alpaca/order/${orderId}`, {
+                    method: 'DELETE'
+                });
+
+                const data = await response.json();
+
+                if (data.error) {
+                    showAlert(data.error, 'error');
+                } else {
+                    showAlert('Order cancelled successfully', 'success');
+                    await loadOrders();
+                }
+            } catch (error) {
+                showAlert('Failed to cancel order: ' + error.message, 'error');
+            }
+        }
+
+        async function cancelOrders() {
+            const symbol = document.getElementById('cancelSymbol').value.toUpperCase() || null;
+            const message = symbol
+                ? `Are you sure you want to cancel all orders for ${symbol}?`
+                : 'Are you sure you want to cancel ALL open orders?';
+
+            if (!confirm(message)) {
+                return;
+            }
+
+            try {
+                const url = symbol
+                    ? `/api/alpaca/orders/cancel?symbol=${symbol}`
+                    : '/api/alpaca/orders/cancel';
+
+                const response = await fetch(url, { method: 'POST' });
+                const data = await response.json();
+
+                if (data.error) {
+                    showAlert(data.error, 'error');
+                } else {
+                    showAlert(`Cancelled ${data.cancelled || 0} order(s)`, 'success');
+                    await loadOrders();
+                }
+            } catch (error) {
+                showAlert('Failed to cancel orders: ' + error.message, 'error');
+            }
+        }
+
+        async function closePosition() {
+            const symbol = document.getElementById('cancelSymbol').value.toUpperCase();
+
+            if (!symbol) {
+                showAlert('Please enter a symbol to close position', 'error');
+                return;
+            }
+
+            await closePositionBySymbol(symbol);
+        }
+
+        async function closePositionBySymbol(symbol) {
+            if (!confirm(`Are you sure you want to close position for ${symbol}?`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/alpaca/position/${symbol}`, {
+                    method: 'DELETE'
+                });
+
+                const data = await response.json();
+
+                if (data.error) {
+                    showAlert(data.error, 'error');
+                } else {
+                    showAlert(`Closed position for ${symbol}`, 'success');
+                    await loadPositions();
+                    await loadAccountData();
+                }
+            } catch (error) {
+                showAlert('Failed to close position: ' + error.message, 'error');
+            }
+        }
+
+        function updateConnectionStatus(connected) {
+            const status = document.getElementById('connectionStatus');
+            const dot = document.getElementById('statusDot');
+            const text = document.getElementById('statusText');
+
+            if (connected) {
+                status.innerHTML = '<div class="status-dot connected"></div><span>Connected</span>';
+                dot.className = 'status-dot connected';
+                text.textContent = 'Connected';
+            } else {
+                status.innerHTML = '<div class="loading"></div><span>Reconnecting...</span>';
+                dot.className = 'status-dot disconnected';
+                text.textContent = 'Disconnected';
+            }
+        }
+
+        function showAlert(message, type = 'info') {
+            const alertsDiv = document.getElementById('alerts');
+            const alertClass = type === 'error' ? 'alert-error' :
+                             type === 'success' ? 'alert-success' : '';
+
+            const alert = document.createElement('div');
+            alert.className = `alert ${alertClass}`;
+
+            const icon = type === 'error' ? '❌' :
+                        type === 'success' ? '✅' :
+                        'ℹ️';
+
+            alert.innerHTML = `<strong>${icon} ${message}</strong>`;
+
+            alertsDiv.appendChild(alert);
+            setTimeout(() => alert.remove(), 5000);
+        }
+
+        async function refreshData() {
+            await Promise.all([
+                loadMode(),
+                loadAccountData(),
+                loadPositions(),
+                loadOrders()
+            ]);
+        }
+
+        // Initialize
+        refreshData();
+
+        // Auto-refresh every 5 seconds
+        refreshInterval = setInterval(refreshData, 5000);
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', () => {
+            if (refreshInterval) {
+                clearInterval(refreshInterval);
+            }
+        });
+    </script>
+</body>
+</html>

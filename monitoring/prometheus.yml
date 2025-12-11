@@ -1,0 +1,57 @@
+# Prometheus configuration for AI Trading System monitoring
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: 'trading-production'
+    environment: 'live'
+
+# Alerting configuration
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+            - alertmanager:9093
+
+# Load rules once and periodically evaluate them
+rule_files:
+  # - "alerts/*.yml"
+
+# Scrape configurations
+scrape_configs:
+  # Monitor the trading application
+  - job_name: 'trading_app'
+    static_configs:
+      - targets: ['trading_app:9090']
+        labels:
+          service: 'trading-bot'
+    metrics_path: '/metrics'
+    scrape_interval: 10s
+
+  # Monitor Prometheus itself
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # Monitor Redis
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis:6379']
+
+  # Monitor TimescaleDB via postgres_exporter
+  - job_name: 'timescaledb'
+    static_configs:
+      - targets: ['postgres_exporter:9187']
+        labels:
+          service: 'timescaledb'
+          database: 'trading_db'
+    scrape_interval: 30s
+    metrics_path: '/metrics'
+
+  # Custom metrics endpoints
+  - job_name: 'ai_metrics'
+    static_configs:
+      - targets: ['trading_app:8080']
+    metrics_path: '/api/ai/metrics/prometheus'
+    scrape_interval: 30s

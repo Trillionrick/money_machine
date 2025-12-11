@@ -108,9 +108,15 @@ class HealthCheck:
         try:
             from src.dex.uniswap_connector import UniswapConnector
             from src.dex.config import UniswapConfig, Chain
+            from pydantic import SecretStr
 
-            # Initialize config
-            config = UniswapConfig()
+            # Initialize config (requires The Graph API key)
+            graph_key = os.getenv("THEGRAPH_API_KEY")
+            if not graph_key:
+                self.add_result("DEX", "Uniswap", "FAIL", error="Missing THEGRAPH_API_KEY")
+                return
+
+            config = UniswapConfig(THEGRAPH_API_KEY=SecretStr(graph_key))
 
             # Test Ethereum Uniswap
             try:

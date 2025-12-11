@@ -7,8 +7,8 @@ Provides a real-time web UI to monitor and control the arbitrage system.
 import asyncio
 import os
 from datetime import datetime, timezone
-from typing import Dict, List, Optional
 from pathlib import Path
+from typing import Any
 
 import structlog
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
@@ -36,28 +36,45 @@ except Exception as e:
     log.warning("ai_endpoints.mount_failed", error=str(e))
 
 # Import and mount AI on-chain endpoints
+def _noop_set_ai_runner(_: object | None = None) -> None:
+    """Fallback setter if AI on-chain runner is not available."""
+    return None
+
+
+set_ai_runner = _noop_set_ai_runner
+
 try:
-    from src.api.ai_onchain_endpoints import router as ai_onchain_router, set_ai_runner
+    from src.api.ai_onchain_endpoints import router as ai_onchain_router, set_ai_runner as _set_ai_runner
+
+    set_ai_runner = _set_ai_runner
     app.include_router(ai_onchain_router)
     log.info("ai_onchain_endpoints.mounted")
 except Exception as e:
     log.warning("ai_onchain_endpoints.mount_failed", error=str(e))
 
+# Import and mount production endpoints (circuit breakers, models, volatility)
+try:
+    from src.api.production_endpoints import router as production_router
+    app.include_router(production_router)
+    log.info("production_endpoints.mounted")
+except Exception as e:
+    log.warning("production_endpoints.mount_failed", error=str(e))
+
 # Global state
-scanner_task: Optional[asyncio.Task] = None
-stats_task: Optional[asyncio.Task] = None
+scanner_task: asyncio.Task | None = None
+stats_task: asyncio.Task | None = None
 aqua_tasks: list[asyncio.Task] = []
-scanner_system: Optional[ArbitrageSystem] = None
-runner_ref: Optional[FlashArbitrageRunner] = None
-ai_onchain_system: Optional[AIIntegratedArbitrageSystem] = None
-ai_onchain_task: Optional[asyncio.Task] = None
+scanner_system: ArbitrageSystem | None = None
+runner_ref: FlashArbitrageRunner | None = None
+ai_onchain_system: AIIntegratedArbitrageSystem | None = None
+ai_onchain_task: asyncio.Task | None = None
 scanner_running = False
-scanner_started_at: Optional[datetime] = None
-opportunities: List[Dict] = []
-trades: List[Dict] = []
-aqua_events: List[Dict] = []
+scanner_started_at: datetime | None = None
+opportunities: list[dict] = []
+trades: list[dict] = []
+aqua_events: list[dict] = []
 portfolio_tracker = None
-portfolio_task: Optional[asyncio.Task] = None
+portfolio_task: asyncio.Task | None = None
 system_stats = {
     "uptime_seconds": 0,
     "opportunities_found": 0,
@@ -83,6 +100,7 @@ aiconfig = AIConfig(
 )
 ai_decider = AIDecider(config=aiconfig)
 ai_state: dict = {"last_decision": None, "last_trace": []}
+circuit_breaker_state: dict[str, object] = {}
 
 aqua_enable = os.getenv("AQUA_ENABLE", "false").lower() == "true"
 aqua_chains = [c.strip().lower() for c in os.getenv("AQUA_CHAINS", "ethereum,polygon").split(",") if c.strip()]
@@ -90,11 +108,16 @@ rpc_map = {
     "ethereum": os.getenv("ETH_RPC_URL") or os.getenv("ETHEREUM_RPC_URL") or "",
     "polygon": os.getenv("POLYGON_RPC_URL") or os.getenv("POLYGON_RPC") or "",
 }
-_web3_client: Optional[Web3] = None
+
+# Blockchain activity monitor state
+blockchain_monitors: list[asyncio.Task] = []
+blockchain_events: list[dict] = []
+blockchain_monitor_enabled = os.getenv("BLOCKCHAIN_MONITOR_ENABLE", "true").lower() == "true"
+_web3_client: Web3 | None = None
 ENV_PATH = Path(".env")
 
 # WebSocket connections
-active_connections: List[WebSocket] = []
+active_connections: list[WebSocket] = []
 
 
 async def broadcast_update(data: dict):
@@ -106,7 +129,7 @@ async def broadcast_update(data: dict):
             pass
 
 
-def get_web3() -> Optional[Web3]:
+def get_web3() -> Web3 | None:
     """Lazy-init Web3 client using configured RPC URL."""
     global _web3_client
 
@@ -120,6 +143,25 @@ def get_web3() -> Optional[Web3]:
         return None
 
     return _web3_client
+
+
+def refresh_circuit_breaker_state() -> dict[str, object]:
+    """Fetch latest circuit breaker snapshot for dashboards."""
+    global circuit_breaker_state
+    try:
+        from src.ai.circuit_breakers import get_circuit_breaker_manager
+
+        manager = get_circuit_breaker_manager()
+        snapshot = manager.get_status_snapshot()
+        trading_allowed, blocked_reason = manager.is_trading_allowed()
+        circuit_breaker_state = {
+            "trading_allowed": trading_allowed,
+            "blocked_reason": blocked_reason,
+            "snapshot": snapshot,
+        }
+    except Exception as e:
+        log.warning("dashboard.circuit_breaker_state_failed", error=str(e))
+    return circuit_breaker_state
 
 
 async def init_ai_onchain_runner() -> None:
@@ -141,7 +183,18 @@ async def init_ai_onchain_runner() -> None:
 
 @app.on_event("startup")
 async def _startup() -> None:
+    # Start AI on-chain runner for flash loan optimization
     await init_ai_onchain_runner()
+
+    # Auto-start Aqua watchers if enabled (independent of scanner)
+    if aqua_enable:
+        await start_aqua_watchers()
+        log.info("aqua_watchers.auto_started", chains=aqua_chains)
+
+    # Auto-start blockchain activity monitors
+    if blockchain_monitor_enabled:
+        await start_blockchain_monitors()
+        log.info("blockchain_monitors.auto_started")
 
 
 @app.on_event("shutdown")
@@ -188,7 +241,7 @@ async def refresh_network_stats() -> None:
     await refresh_wallet_balances()
 
 
-def _record_event(collection: List[Dict], item: Dict, limit: int = 50) -> None:
+def _record_event(collection: list[dict], item: dict, limit: int = 50) -> None:
     """Append and trim history for opportunities/trades."""
     collection.append(item)
     if len(collection) > limit:
@@ -237,7 +290,8 @@ async def aqua_watcher(chain: str, chain_id: int, rpc_url: str) -> None:
         latest = w3.eth.block_number
     except Exception:
         latest = 0
-    from_block = max(latest - 100, 0)
+    # Start from current block to avoid RPC query limits (most free RPCs restrict historical ranges)
+    from_block = latest
     while True:
         try:
             to_block = w3.eth.block_number
@@ -249,15 +303,79 @@ async def aqua_watcher(chain: str, chain_id: int, rpc_url: str) -> None:
                 }
             )
             for log in logs:
-                evt = client.parse_event(log)
+                evt = client.parse_event(dict(log))
                 if evt:
                     data = evt.__dict__
                     _record_event(aqua_events, data, limit=100)
                     await broadcast_update({"type": "aqua_event", "data": data})
             from_block = to_block + 1
-        except Exception:
+        except Exception as e:
+            structlog.get_logger().warning("aqua.watcher_error", chain=chain, error=str(e), error_type=type(e).__name__)
             await asyncio.sleep(5)
         await asyncio.sleep(5)
+
+
+async def start_blockchain_monitors() -> None:
+    """Start live blockchain activity monitors."""
+    global blockchain_monitors
+    if not blockchain_monitor_enabled:
+        return
+
+    await stop_blockchain_monitors()
+
+    try:
+        from src.nft.live_blockchain_monitor import create_monitor
+
+        # Collect watched wallets
+        watched_wallets = [
+            w["address"] for w in wallets.values() if w["address"]
+        ]
+
+        async def handle_blockchain_event(event: Any) -> None:
+            """Handle blockchain events and broadcast to clients."""
+            event_dict = event.to_dict()
+            _record_event(blockchain_events, event_dict, limit=50)
+            await broadcast_update({"type": "blockchain_event", "data": event_dict})
+
+        tasks: list[asyncio.Task] = []
+
+        # Start Ethereum monitor
+        if rpc_map.get("ethereum"):
+            eth_monitor = await create_monitor(
+                chain="ethereum",
+                rpc_url=rpc_map["ethereum"],
+                wallets=watched_wallets,
+                on_event=handle_blockchain_event,
+            )
+            tasks.append(asyncio.create_task(eth_monitor.run()))
+
+        # Start Polygon monitor
+        if rpc_map.get("polygon"):
+            poly_monitor = await create_monitor(
+                chain="polygon",
+                rpc_url=rpc_map["polygon"],
+                wallets=watched_wallets,
+                on_event=handle_blockchain_event,
+            )
+            tasks.append(asyncio.create_task(poly_monitor.run()))
+
+        blockchain_monitors = tasks
+        log.info("blockchain_monitors.started", count=len(tasks))
+
+    except Exception as e:
+        log.error("blockchain_monitors.start_failed", error=str(e))
+
+
+async def stop_blockchain_monitors() -> None:
+    """Stop all blockchain monitors."""
+    global blockchain_monitors
+    for task in blockchain_monitors:
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
+    blockchain_monitors = []
 
 
 async def apply_runtime_config(payload: dict) -> None:
@@ -396,7 +514,14 @@ async def stats_loop():
 
 @app.get("/", response_class=HTMLResponse)
 async def get_dashboard():
-    """Serve the main dashboard HTML."""
+    """Serve the production dashboard HTML."""
+    with open("production_dashboard.html", "r") as f:
+        return f.read()
+
+
+@app.get("/classic", response_class=HTMLResponse)
+async def get_classic_dashboard():
+    """Serve the classic dashboard HTML."""
     with open("web_dashboard.html", "r") as f:
         return f.read()
 
@@ -434,40 +559,23 @@ async def get_aqua_events():
     return {"events": aqua_events[-50:]}
 
 
-@app.post("/api/start")
-async def start_scanner(config: dict = None):
-    """Start the arbitrage scanner."""
-    global scanner_task, stats_task, scanner_system, scanner_running, scanner_started_at, runner_ref, runtime_environment
+@app.get("/api/blockchain/events")
+async def get_blockchain_events():
+    """Return recent blockchain activity events."""
+    return {
+        "events": blockchain_events[-30:],
+        "enabled": blockchain_monitor_enabled,
+        "count": len(blockchain_events),
+    }
 
-    if scanner_running:
-        return {"error": "Scanner already running"}
+
+async def _initialize_and_start_scanner(config: dict, dry_run: bool, enable_flash: bool, auto_execute: bool):
+    """Background task to initialize and start the scanner."""
+    global scanner_task, stats_task, scanner_system, scanner_running, scanner_started_at, runner_ref
 
     try:
-        environment = (config or {}).get("environment", runtime_environment)
-        if environment not in ("sandbox", "live"):
-            environment = "sandbox"
-
-        # Flip sandbox/live env vars so connectors hit the right endpoints
-        if environment == "live":
-            os.environ["ALPACA_PAPER"] = "false"
-            os.environ["BINANCE_TESTNET"] = "false"
-            os.environ["BYBIT_TESTNET"] = "false"
-            os.environ["TRADING_MODE"] = "live"
-            os.environ["DRY_RUN"] = "false"
-        else:
-            os.environ["ALPACA_PAPER"] = "true"
-            os.environ["BINANCE_TESTNET"] = "true"
-            os.environ["BYBIT_TESTNET"] = "true"
-            os.environ["TRADING_MODE"] = "paper"
-            os.environ["DRY_RUN"] = "true"
-        runtime_environment = environment
-        system_stats["environment"] = runtime_environment
-
-        # Create system with configuration
-        dry_run = config.get("dry_run", True) if config else True
-        enable_flash = config.get("enable_flash", True) if config else True
-        auto_execute = config.get("auto_execute", False) if config else False
-
+        # Create system with configuration (this can take several seconds)
+        log.info("scanner.initializing", dry_run=dry_run, enable_flash=enable_flash)
         scanner_system = ArbitrageSystem(
             dry_run=dry_run,
             enable_flash_loans=enable_flash,
@@ -488,8 +596,10 @@ async def start_scanner(config: dict = None):
             _record_event(trades, event)
             await broadcast_update({"type": "trade", "data": event})
 
+        system_ref = scanner_system
+
         async def price_fetcher(symbol: str):
-            return await scanner_system.price_fetcher.get_price(symbol)
+            return await system_ref.price_fetcher.get_price(symbol)
 
         runner = FlashArbitrageRunner(
             router=scanner_system.router,
@@ -509,35 +619,90 @@ async def start_scanner(config: dict = None):
         await apply_runtime_config(config or {})
         await start_aqua_watchers()
 
-        # Start scanner in background
+        # Mark as started
         scanner_running = True
         scanner_started_at = datetime.now(timezone.utc)
         system_stats["status"] = "running"
         system_stats["start_time"] = scanner_started_at.isoformat()
 
+        # Start scanner and stats loops
         scanner_task = asyncio.create_task(runner.run(scanner_system.symbols))
         stats_task = asyncio.create_task(stats_loop())
 
+        log.info("scanner.started", dry_run=dry_run, enable_flash=enable_flash,
+                 connectors=getattr(scanner_system, "active_connectors", []))
+
+        # Broadcast success via WebSocket
         await broadcast_update({
             "type": "status",
             "running": True,
-            "message": "Scanner started",
+            "message": "Scanner started successfully",
             "wallets": wallets,
             "connectors": getattr(scanner_system, "active_connectors", []),
             "environment": runtime_environment,
         })
 
+    except Exception as e:
+        log.error("scanner.init_failed", error=str(e))
+        scanner_running = False
+        system_stats["status"] = "error"
+        await broadcast_update({
+            "type": "status",
+            "running": False,
+            "message": f"Failed to start: {str(e)}",
+            "environment": runtime_environment,
+        })
+
+
+@app.post("/api/start")
+async def start_scanner(config: dict[str, Any] | None = None):
+    """Start the arbitrage scanner."""
+    global scanner_running, runtime_environment
+
+    if scanner_running:
+        return {"error": "Scanner already running"}
+
+    try:
+        environment = (config or {}).get("environment", runtime_environment)
+        if environment not in ("sandbox", "live"):
+            environment = "sandbox"
+
+        # Flip sandbox/live env vars so connectors hit the right endpoints
+        if environment == "live":
+            os.environ["ALPACA_PAPER"] = "false"
+            os.environ["BYBIT_TESTNET"] = "false"
+            os.environ["TRADING_MODE"] = "live"
+            os.environ["DRY_RUN"] = "false"
+        else:
+            os.environ["ALPACA_PAPER"] = "true"
+            os.environ["BYBIT_TESTNET"] = "true"
+            os.environ["TRADING_MODE"] = "paper"
+            os.environ["DRY_RUN"] = "true"
+        runtime_environment = environment
+        system_stats["environment"] = runtime_environment
+
+        # Extract config
+        dry_run = config.get("dry_run", True) if config else True
+        enable_flash = config.get("enable_flash", True) if config else True
+        auto_execute = config.get("auto_execute", False) if config else False
+
+        # Start initialization in background to avoid blocking the HTTP response
+        asyncio.create_task(
+            _initialize_and_start_scanner(config or {}, dry_run, enable_flash, auto_execute)
+        )
+
+        # Return immediately while initialization happens in background
         return {
             "success": True,
-            "message": "Scanner started",
+            "message": "Scanner is starting...",
             "dry_run": dry_run,
             "enable_flash": enable_flash,
             "auto_execute": auto_execute,
             "environment": runtime_environment,
-            "connectors": getattr(scanner_system, "active_connectors", []),
         }
 
     except Exception as e:
+        log.exception("scanner.start_failed")
         return {"error": str(e)}
 
 
@@ -704,11 +869,306 @@ async def ai_score(payload: dict):
 async def get_price(symbol: str):
     """Get current price for a symbol."""
     try:
-        fetcher = CEXPriceFetcher(binance_enabled=True, kraken_enabled=True)
+        fetcher = CEXPriceFetcher(binance_enabled=False, kraken_enabled=True)
         price = await fetcher.get_price(symbol)
         return {"symbol": symbol, "price": price}
     except Exception as e:
         return {"error": str(e)}
+
+
+# ========== AI/ML Visualization Endpoints ==========
+
+@app.get("/api/ai/decisions/recent")
+async def get_recent_ai_decisions(limit: int = 20):
+    """Get recent AI decisions with full trace data.
+
+    Args:
+        limit: Maximum number of decisions to return (1-100)
+
+    Returns:
+        Recent AI decisions with scores and reasoning
+    """
+    if limit < 1 or limit > 100:
+        return {"error": "Limit must be 1-100"}
+
+    # Return recent AI decisions from state
+    decisions = []
+    if ai_state.get("last_decision"):
+        decisions.append({
+            "timestamp": ai_state["last_decision"].get("timestamp"),
+            "decision": ai_state["last_decision"],
+            "trace": ai_state.get("last_trace", []),
+        })
+
+    return {
+        "decisions": decisions[-limit:],
+        "count": len(decisions),
+    }
+
+
+@app.get("/api/ml/performance")
+async def get_ml_performance():
+    """Get ML model performance metrics.
+
+    Returns:
+        Performance stats for all ML models
+    """
+    try:
+        from pathlib import Path
+
+        models_dir = Path("models")
+
+        # Check which models exist
+        models_status = {
+            "predictive_transformer": {
+                "exists": (models_dir / "predictive_transformer.pt").exists(),
+                "path": str(models_dir / "predictive_transformer.pt"),
+            },
+            "slippage_xgb": {
+                "exists": (models_dir / "slippage_xgb.json").exists(),
+                "path": str(models_dir / "slippage_xgb.json"),
+            },
+            "route_success": {
+                "exists": (models_dir / "route_success_model.pkl").exists(),
+                "path": str(models_dir / "route_success_model.pkl"),
+            },
+        }
+
+        # Check RL agents
+        rl_dir = models_dir / "multi_agent_rl"
+        if rl_dir.exists():
+            rl_agents = list(rl_dir.glob("agent_*.zip"))
+            models_status["rl_agents"] = {
+                "exists": len(rl_agents) > 0,
+                "count": len(rl_agents),
+                "agents": [a.stem for a in rl_agents],
+            }
+
+        return {
+            "models": models_status,
+            "last_updated": datetime.now(timezone.utc).isoformat(),
+        }
+
+    except Exception as e:
+        log.exception("ml_performance.failed", error=str(e))
+        return {"error": str(e)}
+
+
+@app.get("/api/execution/matrix")
+async def get_execution_matrix():
+    """Get execution path performance matrix.
+
+    Returns:
+        Success rates and P&L by execution path
+    """
+    try:
+        # Aggregate stats by execution path
+        paths = {
+            "flash_loan": {
+                "attempts": flash_executions if 'flash_executions' in globals() else 0,
+                "failures": flash_failures if 'flash_failures' in globals() else 0,
+                "success_rate": 0.0,
+                "total_profit_eth": 0.0,
+            },
+            "cex_arbitrage": {
+                "attempts": system_stats.get("trades_executed", 0),
+                "success_rate": 0.0,
+                "total_profit_eth": system_stats.get("total_profit_eth", 0.0),
+            },
+            "cross_chain": {
+                "attempts": 0,
+                "success_rate": 0.0,
+                "total_profit_eth": 0.0,
+            },
+        }
+
+        # Calculate success rates
+        for path, stats in paths.items():
+            if stats["attempts"] > 0:
+                successes = stats["attempts"] - stats.get("failures", 0)
+                stats["success_rate"] = successes / stats["attempts"]
+
+        return {
+            "paths": paths,
+            "total_attempts": sum(p["attempts"] for p in paths.values()),
+            "total_profit_eth": sum(p.get("total_profit_eth", 0) for p in paths.values()),
+        }
+
+    except Exception as e:
+        log.exception("execution_matrix.failed", error=str(e))
+        return {"error": str(e)}
+
+
+@app.get("/api/ml/predictions/recent")
+async def get_recent_predictions(limit: int = 10):
+    """Get recent ML model predictions.
+
+    Args:
+        limit: Maximum number of predictions to return
+
+    Returns:
+        Recent predictions from all ML models
+    """
+    # This would query the prediction log database
+    # For now, return empty
+    return {
+        "predictions": [],
+        "count": 0,
+        "message": "Prediction logging not yet implemented",
+    }
+
+
+@app.get("/api/rl/agents/status")
+async def get_rl_agents_status():
+    """Get multi-agent RL system status.
+
+    Returns:
+        Status of all RL agents
+    """
+    try:
+        from pathlib import Path
+
+        models_dir = Path("models/multi_agent_rl")
+
+        if not models_dir.exists():
+            return {
+                "enabled": False,
+                "message": "Multi-agent RL not yet trained",
+            }
+
+        agents = list(models_dir.glob("agent_*.zip"))
+
+        agent_stats = []
+        for agent_path in agents:
+            agent_name = agent_path.stem.replace("agent_", "")
+            agent_stats.append({
+                "name": agent_name,
+                "model_path": str(agent_path),
+                "size_mb": agent_path.stat().st_size / 1024 / 1024,
+                "active": False,  # Would be determined by runtime state
+            })
+
+        return {
+            "enabled": len(agents) > 0,
+            "agent_count": len(agents),
+            "agents": agent_stats,
+        }
+
+    except Exception as e:
+        log.exception("rl_agents_status.failed", error=str(e))
+        return {"error": str(e)}
+
+
+@app.post("/api/ml/train")
+async def trigger_ml_training(model_type: str = "all"):
+    """Trigger ML model training.
+
+    Args:
+        model_type: Type of model to train (all, predictive, slippage, rl)
+
+    Returns:
+        Training task status
+    """
+    try:
+        import subprocess
+
+        # Launch training script in background
+        cmd = ["python", "scripts/train_ml_models.py"]
+
+        if model_type != "all":
+            cmd.append(f"--{model_type}")
+
+        process = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            cwd=Path(__file__).parent,
+        )
+
+        return {
+            "status": "training_started",
+            "model_type": model_type,
+            "pid": process.pid,
+            "message": "Training running in background. Check logs for progress.",
+        }
+
+    except Exception as e:
+        log.exception("ml_training.failed", error=str(e))
+        return {"error": str(e)}
+
+
+# ========== NFT API Endpoints (OpenSea v2) ==========
+
+@app.get("/api/nft/wallet/{wallet_address}")
+async def get_wallet_nfts(wallet_address: str, chain: str = "ethereum"):
+    """
+    Get all NFTs owned by a wallet address.
+
+    Args:
+        wallet_address: Ethereum wallet address
+        chain: Blockchain (ethereum, polygon, base, arbitrum, etc.)
+    """
+    try:
+        from src.nft.opensea_client import get_wallet_nfts
+
+        api_key = os.getenv("OPENSEA_API_KEY")
+        nfts = await get_wallet_nfts(wallet_address, chain, api_key)
+
+        return {
+            "success": True,
+            "wallet": wallet_address,
+            "chain": chain,
+            "count": len(nfts),
+            "nfts": [
+                {
+                    "identifier": nft.identifier,
+                    "collection": nft.collection,
+                    "name": nft.name,
+                    "image_url": nft.image_url,
+                    "opensea_url": nft.opensea_url,
+                    "contract": nft.contract,
+                    "token_standard": nft.token_standard,
+                }
+                for nft in nfts
+            ],
+        }
+    except Exception as e:
+        log.exception("nft.wallet_fetch_failed", wallet=wallet_address, error=str(e))
+        return {"success": False, "error": str(e)}
+
+
+@app.get("/api/nft/collection/{collection_slug}")
+async def get_collection_info(collection_slug: str):
+    """
+    Get collection details by OpenSea slug.
+
+    Args:
+        collection_slug: OpenSea collection identifier (e.g., 'boredapeyachtclub')
+    """
+    try:
+        from src.nft.opensea_client import OpenSeaClient
+
+        api_key = os.getenv("OPENSEA_API_KEY")
+        client = OpenSeaClient(api_key=api_key)
+        collection = await client.get_collection(collection_slug)
+
+        if not collection:
+            return {"success": False, "error": "Collection not found"}
+
+        return {
+            "success": True,
+            "collection": {
+                "name": collection.name,
+                "slug": collection.slug,
+                "image_url": collection.image_url,
+                "floor_price_eth": collection.floor_price_eth,
+                "total_supply": collection.total_supply,
+                "owner_count": collection.owner_count,
+            },
+        }
+    except Exception as e:
+        log.exception("nft.collection_fetch_failed", slug=collection_slug, error=str(e))
+        return {"success": False, "error": str(e)}
 
 
 # ========== Portfolio API Endpoints (1inch v5.0) ==========
@@ -770,7 +1230,7 @@ async def portfolio_snapshots():
 
 @app.get("/api/portfolio/metrics")
 async def portfolio_metrics(
-    address: Optional[str] = None,
+    address: str | None = None,
     time_range: str = "1month",
 ):
     """Get portfolio metrics (PnL, ROI) for specified wallet and time range."""
@@ -920,6 +1380,181 @@ async def stop_portfolio_tracker():
         return {"error": str(e)}
 
 
+# ============================================================================
+# PRODUCTION SAFETY INTEGRATION ENDPOINTS
+# ============================================================================
+
+
+@app.get("/api/production/overview")
+async def get_production_overview() -> dict[str, Any]:
+    """Get comprehensive production safety overview.
+
+    Returns:
+        Combined status from safety guard, circuit breakers, and recent trades
+    """
+    try:
+        from src.ai.production_safety import get_production_safety_guard
+        from src.ai.circuit_breakers import get_circuit_breaker_manager
+        from src.ai.transaction_logger import get_transaction_logger
+
+        safety = get_production_safety_guard()
+        breakers = get_circuit_breaker_manager()
+        tx_logger = get_transaction_logger()
+
+        safety_status = safety.get_status()
+        breaker_status = breakers.get_status()
+        trade_stats = tx_logger.get_session_stats()
+
+        # Determine overall system health
+        is_healthy = (
+            not safety_status["emergency_shutdown"]
+            and breaker_status["trading_allowed"]
+            and safety_status["limits"]["hourly_loss"]["remaining_eth"] > 0
+        )
+
+        return {
+            "healthy": is_healthy,
+            "safety": {
+                "emergency_shutdown": safety_status["emergency_shutdown"],
+                "trades_today": safety_status["usage"]["trades_today"],
+                "hourly_loss_eth": safety_status["limits"]["hourly_loss"]["used_eth"],
+                "daily_loss_eth": safety_status["limits"]["daily_loss"]["used_eth"],
+            },
+            "circuit_breakers": {
+                "trading_allowed": breaker_status["trading_allowed"],
+                "any_tripped": breaker_status["any_tripped"],
+                "tripped_breakers": [
+                    name
+                    for name, breaker in breaker_status["breakers"].items()
+                    if breaker["state"] != "closed"
+                ],
+            },
+            "trades": {
+                "total": trade_stats.get("total_trades", 0),
+                "approved": trade_stats.get("approved_trades", 0),
+                "executed": trade_stats.get("executed_trades", 0),
+                "win_rate": trade_stats.get("win_rate", 0.0),
+            },
+        }
+    except Exception as e:
+        log.warning("production.overview_failed", error=str(e))
+        return {"error": str(e), "healthy": False}
+
+
+@app.get("/api/production/safety/quick-status")
+async def get_safety_quick_status() -> dict[str, Any]:
+    """Get quick production safety status for dashboard widgets.
+
+    Returns:
+        Simplified safety status with key metrics
+    """
+    try:
+        from src.ai.production_safety import get_production_safety_guard
+
+        safety = get_production_safety_guard()
+        status = safety.get_status()
+
+        return {
+            "emergency_shutdown": status["emergency_shutdown"],
+            "trades_today": status["usage"]["trades_today"],
+            "max_trades_today": status["limits"]["daily_trades"]["limit"],
+            "daily_loss_eth": status["limits"]["daily_loss"]["used_eth"],
+            "max_daily_loss_eth": status["limits"]["daily_loss"]["limit_eth"],
+            "total_drawdown_eth": status["limits"]["total_drawdown"]["used_eth"],
+            "max_drawdown_eth": status["limits"]["total_drawdown"]["limit_eth"],
+        }
+    except Exception as e:
+        log.warning("production.safety_quick_status_failed", error=str(e))
+        return {"error": str(e)}
+
+
+@app.get("/api/production/circuit-breakers/status")
+async def get_circuit_breakers_quick_status() -> dict[str, Any]:
+    """Get quick circuit breaker status.
+
+    Returns:
+        Simplified circuit breaker status
+    """
+    try:
+        from src.ai.circuit_breakers import get_circuit_breaker_manager
+
+        breakers = get_circuit_breaker_manager()
+        status = breakers.get_status()
+
+        return {
+            "trading_allowed": status["trading_allowed"],
+            "any_tripped": status["any_tripped"],
+            "breakers": {
+                name: {
+                    "state": breaker["state"],
+                    "current_value": breaker.get("current_value"),
+                    "threshold": breaker.get("threshold"),
+                }
+                for name, breaker in status["breakers"].items()
+            },
+        }
+    except Exception as e:
+        log.warning("production.circuit_breakers_status_failed", error=str(e))
+        return {"error": str(e)}
+
+
+@app.get("/api/production/trades/recent")
+async def get_recent_trades(limit: int = 10) -> dict[str, Any]:
+    """Get recent trade executions.
+
+    Args:
+        limit: Maximum number of trades to return (1-100)
+
+    Returns:
+        Recent trades with execution results
+    """
+    if limit < 1 or limit > 100:
+        return {"error": "Limit must be 1-100"}
+
+    try:
+        from src.ai.transaction_logger import get_transaction_logger
+
+        tx_logger = get_transaction_logger()
+        stats = tx_logger.get_session_stats()
+
+        # Get recent trades from history
+        recent = stats.get("recent_trades", [])[-limit:]
+
+        return {
+            "trades": recent,
+            "count": len(recent),
+        }
+    except Exception as e:
+        log.warning("production.recent_trades_failed", error=str(e))
+        return {"error": str(e)}
+
+
+@app.get("/api/production/stats")
+async def get_production_stats() -> dict[str, Any]:
+    """Get comprehensive production statistics.
+
+    Returns:
+        Win rate, P&L, execution metrics, safety metrics
+    """
+    try:
+        from src.ai.production_safety import get_production_safety_guard
+        from src.ai.transaction_logger import get_transaction_logger
+
+        safety = get_production_safety_guard()
+        tx_logger = get_transaction_logger()
+
+        safety_stats = safety.get_status()
+        trade_stats = tx_logger.get_session_stats()
+
+        return {
+            "safety": safety_stats,
+            "trades": trade_stats,
+        }
+    except Exception as e:
+        log.warning("production.stats_failed", error=str(e))
+        return {"error": str(e)}
+
+
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     """WebSocket endpoint for real-time updates."""
@@ -927,6 +1562,9 @@ async def websocket_endpoint(websocket: WebSocket):
     active_connections.append(websocket)
 
     try:
+        # Refresh circuit breaker state for initial payload
+        refresh_circuit_breaker_state()
+
         # Send initial state
         await websocket.send_json({
             "type": "init",
@@ -936,6 +1574,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 "wallets": wallets,
                 "environment": runtime_environment,
                 "ai_state": ai_state,
+                "circuit_breakers": circuit_breaker_state,
             }
         })
 

@@ -1,5 +1,154 @@
 services:
-  # TimescaleDB for trading data (OANDA, market data, positions, etc.)
+  # Main trading application with ML models and production safety
+  trading_app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: money_machine_app
+    ports:
+      - "8080:8080"
+      - "9090:9090"  # Metrics port
+    environment:
+      # Python configuration
+      - PYTHONPATH=/app
+
+      # API Keys
+      - ALCHEMY_API_KEY=${ALCHEMY_API_KEY}
+      - KRAKEN_API_KEY=${KRAKEN_API_KEY}
+      - KRAKEN_API_SECRET=${KRAKEN_API_SECRET}
+      - ALPACA_API_KEY=${ALPACA_API_KEY}
+      - ALPACA_API_SECRET=${ALPACA_API_SECRET}
+      - WALLET_PRIVATE_KEY=${WALLET_PRIVATE_KEY}
+      - PRIVATE_KEY=${PRIVATE_KEY}
+
+      # OpenSea NFT Integration
+      - OPENSEA_API_KEY=${OPENSEA_API_KEY}
+      - OPENSEA_MCP_TOKEN=${OPENSEA_MCP_TOKEN}
+      - NFT_WALLET_ADDRESSES=${NFT_WALLET_ADDRESSES:-0x31fcd43a349ada21f3c5df51d66f399be518a912}
+      - NFT_CHAINS=${NFT_CHAINS:-ethereum,polygon}
+
+      # Database & Cache
+      - DATABASE_URL=postgresql://trading_user:trading_pass_change_in_production@timescaledb:5432/trading_db
+      - REDIS_URL=redis://redis:6379/0
+
+      # RPC Endpoints (with failover)
+      - ETHEREUM_RPC_URL=${ETHEREUM_RPC_URL}
+      - ETHEREUM_RPC_FALLBACK_1=${ETHEREUM_RPC_FALLBACK_1}
+      - ETHEREUM_RPC_FALLBACK_2=${ETHEREUM_RPC_FALLBACK_2}
+      - POLYGON_RPC_URL=${POLYGON_RPC_URL}
+      - POLYGON_RPC_FALLBACK_1=${POLYGON_RPC_FALLBACK_1}
+      - POLYGON_RPC_FALLBACK_2=${POLYGON_RPC_FALLBACK_2}
+      - ARBITRUM_RPC_URL=${ARBITRUM_RPC_URL}
+      - OPTIMISM_RPC_URL=${OPTIMISM_RPC_URL}
+      - BASE_RPC_URL=${BASE_RPC_URL}
+
+      # Rate Limiting
+      - RPC_REQUESTS_PER_SECOND=${RPC_REQUESTS_PER_SECOND:-10}
+      - RPC_BURST_SIZE=${RPC_BURST_SIZE:-20}
+      - API_RATE_LIMIT_DELAY_MS=${API_RATE_LIMIT_DELAY_MS:-100}
+
+      # Trading Configuration
+      - TRADING_MODE=${TRADING_MODE:-live}
+      - AI_MODE=${AI_MODE:-balanced}
+      - ENABLE_AI_SYSTEM=true
+      - ENABLE_ML_PREDICTIONS=true
+
+      # Production Safety Limits
+      - MAX_POSITION_SIZE_ETH=2.0
+      - MAX_LOSS_PER_TRADE_ETH=0.1
+      - MAX_HOURLY_LOSS_ETH=0.3
+      - MAX_DAILY_LOSS_ETH=1.0
+      - MAX_TOTAL_DRAWDOWN_ETH=5.0
+      - MIN_PROFIT_AFTER_GAS_ETH=0.01
+      - MAX_GAS_PRICE_GWEI=300
+      - MAX_TRADES_PER_HOUR=10
+      - MAX_TRADES_PER_DAY=50
+
+      # Circuit Breakers
+      - ENABLE_CIRCUIT_BREAKERS=true
+      - HALT_ON_DAILY_LOSS=true
+      - HALT_ON_DRAWDOWN=true
+
+      # Flash Loan Configuration
+      - ENABLE_FLASH_LOANS=${ENABLE_FLASH_LOANS:-true}
+      - MIN_FLASH_PROFIT_ETH=${MIN_FLASH_PROFIT_ETH:-0.05}
+      - MAX_FLASH_BORROW_ETH=${MAX_FLASH_BORROW_ETH:-10.0}
+      - ARB_CONTRACT_ADDRESS=${ARB_CONTRACT_ADDRESS}
+
+      # Alerts & Notifications
+      - DISCORD_WEBHOOK_URL=${DISCORD_WEBHOOK_URL}
+      - ENABLE_DISCORD_ALERTS=true
+
+      # Logging
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - LOG_FORMAT=${LOG_FORMAT:-json}
+      - ENABLE_METRICS=true
+      - ENABLE_TRACING=false
+
+    volumes:
+      # Application code and data
+      - ./src:/app/src
+      - ./models:/app/models
+      - ./data:/app/data
+      - ./logs:/app/logs
+      - ./.env:/app/.env
+
+      # Production scripts
+      - ./scripts:/app/scripts
+
+    depends_on:
+      timescaledb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+    # Resource limits for production stability
+    deploy:
+      resources:
+        limits:
+          cpus: '4.0'
+          memory: 8G
+        reservations:
+          cpus: '2.0'
+          memory: 4G
+
+    # Health check for monitoring
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/api/ai/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+    restart: unless-stopped
+    command: ["python", "run_ai_integrated_arbitrage.py"]
+
+  # MLflow for ML model tracking and versioning
+  mlflow:
+    build:
+      context: .
+      dockerfile: Dockerfile.mlflow
+    image: trading_mlflow:latest
+    container_name: trading_mlflow
+    ports:
+      - "5000:5000"
+    environment:
+      - BACKEND_STORE_URI=postgresql://trading_user:trading_pass_change_in_production@timescaledb:5432/trading_db
+      - DEFAULT_ARTIFACT_ROOT=/mlflow/artifacts
+    volumes:
+      - mlflow_artifacts:/mlflow/artifacts
+    depends_on:
+      timescaledb:
+        condition: service_healthy
+    command: >
+      mlflow server
+      --backend-store-uri postgresql://trading_user:trading_pass_change_in_production@timescaledb:5432/trading_db
+      --default-artifact-root /mlflow/artifacts
+      --host 0.0.0.0
+      --port 5000
+    restart: unless-stopped
+
+  # TimescaleDB for trading data with production optimizations
   timescaledb:
     image: timescale/timescaledb:latest-pg16
     container_name: trading_timescaledb
@@ -12,22 +161,41 @@ services:
     volumes:
       - timescaledb_data:/var/lib/postgresql/data
       - ./scripts/init_oanda_schema.sql:/docker-entrypoint-initdb.d/01_init_oanda_schema.sql
+      - ./scripts/init_arbitrage_schema.sql:/docker-entrypoint-initdb.d/02_init_arbitrage_schema.sql
+      - ./scripts/init_production_tables.sql:/docker-entrypoint-initdb.d/03_init_production_tables.sql
+      - ./scripts/init_db_observability.sql:/docker-entrypoint-initdb.d/04_init_db_observability.sql
     command:
       - "postgres"
       - "-c"
-      - "shared_preload_libraries=timescaledb"
+      - "shared_preload_libraries=timescaledb,pg_stat_statements"
       - "-c"
       - "max_connections=200"
       - "-c"
       - "work_mem=16MB"
+      - "-c"
+      - "shared_buffers=256MB"  # Production optimization
+      - "-c"
+      - "effective_cache_size=1GB"  # Production optimization
+      - "-c"
+      - "track_activity_query_size=4096"  # For Database Observability
+      - "-c"
+      - "pg_stat_statements.track=all"  # Track all statements
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U trading_user -d trading_db"]
       interval: 10s
       timeout: 5s
       retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 4G
+        reservations:
+          cpus: '1.0'
+          memory: 2G
     restart: unless-stopped
 
-  # Redis for caching and pub/sub (optional, for future use)
+  # Redis for caching and pub/sub with production settings
   redis:
     image: redis:7-alpine
     container_name: trading_redis
@@ -35,30 +203,168 @@ services:
       - "6379:6379"
     volumes:
       - redis_data:/data
-    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
+    command: redis-server --appendonly yes --maxmemory 1gb --maxmemory-policy allkeys-lru
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 3s
       retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 1G
     restart: unless-stopped
 
-  # Grafana for monitoring (optional)
+  # Grafana for monitoring with production dashboards
   grafana:
     image: grafana/grafana:latest
     container_name: trading_grafana
     ports:
       - "3000:3000"
     environment:
-      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
       GF_INSTALL_PLUGINS: grafana-clock-panel,grafana-simple-json-datasource
+      GF_SERVER_ROOT_URL: http://localhost:3000
+      GF_ANALYTICS_REPORTING_ENABLED: false
+      GF_ANALYTICS_CHECK_FOR_UPDATES: false
+      DISCORD_WEBHOOK_URL: ${DISCORD_WEBHOOK_URL}
+      GRAFANA_WEBHOOK_URL: ${GRAFANA_WEBHOOK_URL}
+      ALERT_EMAIL_ADDRESSES: ${ALERT_EMAIL_ADDRESSES}
     volumes:
       - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning
+      - ./grafana/dashboards:/var/lib/grafana/dashboards
     depends_on:
       - timescaledb
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+    restart: unless-stopped
+
+  # Prometheus for metrics collection (production monitoring)
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: trading_prometheus
+    ports:
+      - "9091:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=30d'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+    depends_on:
+      - trading_app
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 2G
+    restart: unless-stopped
+
+  # Alert Manager for production alerts (optional but recommended)
+  alertmanager:
+    image: prom/alertmanager:latest
+    container_name: trading_alertmanager
+    ports:
+      - "9093:9093"
+    volumes:
+      - ./monitoring/alertmanager.yml:/etc/alertmanager/alertmanager.yml
+      - alertmanager_data:/alertmanager
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--storage.path=/alertmanager'
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+    restart: unless-stopped
+
+  # Postgres Exporter for TimescaleDB Database Observability
+  postgres_exporter:
+    image: quay.io/prometheuscommunity/postgres-exporter:latest
+    container_name: trading_postgres_exporter
+    ports:
+      - "9187:9187"
+    environment:
+      DATA_SOURCE_NAME: "postgresql://trading_user:trading_pass_change_in_production@timescaledb:5432/trading_db?sslmode=disable"
+      PG_EXPORTER_EXTEND_QUERY_PATH: "/etc/postgres_exporter/queries.yaml"
+      PG_EXPORTER_CONSTANT_LABELS: "environment=production,service=trading_db"
+    volumes:
+      - ./monitoring/postgres_exporter_queries.yaml:/etc/postgres_exporter/queries.yaml
+    depends_on:
+      timescaledb:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+    restart: unless-stopped
+
+  # Loki for log aggregation
+  loki:
+    image: grafana/loki:latest
+    container_name: trading_loki
+    ports:
+      - "3100:3100"
+    volumes:
+      - ./monitoring/loki-config.yaml:/etc/loki/local-config.yaml
+      - loki_data:/loki
+    command: -config.file=/etc/loki/local-config.yaml
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+    restart: unless-stopped
+
+  # Promtail for log shipping to Loki
+  promtail:
+    image: grafana/promtail:latest
+    container_name: trading_promtail
+    volumes:
+      - ./monitoring/promtail-config.yaml:/etc/promtail/config.yaml
+      - ./logs:/var/log/trading
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: -config.file=/etc/promtail/config.yaml
+    depends_on:
+      - loki
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
     restart: unless-stopped
 
 volumes:
   timescaledb_data:
+    driver: local
   redis_data:
+    driver: local
   grafana_data:
+    driver: local
+  mlflow_artifacts:
+    driver: local
+  prometheus_data:
+    driver: local
+  alertmanager_data:
+    driver: local
+  loki_data:
+    driver: local
+
+networks:
+  default:
+    name: trading_network
+    driver: bridge

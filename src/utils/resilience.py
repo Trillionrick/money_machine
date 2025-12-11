@@ -84,6 +84,9 @@ def with_exponential_backoff(
                     await asyncio.sleep(current_delay)
                     delay *= exponential_base
 
+            # Should never reach here because loop either returns or raises
+            raise RuntimeError(f"with_exponential_backoff exhausted without returning: {func.__name__}")
+
         return wrapper
 
     return decorator

@@ -29,8 +29,8 @@ def check_env() -> dict[str, bool]:
     return checks
 
 
-def print_report() -> None:
-    """Print configuration report."""
+def print_report() -> bool:
+    """Print configuration report and return success status."""
     checks = check_env()
 
     print("\n" + "=" * 70)
@@ -89,16 +89,15 @@ def print_report() -> None:
         print("\n❌ System cannot start - missing required variables")
         print("   Please set the variables above and try again.")
         return False
-    elif recommended_count < len(recommended):
+
+    if recommended_count < len(recommended):
         print("\n⚠️  System can start but some features will be limited")
         print("   Consider setting the recommended variables for full functionality.")
         return True
-    else:
-        print("\n✅ All recommended variables are set!")
-        print("   System is ready to run.")
-        return True
 
-    print("\n" + "=" * 70 + "\n")
+    print("\n✅ All recommended variables are set!")
+    print("   System is ready to run.")
+    return True
 
 
 def generate_template() -> None:

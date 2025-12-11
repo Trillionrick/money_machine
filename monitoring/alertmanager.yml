@@ -1,0 +1,47 @@
+# AlertManager configuration for production trading alerts
+
+global:
+  resolve_timeout: 5m
+
+# Route configuration
+route:
+  receiver: 'discord-alerts'
+  group_by: ['alertname', 'cluster', 'service']
+  group_wait: 10s
+  group_interval: 10s
+  repeat_interval: 12h
+  routes:
+    # Critical alerts - immediate notification
+    - match:
+        severity: critical
+      receiver: 'discord-critical'
+      repeat_interval: 5m
+
+    # Warning alerts - less frequent
+    - match:
+        severity: warning
+      receiver: 'discord-alerts'
+      repeat_interval: 1h
+
+# Receivers configuration
+receivers:
+  # Default Discord webhook for general alerts
+  - name: 'discord-alerts'
+    webhook_configs:
+      - url: 'http://trading_app:8080/api/alerts/webhook'
+        send_resolved: true
+
+  # Critical alerts receiver
+  - name: 'discord-critical'
+    webhook_configs:
+      - url: 'http://trading_app:8080/api/alerts/webhook/critical'
+        send_resolved: true
+
+# Inhibition rules - prevent alert spam
+inhibit_rules:
+  # Inhibit warning if critical is firing
+  - source_match:
+      severity: 'critical'
+    target_match:
+      severity: 'warning'
+    equal: ['alertname', 'cluster', 'service']

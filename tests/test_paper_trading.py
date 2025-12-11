@@ -2,7 +2,7 @@
 
 import asyncio
 
-import pytest
+import pytest  # type: ignore[import-not-found]
 
 from src.core.execution import Order, OrderType, Side
 from src.live.paper_trading import PaperTradingEngine
@@ -85,6 +85,5 @@ async def test_cancel_all_orders_and_stream_fills() -> None:
 
     # Submit one order and stream fills iterator
     await engine.submit_orders([order])
-    fill_task = asyncio.create_task(engine.stream_fills().__anext__())
-    fill = await asyncio.wait_for(fill_task, timeout=1.0)
+    fill = await asyncio.wait_for(engine.stream_fills().__anext__(), timeout=1.0)
     assert fill.symbol == "DOGE"

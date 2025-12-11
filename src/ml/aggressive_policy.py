@@ -9,7 +9,15 @@ This is the "brain" that implements your philosophy:
 
 import polars as pl
 
-from src.core import Order, OrderSeq, OrderType, Policy, PortfolioState, MarketSnapshot, Side
+from src.core import (
+    Order,
+    OrderSeq,
+    OrderType,
+    Policy,
+    PortfolioState,
+    MarketSnapshot,
+    Side,
+)
 from src.core.target_optimizer import TargetObjective, TargetOptimizer
 from src.core.types import ContextMap
 from src.ml.feature_engine import ConvexityScanner

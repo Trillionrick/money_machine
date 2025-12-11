@@ -13,9 +13,14 @@ import pickle
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import numpy as np
 import structlog
+
+if TYPE_CHECKING:
+    from sklearn.ensemble import GradientBoostingClassifier
+    from sklearn.preprocessing import StandardScaler
 
 from src.ai.decider import AICandidate, AIConfig, AIDecision
 
@@ -91,8 +96,8 @@ class RouteSuccessPredictor:
     def __init__(self, model_path: Path | None = None):
         """Initialize predictor with optional pre-trained model."""
         self.model_path = model_path or Path("models/route_success_model.pkl")
-        self.model: object | None = None  # sklearn GradientBoostingClassifier
-        self.feature_scaler: object | None = None  # sklearn StandardScaler
+        self.model: GradientBoostingClassifier | None = None
+        self.feature_scaler: StandardScaler | None = None
         self.is_trained = False
 
         if self.model_path.exists():
@@ -225,13 +230,100 @@ class RouteSuccessPredictor:
             log.warning("route_predictor.insufficient_data", samples=len(history))
             return
 
-        # This is a placeholder - full implementation would use sklearn
         log.info("route_predictor.training_started", samples=len(history))
-        # TODO: Implement actual sklearn GradientBoostingClassifier training
-        # X = [extract_features(h) for h in history]
-        # y = [h.success for h in history]
-        # self.model.fit(X, y)
+
+        try:
+            from sklearn.ensemble import GradientBoostingClassifier
+            from sklearn.preprocessing import StandardScaler
+        except ImportError:
+            log.error("route_predictor.sklearn_not_installed")
+            self.is_trained = False
+            return
+
+        # Extract features and labels from history
+        X_list = []
+        y_list = []
+
+        for h in history:
+            # Reconstruct features from execution history
+            features = self._history_to_features(h)
+            X_list.append(features)
+            y_list.append(1 if h.success else 0)
+
+        X = np.array(X_list, dtype=np.float32)
+        y = np.array(y_list, dtype=np.int32)
+
+        # Initialize and train model
+        self.model = GradientBoostingClassifier(
+            n_estimators=100,
+            learning_rate=0.1,
+            max_depth=4,
+            min_samples_split=5,
+            min_samples_leaf=3,
+            subsample=0.8,
+            random_state=42,
+            verbose=0,
+        )
+
+        # Initialize scaler
+        self.feature_scaler = StandardScaler()
+        X_scaled = self.feature_scaler.fit_transform(X)
+
+        # Train model
+        self.model.fit(X_scaled, y)
         self.is_trained = True
+
+        # Save model
+        self.save_model()
+
+        log.info(
+            "route_predictor.training_completed",
+            samples=len(history),
+            accuracy=self.model.score(X_scaled, y),
+        )
+
+    def _history_to_features(self, history: ExecutionHistory) -> np.ndarray:
+        """Convert ExecutionHistory to feature vector for training.
+
+        Reconstructs features matching extract_features() method format.
+        """
+        # Basic profitability metrics
+        gross_profit = max(0.01, history.predicted_profit + history.gas_cost)
+        notional = gross_profit / max(0.01, history.edge_bps / 10_000)
+        gas_ratio = history.gas_cost / max(0.01, gross_profit)
+
+        # Time features
+        hour = history.timestamp.hour
+        hour_sin = np.sin(2 * np.pi * hour / 24)
+        hour_cos = np.cos(2 * np.pi * hour / 24)
+
+        # Route history (defaults - would be tracked separately in production)
+        route_success = 0.65
+
+        # Slippage
+        slippage_ratio = history.slippage_bps / 10_000 if history.slippage_bps > 0 else 0.005
+
+        # Defaults for market regime (unavailable from history alone)
+        volatility = 0.5
+        gas_percentile = 0.5
+        liquidity = 0.7
+
+        features = [
+            history.edge_bps / 100.0,
+            np.log1p(notional),
+            gas_ratio,
+            1.0,  # hop_count default
+            route_success,
+            volatility,
+            gas_percentile,
+            liquidity,
+            hour_sin,
+            hour_cos,
+            slippage_ratio * 100,
+            0.70,  # confidence prior
+        ]
+
+        return np.array(features, dtype=np.float32)
 
 
 class AdvancedAIDecider:
@@ -375,6 +467,10 @@ class AdvancedAIDecider:
             # Track best opportunity
             if score > best_score:
                 best_score = score
+                # Derive Kelly fraction from position sizing
+                kelly_fraction = (
+                    optimal_size_eth / portfolio_value_eth if portfolio_value_eth > 0 else 0.0
+                )
                 best_decision = AIDecision(
                     symbol=cand.symbol,
                     edge_bps=cand.edge_bps,
@@ -388,6 +484,7 @@ class AdvancedAIDecider:
                     flash_fee_quote=cand.flash_fee_quote,
                     slippage_quote=cand.slippage_quote,
                     hop_count=cand.hop_count,
+                    kelly_fraction=float(kelly_fraction),
                     reason=f"score={score:.3f}",
                 )
 

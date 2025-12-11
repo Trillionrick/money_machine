@@ -10,7 +10,8 @@ import asyncio
 from decimal import Decimal
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import Any, Mapping
+from collections.abc import Mapping
+from typing import Any, Awaitable, Protocol
 
 import structlog
 
@@ -82,6 +83,13 @@ class RoutingPolicy:
     def targets(self, order: Order, available_venues: set[str]) -> list[RouteTarget]:
         """Return venue allocations for an order."""
         raise NotImplementedError
+
+
+class Connector(Protocol):
+    """Connector interface expected by OrderRouter."""
+
+    async def submit_orders(self, orders: list[Order]) -> Awaitable[Any] | None:
+        ...
 
 
 def _detect_asset_class(symbol: Symbol) -> AssetClass:
@@ -157,11 +165,11 @@ class OrderRouter:
 
     def __init__(
         self,
-        connectors: Mapping[str, Any],
+        connectors: Mapping[str, Connector] | None = None,
         *,
         policy: RoutingPolicy | None = None,
     ) -> None:
-        self.connectors = connectors
+        self.connectors = dict(connectors or {})
         self.policy = policy or DefaultRoutingPolicy()
 
     def route_orders(self, orders: OrderSeq) -> dict[str, list[Order]]:

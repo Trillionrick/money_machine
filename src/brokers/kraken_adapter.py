@@ -284,17 +284,23 @@ class KrakenAdapter:
         }
 
         # Add price for limit orders
-        if order.order_type == OrderType.LIMIT and order.limit_price:
-            params["price"] = str(order.limit_price)
+        price = getattr(order, "price", None)
+        if order.order_type == OrderType.LIMIT and price is not None:
+            params["price"] = str(price)
 
         # Add leverage if specified
-        if order.leverage and order.leverage > 1.0:
-            params["leverage"] = str(int(order.leverage))
+        leverage = getattr(order, "leverage", None)
+        if leverage and leverage > 1.0:
+            params["leverage"] = str(int(leverage))
 
         # Submit order
         result = await self._request("AddOrder", params=params, private=True)
 
-        txid = result["txid"][0] if result.get("txid") else None
+        txids = result.get("txid") or []
+        if not txids:
+            msg = "Kraken did not return a txid for submitted order"
+            raise RuntimeError(msg)
+        txid = str(txids[0])
         log.info(
             "kraken.order.submitted",
             symbol=order.symbol,
@@ -357,6 +363,7 @@ class KrakenAdapter:
 
                         # Convert to Fill object
                         fill = Fill(
+                            order_id=str(trade.get("ordertxid") or trade_id),
                             symbol=self._convert_kraken_to_symbol(trade["pair"]),
                             quantity=float(trade["vol"]),
                             price=float(trade["price"]),

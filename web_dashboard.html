@@ -457,6 +457,15 @@
                     <span id="walletBalance">-- ETH</span>
                 </div>
             </div>
+
+            <div style="margin-top: 20px; display: flex; gap: 10px; flex-wrap: wrap;">
+                <a href="/" style="display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; text-decoration: none; font-weight: 600; border-radius: 10px; transition: all 0.3s;">
+                    🚀 Production Dashboard
+                </a>
+                <a href="http://localhost:8081" target="_blank" style="display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px; background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); color: white; text-decoration: none; font-weight: 600; border-radius: 10px; transition: all 0.3s;">
+                    📈 Alpaca Trading
+                </a>
+            </div>
         </div>
 
         <div id="alerts"></div>
@@ -742,155 +751,6 @@
     </div>
 </div>
 
-<div class="settings-card" style="border: 2px solid #f59e0b;">
-    <h3 style="margin:0 0 12px 0;font-size:14px;color:#f59e0b;display:flex;align-items:center;justify-content:space-between;">
-        <span><span class="emoji">⚡🤖</span> AI/ML On-Chain (Flash Loans)</span>
-        <span class="pill" id="aiOnChainStatus" style="background:#fef3c7;color:#92400e;font-size:0.75em;">OFF</span>
-    </h3>
-
-    <!-- Quick Preset Buttons -->
-    <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;">
-        <button onclick="applyAIPreset('conservative')" style="flex:1;padding:6px 10px;font-size:0.8em;background:#10b981;color:white;border:none;border-radius:6px;cursor:pointer;">
-            🛡️ Conservative
-        </button>
-        <button onclick="applyAIPreset('balanced')" style="flex:1;padding:6px 10px;font-size:0.8em;background:#3b82f6;color:white;border:none;border-radius:6px;cursor:pointer;">
-            ⚖️ Balanced
-        </button>
-        <button onclick="applyAIPreset('aggressive')" style="flex:1;padding:6px 10px;font-size:0.8em;background:#ef4444;color:white;border:none;border-radius:6px;cursor:pointer;">
-            🚀 Aggressive
-        </button>
-    </div>
-
-    <div class="config-grid" style="display:grid;grid-template-columns:1fr;gap:10px;">
-        <!-- AI Mode Selection -->
-        <div>
-            <div class="stat-label">AI Mode</div>
-            <select id="aiModeSelect" style="width:100%;padding:8px;border-radius:6px;border:1px solid #e5e7eb;">
-                <option value="conservative">Conservative (70% confidence, 2x leverage)</option>
-                <option value="balanced" selected>Balanced (65% confidence, 3x leverage)</option>
-                <option value="aggressive">Aggressive (60% confidence, 5x leverage)</option>
-            </select>
-        </div>
-
-        <!-- Capital and Target -->
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-            <div>
-                <div class="stat-label">Current Capital (ETH)</div>
-                <input type="number" id="currentCapitalEth" step="1" value="100" min="1" style="width:100%;padding:6px;border-radius:6px;border:1px solid #e5e7eb;">
-            </div>
-            <div>
-                <div class="stat-label">Target Capital (ETH)</div>
-                <input type="number" id="targetCapitalEth" step="10" value="1000" min="10" style="width:100%;padding:6px;border-radius:6px;border:1px solid #e5e7eb;">
-            </div>
-        </div>
-
-        <!-- Growth Multiplier Display -->
-        <div style="background:#f0fdf4;padding:8px;border-radius:6px;text-align:center;">
-            <div style="font-size:0.75em;color:#166534;margin-bottom:2px;">Target Growth</div>
-            <div style="font-size:1.3em;font-weight:bold;color:#15803d;" id="growthMultiplier">10.0x</div>
-        </div>
-
-        <!-- AI Confidence Threshold -->
-        <div>
-            <div class="stat-label">
-                AI Confidence Threshold
-                <span style="float:right;color:#6366f1;font-weight:bold;" id="aiConfidenceValue">0.70</span>
-            </div>
-            <input type="range" id="aiOnChainConfidence" min="0.50" max="0.90" step="0.05" value="0.70"
-                   style="width:100%;" oninput="updateAIConfidenceDisplay(this.value)">
-            <div style="display:flex;justify-content:space-between;font-size:0.7em;color:#9ca3af;margin-top:2px;">
-                <span>0.50 (Risky)</span>
-                <span>0.90 (Safe)</span>
-            </div>
-        </div>
-
-        <!-- Flash Loan Min Profit -->
-        <div>
-            <div class="stat-label">
-                Min Flash Profit (ETH)
-                <span style="float:right;color:#10b981;font-weight:bold;" id="flashProfitValue">0.15</span>
-            </div>
-            <input type="range" id="flashLoanMinProfit" min="0.05" max="0.50" step="0.05" value="0.15"
-                   style="width:100%;" oninput="updateFlashProfitDisplay(this.value)">
-            <div style="display:flex;justify-content:space-between;font-size:0.7em;color:#9ca3af;margin-top:2px;">
-                <span>0.05 (More opps)</span>
-                <span>0.50 (Safer)</span>
-            </div>
-        </div>
-
-        <!-- Position Sizing Settings -->
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-            <div>
-                <div class="stat-label">Kelly Fraction</div>
-                <input type="number" id="kellyFraction" step="0.05" value="0.25" min="0.1" max="0.5" style="width:100%;padding:6px;border-radius:6px;border:1px solid #e5e7eb;">
-            </div>
-            <div>
-                <div class="stat-label">Max Leverage</div>
-                <input type="number" id="maxLeverage" step="0.5" value="3.0" min="1.0" max="10.0" style="width:100%;padding:6px;border-radius:6px;border:1px solid #e5e7eb;">
-            </div>
-        </div>
-
-        <!-- Risk Management -->
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-            <div>
-                <div class="stat-label">Max Daily Losses ($)</div>
-                <input type="number" id="maxDailyLosses" step="50" value="500" min="100" style="width:100%;padding:6px;border-radius:6px;border:1px solid #e5e7eb;">
-            </div>
-            <div>
-                <div class="stat-label">Max Concurrent</div>
-                <input type="number" id="maxConcurrent" step="1" value="3" min="1" max="10" style="width:100%;padding:6px;border-radius:6px;border:1px solid #e5e7eb;">
-            </div>
-        </div>
-
-        <!-- Toggles -->
-        <div style="display:flex;flex-direction:column;gap:6px;">
-            <label class="toggle" style="background:#f0fdf4;cursor:pointer;">
-                <input type="checkbox" id="enableAIOrchestration" checked>
-                <span style="font-size:0.85em;">🎯 Enable AI Orchestration</span>
-            </label>
-            <label class="toggle" style="background:#fef3c7;cursor:pointer;">
-                <input type="checkbox" id="enableProfitMaximization" checked>
-                <span style="font-size:0.85em;">💰 Profit Maximization (Aggressive)</span>
-            </label>
-            <label class="toggle" style="background:#f0fdf4;cursor:pointer;">
-                <input type="checkbox" id="enableMLScoring" checked>
-                <span style="font-size:0.85em;">🧠 ML Model Scoring</span>
-            </label>
-            <label class="toggle" style="background:#fee2e2;cursor:pointer;">
-                <input type="checkbox" id="enableFlashLoans" checked>
-                <span style="font-size:0.85em;">⚡ Flash Loans Enabled</span>
-            </label>
-        </div>
-
-        <!-- Apply Button -->
-        <button onclick="applyAIOnChainConfig()" style="width:100%;padding:12px;background:linear-gradient(135deg, #f59e0b 0%, #d97706 100%);color:white;border:none;border-radius:8px;font-weight:bold;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;margin-top:4px;">
-            <span class="emoji">💾</span> Apply AI On-Chain Config
-        </button>
-    </div>
-
-    <!-- Stats Display -->
-    <div style="margin-top:12px;padding:10px;background:#f9fafb;border-radius:6px;font-size:0.8em;">
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
-            <div>
-                <div style="color:#6b7280;">AI Decisions</div>
-                <div style="font-weight:bold;color:#1f2937;" id="aiDecisionsCount">0</div>
-            </div>
-            <div>
-                <div style="color:#6b7280;">Executions</div>
-                <div style="font-weight:bold;color:#1f2937;" id="aiExecutionsCount">0</div>
-            </div>
-            <div>
-                <div style="color:#6b7280;">Win Rate</div>
-                <div style="font-weight:bold;color:#10b981;" id="aiWinRate">--%</div>
-            </div>
-            <div>
-                <div style="color:#6b7280;">Progress</div>
-                <div style="font-weight:bold;color:#f59e0b;" id="aiProgress">0.0%</div>
-            </div>
-        </div>
-    </div>
-</div>
-
         <div class="grid">
             <div class="card">
                 <h2><span class="emoji">⏱️</span> Uptime</h2>
@@ -1003,6 +863,32 @@
                 </div>
             </div>
         </div>
+
+        <div class="trades-list">
+            <div class="section-header">
+                <h2><span class="emoji">📡</span> Live Blockchain Activity</h2>
+                <span class="pill success" id="blockchainStatus">Monitoring</span>
+            </div>
+            <div id="blockchainActivityList" style="max-height: 400px; overflow-y: auto;">
+                <div class="alert">
+                    <strong>🔍 Watching the chain...</strong>
+                    <p>NFT transfers, DEX swaps, and whale movements appear here in real-time.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="trades-list">
+            <div class="section-header">
+                <h2><span class="emoji">🖼️</span> NFT Collection</h2>
+                <span class="pill" id="nftStatus">Loading...</span>
+            </div>
+            <div id="nftGallery" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 15px; margin-top: 15px;">
+                <div class="alert">
+                    <strong>ℹ️ Loading your NFT collection...</strong>
+                    <p>Connecting to OpenSea to fetch your NFTs.</p>
+                </div>
+            </div>
+        </div>
     </div>
 
     <div class="connection-status" id="connectionStatus">
@@ -1081,6 +967,9 @@
                 case 'aqua_event':
                     addAquaEvent(message.data);
                     break;
+                case 'blockchain_event':
+                    addBlockchainEvent(message.data);
+                    break;
                 case 'ai_decision':
                     updateAiDecision({ last_decision: message.data, last_trace: message.trace });
                     break;
@@ -1123,8 +1012,99 @@
                 if (aquaJson.events) {
                     aquaJson.events.forEach(addAquaEvent);
                 }
+                // Load NFT collection
+                await loadNFTCollection();
             } catch (error) {
                 console.error('Failed to load status:', error);
+            }
+        }
+
+        async function loadNFTCollection() {
+            const nftStatus = document.getElementById('nftStatus');
+            const nftGallery = document.getElementById('nftGallery');
+
+            try {
+                // Use Metamask wallet address from wallets object
+                const walletAddress = wallets.metamask?.address || '0x31fcd43a349ada21f3c5df51d66f399be518a912';
+
+                nftStatus.textContent = 'Loading...';
+                nftStatus.className = 'pill gray';
+
+                const response = await fetch(`/api/nft/wallet/${walletAddress}?chain=ethereum`);
+                const data = await response.json();
+
+                if (data.success && data.nfts && data.nfts.length > 0) {
+                    nftStatus.textContent = `${data.count} NFTs`;
+                    nftStatus.className = 'pill success';
+
+                    nftGallery.innerHTML = '';
+
+                    data.nfts.forEach(nft => {
+                        const nftCard = document.createElement('div');
+                        nftCard.style.cssText = `
+                            background: white;
+                            border-radius: 12px;
+                            overflow: hidden;
+                            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+                            transition: transform 0.2s, box-shadow 0.2s;
+                            cursor: pointer;
+                        `;
+                        nftCard.onmouseover = () => {
+                            nftCard.style.transform = 'translateY(-4px)';
+                            nftCard.style.boxShadow = '0 4px 16px rgba(0,0,0,0.15)';
+                        };
+                        nftCard.onmouseout = () => {
+                            nftCard.style.transform = 'translateY(0)';
+                            nftCard.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)';
+                        };
+                        nftCard.onclick = () => {
+                            if (nft.opensea_url) {
+                                window.open(nft.opensea_url, '_blank');
+                            }
+                        };
+
+                        const imageUrl = nft.image_url || 'https://via.placeholder.com/200?text=No+Image';
+
+                        nftCard.innerHTML = `
+                            <img src="${imageUrl}" alt="${nft.name || 'NFT'}"
+                                 style="width: 100%; height: 200px; object-fit: cover; background: #f3f4f6;"
+                                 onerror="this.src='https://via.placeholder.com/200?text=No+Image'">
+                            <div style="padding: 12px;">
+                                <div style="font-weight: 600; font-size: 14px; margin-bottom: 4px; color: #1f2937;
+                                            overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                                    ${nft.name || `#${nft.identifier}`}
+                                </div>
+                                <div style="font-size: 12px; color: #6b7280; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                                    ${nft.collection}
+                                </div>
+                                <div style="font-size: 11px; color: #9ca3af; margin-top: 4px;">
+                                    ${nft.token_standard.toUpperCase()}
+                                </div>
+                            </div>
+                        `;
+
+                        nftGallery.appendChild(nftCard);
+                    });
+                } else {
+                    nftStatus.textContent = 'No NFTs';
+                    nftStatus.className = 'pill gray';
+                    nftGallery.innerHTML = `
+                        <div class="alert" style="grid-column: 1 / -1;">
+                            <strong>ℹ️ No NFTs found</strong>
+                            <p>This wallet doesn't own any NFTs on Ethereum, or OpenSea API key is not configured.</p>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.error('Failed to load NFTs:', error);
+                nftStatus.textContent = 'Error';
+                nftStatus.className = 'pill error';
+                nftGallery.innerHTML = `
+                    <div class="alert" style="grid-column: 1 / -1;">
+                        <strong>⚠️ Failed to load NFTs</strong>
+                        <p>${error.message || 'Unknown error'}</p>
+                    </div>
+                `;
             }
         }
 
@@ -1359,6 +1339,62 @@
             }
             list.prepend(div);
             while (list.childElementCount > 20) {
+                list.removeChild(list.lastChild);
+            }
+        }
+
+        function addBlockchainEvent(evt) {
+            if (!evt) return;
+            const list = document.getElementById('blockchainActivityList');
+            const pill = document.getElementById('blockchainStatus');
+
+            // Event type emoji mapping
+            const eventEmojis = {
+                'nft_transfer': '🖼️',
+                'swap': '💱',
+                'token_transfer': '💸',
+                'new_block': '⛓️'
+            };
+
+            const emoji = eventEmojis[evt.event_type] || '📡';
+
+            // Update block number display, but don't create entries for every block
+            if (evt.event_type === 'new_block') {
+                pill.textContent = `Block ${evt.block_number.toLocaleString()}`;
+                pill.className = 'pill success';
+                return;
+            }
+
+            const div = document.createElement('div');
+            div.className = 'trade-item';
+            div.style.cssText = 'padding: 10px; margin-bottom: 8px; border-left: 3px solid #3b82f6;';
+
+            // Build compact event display
+            const txLink = evt.tx_hash
+                ? `<a href="https://${evt.chain === 'polygon' ? 'polygonscan.com' : 'etherscan.io'}/tx/${evt.tx_hash}" target="_blank" style="color:#3b82f6;text-decoration:none;">↗</a>`
+                : '';
+
+            div.innerHTML = `
+                <div style="display:flex;justify-content:space-between;align-items:center;">
+                    <strong>${emoji} ${evt.summary}</strong>
+                    ${txLink}
+                </div>
+                <div style="font-size:0.85em;color:#666;margin-top:4px;">
+                    <span>${evt.chain}</span> ·
+                    <span>Block ${evt.block_number.toLocaleString()}</span> ·
+                    <span>${new Date(evt.timestamp).toLocaleTimeString()}</span>
+                </div>
+            `;
+
+            // Remove placeholder message
+            if (list.firstChild && list.firstChild.classList && list.firstChild.classList.contains('alert')) {
+                list.removeChild(list.firstChild);
+            }
+
+            list.insertBefore(div, list.firstChild);
+
+            // Limit to 30 events
+            while (list.childElementCount > 30) {
                 list.removeChild(list.lastChild);
             }
         }

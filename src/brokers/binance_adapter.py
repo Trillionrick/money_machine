@@ -12,6 +12,7 @@ Get API keys: https://www.binance.com/en/my/settings/api-management
 import asyncio
 import time
 from collections.abc import AsyncIterator
+from typing import Any
 
 import structlog
 
@@ -117,12 +118,18 @@ class BinanceAdapter:
             symbol,
         )
 
+        if not symbol_info:
+            log.error("binance.symbol_info_missing", symbol=symbol)
+            return
+
         # Round quantity to correct precision
         quantity_precision = None
-        for f in symbol_info["filters"]:
-            if f["filterType"] == "LOT_SIZE":
-                # Find precision from stepSize
-                step = float(f["stepSize"])
+        for f in symbol_info.get("filters", []):
+            if f.get("filterType") == "LOT_SIZE":
+                step_raw = f.get("stepSize")
+                if step_raw is None:
+                    continue
+                step = float(step_raw)
                 quantity_precision = len(str(step).rstrip("0").split(".")[-1])
                 break
 
@@ -198,15 +205,31 @@ class BinanceAdapter:
             binance_symbol = symbol.replace("/", "")
             await loop.run_in_executor(
                 None,
-                lambda: self.client.cancel_open_orders(symbol=binance_symbol),
+                lambda: self._cancel_open_orders(binance_symbol),
             )
         else:
             # Cancel all symbols
             open_orders = await self.get_open_orders()
             for order in open_orders:
+                if order.id is None:
+                    log.warning("binance.order_missing_id", symbol=order.symbol)
+                    continue
                 await self.cancel_order(order.id)
 
         log.info("binance.orders_cancelled", symbol=symbol or "all")
+
+    def _cancel_open_orders(self, binance_symbol: str) -> None:
+        """Best-effort bulk cancel with SDK compatibility fallback."""
+        cancel_fn: Any = getattr(self.client, "cancel_open_orders", None)
+
+        if cancel_fn:
+            cancel_fn(symbol=binance_symbol)
+            return
+
+        # Fallback for SDK versions without bulk cancel: cancel individually.
+        open_orders = self.client.get_open_orders(symbol=binance_symbol)
+        for order in open_orders:
+            self.client.cancel_order(symbol=binance_symbol, orderId=order["orderId"])
 
     async def get_open_orders(self, symbol: Symbol | None = None) -> OrderSeq:
         """Get open orders.

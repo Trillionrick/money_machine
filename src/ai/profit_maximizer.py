@@ -256,20 +256,115 @@ class FlashLoanProfitPredictor:
 
         log.info("profit_predictor.training_started", samples=len(history))
 
-        # In production, this would use sklearn GradientBoostingClassifier or XGBoost
-        # For now, we mark as trained to enable the heuristic path
+        try:
+            from sklearn.ensemble import GradientBoostingClassifier
+            from sklearn.preprocessing import StandardScaler
+        except ImportError:
+            log.error("profit_predictor.sklearn_not_installed")
+            self.is_trained = False
+            return
+
+        # Extract features and labels from history
+        X_list = []
+        y_list = []
+
+        for h in history:
+            # Reconstruct features from execution history
+            # We need to approximate the features that would have been used at prediction time
+            features = self._history_to_features(h)
+            X_list.append(features)
+            y_list.append(1 if h.success else 0)
+
+        X = np.array(X_list, dtype=np.float32)
+        y = np.array(y_list, dtype=np.int32)
+
+        # Feature names for importance tracking
+        feature_names = [
+            "edge_bps", "notional_log", "gas_ratio", "flash_fee_ratio", "hop_count",
+            "route_win_rate", "route_profit_ratio", "route_samples",
+            "volatility", "gas_percentile", "liquidity",
+            "hour_sin", "hour_cos", "slippage_ratio", "confidence", "profit_to_risk"
+        ]
+
+        # Train GradientBoostingClassifier
+        self.model = GradientBoostingClassifier(
+            n_estimators=100,
+            learning_rate=0.1,
+            max_depth=5,
+            min_samples_split=5,
+            min_samples_leaf=2,
+            subsample=0.8,
+            random_state=42,
+            verbose=0,
+        )
+
+        self.model.fit(X, y)
         self.is_trained = True
         self.training_samples = len(history)
 
-        # TODO: Implement actual ML training
-        # from sklearn.ensemble import GradientBoostingClassifier
-        # X = [extract_features(h) for h in history]
-        # y = [h.success for h in history]
-        # self.model = GradientBoostingClassifier(...)
-        # self.model.fit(X, y)
-        # self.feature_importance = dict(zip(feature_names, self.model.feature_importances_))
+        # Store feature importance
+        self.feature_importance = dict(zip(feature_names, self.model.feature_importances_))
 
-        log.info("profit_predictor.training_completed", samples=len(history))
+        log.info(
+            "profit_predictor.training_completed",
+            samples=len(history),
+            accuracy=self.model.score(X, y),
+            top_features={k: f"{v:.3f}" for k, v in sorted(
+                self.feature_importance.items(), key=lambda x: x[1], reverse=True
+            )[:5]},
+        )
+
+    def _history_to_features(self, history: ExecutionHistory) -> list[float]:
+        """Convert ExecutionHistory to feature vector for training.
+
+        Reconstructs the approximate features that would have been used
+        at prediction time based on execution results.
+        """
+        # Basic profitability metrics
+        gross_profit = max(0.01, history.predicted_profit + history.gas_cost)
+        notional = gross_profit / max(0.01, history.edge_bps / 10_000)
+
+        gas_ratio = history.gas_cost / max(0.01, gross_profit)
+        flash_fee_ratio = 0.0005  # Aave V3 fixed fee
+
+        # Time features
+        hour = history.timestamp.hour
+        hour_sin = np.sin(2 * np.pi * hour / 24)
+        hour_cos = np.cos(2 * np.pi * hour / 24)
+
+        # Risk metrics
+        slippage_ratio = history.slippage_bps / 10_000 if history.slippage_bps > 0 else 0.005
+        profit_to_risk = gross_profit / max(0.01, history.gas_cost)
+
+        # Defaults for unavailable data (would be tracked in production)
+        route_win_rate = 0.65
+        route_profit_ratio = 1.0
+        route_samples = 0.5
+        volatility = 0.5
+        gas_percentile = 0.5
+        liquidity = 0.7
+        confidence = 0.70
+
+        features = [
+            history.edge_bps / 100.0,
+            np.log1p(notional),
+            gas_ratio,
+            flash_fee_ratio,
+            1.0,  # hop_count default
+            route_win_rate,
+            route_profit_ratio,
+            route_samples,
+            volatility,
+            gas_percentile,
+            liquidity,
+            hour_sin,
+            hour_cos,
+            slippage_ratio * 100,
+            confidence,
+            profit_to_risk,
+        ]
+
+        return features
 
     def _load_model(self) -> None:
         """Load trained model from disk."""

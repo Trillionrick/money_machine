@@ -5,10 +5,13 @@ import asyncio
 import sys
 from decimal import Decimal
 from pathlib import Path
+import os
 
 sys.path.insert(0, str(Path(__file__).parent / "src"))
 
 from dotenv import load_dotenv
+from pydantic import SecretStr  # type: ignore[import-not-found]
+
 from src.dex.uniswap_connector import UniswapConnector
 from src.dex.config import UniswapConfig, Chain
 
@@ -17,7 +20,12 @@ load_dotenv()
 
 async def test_quotes():
     """Test various token pair quotes."""
-    config = UniswapConfig()
+    # UniswapConfig requires THEGRAPH_API_KEY from environment
+    graph_key = os.getenv("THEGRAPH_API_KEY")
+    if not graph_key:
+        raise ValueError("THEGRAPH_API_KEY not set in .env")
+
+    config = UniswapConfig(THEGRAPH_API_KEY=SecretStr(graph_key))
 
     # Test Ethereum WETH/USDC
     print("Testing Ethereum WETH/USDC...")

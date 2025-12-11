@@ -1,6 +1,6 @@
 """Tests for routing policy and router."""
 
-import pytest
+import pytest  # type: ignore[import-not-found]
 
 from src.brokers.routing import OrderRouter
 from src.core.execution import Order, OrderType, Side
